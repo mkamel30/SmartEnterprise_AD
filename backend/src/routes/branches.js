@@ -27,10 +27,25 @@ router.get('/', async (req, res) => {
 // Register new branch
 router.post('/', async (req, res) => {
     try {
-        const { code, name, address, authorizedHWID } = req.body;
+        let { code, name, address, authorizedHWID } = req.body;
         
-        if (!code || !name) {
-            return res.status(400).json({ error: 'Code and Name are required' });
+        if (!name) {
+            return res.status(400).json({ error: 'Branch Name is required' });
+        }
+
+        // Auto-generate code if missing
+        if (!code) {
+            const lastBranch = await prisma.branch.findFirst({
+                orderBy: { code: 'desc' },
+                where: { code: { startsWith: 'BR' } }
+            });
+
+            if (!lastBranch) {
+                code = 'BR001';
+            } else {
+                const currentNum = parseInt(lastBranch.code.substring(2)) || 0;
+                code = `BR${String(currentNum + 1).padStart(3, '0')}`;
+            }
         }
 
         const existing = await prisma.branch.findUnique({ where: { code } });
