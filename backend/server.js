@@ -32,6 +32,11 @@ const warehouseRoutes = require('./src/routes/warehouse');
 const reportRoutes = require('./src/routes/reports');
 const syncRoutes = require('./src/routes/sync');
 const syncQueueRoutes = require('./src/routes/syncQueue');
+const permissionRoutes = require('./src/routes/permissions');
+const adminStoreRoutes = require('./src/routes/admin-store');
+const adminRoutes = require('./src/routes/admin');
+const backupRoutes = require('./src/routes/backup');
+const miscRoutes = require('./src/routes/misc');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/branches', branchRoutes);
@@ -45,6 +50,11 @@ app.use('/api/warehouse', warehouseRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/sync-queue', syncQueueRoutes);
+app.use('/api/permissions', permissionRoutes);
+app.use('/api/admin-store', adminStoreRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/backup', backupRoutes);
+app.use('/api', miscRoutes);
 
 // Basic Health Check
 app.get('/health', (req, res) => {
@@ -62,7 +72,9 @@ app.post('/api/admin/reset-database', async (req, res) => {
         const tables = [
             'SyncLog', 'SyncQueue', 'Payment', 'MachineMovementLog', 
             'MaintenanceRequest', 'POSMachine', 'SystemLog', 
-            'MachineParameter', 'SparePart', 'Customer'
+            'MachineParameter', 'SparePart', 'Customer',
+            'RolePermission', 'AuditLog', 'AdminItemType', 'AdminAsset',
+            'AdminCarton', 'AdminAssetHistory', 'AdminStock', 'SystemSetting'
         ];
 
         for (const table of tables) {

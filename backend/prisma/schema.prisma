@@ -60,6 +60,88 @@ model CentralLog {
   createdAt DateTime @default(now())
 }
 
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  userName    String?
+  entityType  String
+  entityId    String?
+  action      String
+  details     String?  // JSON stringified details
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model AdminItemType {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  category         String?
+  requiresSerial   Boolean  @default(true)
+  description      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  assets           AdminAsset[]
+  stocks           AdminStock[]
+}
+
+model AdminAsset {
+  id               String   @id @default(cuid())
+  serialNumber     String   @unique
+  itemTypeCode     String
+  itemType         AdminItemType @relation(fields: [itemTypeCode], references: [code])
+  status           String   @default("AVAILABLE") // AVAILABLE, TRANSFERRED, LOST, MAINTENANCE
+  cartonId         String?
+  carton           AdminCarton? @relation(fields: [cartonId], references: [id])
+  currentBranchId  String?  // If transferred to a branch
+  lastAction       String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  history          AdminAssetHistory[]
+}
+
+model AdminCarton {
+  id               String   @id @default(cuid())
+  cartonCode       String   @unique
+  description      String?
+  status           String   @default("AVAILABLE")
+  assets           AdminAsset[]
+  createdAt        DateTime @default(now())
+}
+
+model AdminAssetHistory {
+  id               String   @id @default(cuid())
+  assetId          String
+  asset            AdminAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  action           String
+  fromBranchId     String?
+  toBranchId       String?
+  performedBy      String?
+  details          String?
+  createdAt        DateTime @default(now())
+}
+
+model AdminStock {
+  id               String   @id @default(cuid())
+  itemTypeCode     String
+  itemType         AdminItemType @relation(fields: [itemTypeCode], references: [code])
+  branchId         String
+  quantity         Int      @default(0)
+  lastUpdated      DateTime @updatedAt
+  
+  @@unique([itemTypeCode, branchId])
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
 model SyncQueue {
   id         String   @id @default(cuid())
   branchId   String
