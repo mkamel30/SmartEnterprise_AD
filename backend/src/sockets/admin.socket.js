@@ -74,6 +74,64 @@ module.exports = (io) => {
             }
         });
 
+        // Handle branch requesting data sync (initial sync / HTTP fallback)
+        socket.on('branch_request_sync', async (data) => {
+            const { branchCode, entities } = data;
+            console.log(`[Sync] Branch ${branchCode} requesting sync for: ${entities?.join(', ') || 'all'}`);
+
+            try {
+                const result = {};
+
+                if (!entities || entities.includes('branches')) {
+                    result.branches = await prisma.branch.findMany({ where: { isActive: true } });
+                }
+
+                if (!entities || entities.includes('users')) {
+                    result.users = await prisma.user.findMany({
+                        where: { isActive: true, branchId: socket.branchId }
+                    });
+                }
+
+                if (!entities || entities.includes('machineParameters')) {
+                    result.machineParameters = await prisma.machineParameter.findMany();
+                }
+
+                if (!entities || entities.includes('spareParts')) {
+                    result.spareParts = await prisma.masterSparePart.findMany();
+                }
+
+                if (!entities || entities.includes('globalParameters')) {
+                    result.globalParameters = await prisma.globalParameter.findMany();
+                }
+
+                socket.emit('portal_sync_response', { success: true, data: result });
+                console.log(`[Sync] Sent sync response to branch ${socket.branchCode}`);
+            } catch (error) {
+                console.error('[Sync] Error serving sync request:', error.message);
+                socket.emit('portal_sync_response', { success: false, error: error.message });
+            }
+        });
+
+        // Handle user updates from branch (upward sync)
+        socket.on('branch_user_update', async (data) => {
+            const { user } = data;
+            console.log(`[Sync] Received user update from branch ${socket.branchCode}: ${user?.username}`);
+
+            try {
+                if (user) {
+                    const { branch, ...cleanUser } = user;
+                    await prisma.user.upsert({
+                        where: { id: cleanUser.id || { username: cleanUser.username } },
+                        update: { ...cleanUser, branchId: socket.branchId },
+                        create: { ...cleanUser, branchId: socket.branchId }
+                    });
+                    console.log(`[Sync] User '${user.username}' upserted from branch ${socket.branchCode}`);
+                }
+            } catch (error) {
+                console.error('[Sync] Error upserting user from branch:', error.message);
+            }
+        });
+
         // Upward Sync: Listen for Full Push from Branch
         socket.on('branch_push_all', async (payload) => {
             console.log(`[Sync] Received Full Push from branch ${socket.branchCode}`);

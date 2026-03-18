@@ -37,6 +37,8 @@ const adminStoreRoutes = require('./src/routes/admin-store');
 const adminRoutes = require('./src/routes/admin');
 const backupRoutes = require('./src/routes/backup');
 const miscRoutes = require('./src/routes/misc');
+const settingsRoutes = require('./src/routes/settings');
+const mfaRoutes = require('./src/routes/mfa');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/branches', branchRoutes);
@@ -54,6 +56,8 @@ app.use('/api/permissions', permissionRoutes);
 app.use('/api/admin-store', adminStoreRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/mfa', mfaRoutes);
 app.use('/api', miscRoutes);
 
 // Basic Health Check

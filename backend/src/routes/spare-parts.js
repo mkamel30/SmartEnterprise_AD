@@ -53,6 +53,8 @@ router.post('/', async (req, res) => {
             }
         });
 
+        await syncQueueService.enqueueUpdate('SPARE_PART', 'UPSERT', part);
+
         res.status(201).json(part);
     } catch (error) {
         if (error.code === 'P2002') {
@@ -80,11 +82,36 @@ router.put('/:id', async (req, res) => {
                 category 
             }
         });
-        
+
+        await syncQueueService.enqueueUpdate('SPARE_PART', 'UPDATE', part);
+
         res.json(part);
     } catch (error) {
         console.error('Failed to update master spare part:', error);
         res.status(500).json({ error: 'Failed to update master spare part' });
+    }
+});
+
+// Bulk delete master spare parts
+router.post('/bulk-delete', async (req, res) => {
+    try {
+        const { ids, userId, userName, branchId } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'ids array is required' });
+        }
+
+        await prisma.masterSparePart.deleteMany({
+            where: { id: { in: ids } }
+        });
+
+        for (const id of ids) {
+            await syncQueueService.enqueueUpdate('SPARE_PART', 'DELETE', { id });
+        }
+
+        res.json({ message: `${ids.length} spare parts deleted successfully` });
+    } catch (error) {
+        console.error('Bulk delete failed:', error);
+        res.status(500).json({ error: 'Bulk delete failed' });
     }
 });
 
@@ -94,6 +121,9 @@ router.delete('/:id', async (req, res) => {
         await prisma.masterSparePart.delete({
             where: { id: req.params.id }
         });
+
+        await syncQueueService.enqueueUpdate('SPARE_PART', 'DELETE', { id: req.params.id });
+
         res.json({ message: 'Master spare part deleted successfully' });
     } catch (error) {
         console.error('Failed to delete master spare part:', error);

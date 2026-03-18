@@ -1,23 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../../db');
-const { server } = require('../../server'); // Avoid circular dependency if possible, but let's just use `io` directly. Wait, better to import from server...
-// Actually, io is not exported correctly from server.js to routes. We can just use syncQueueService to emit an event!
 const syncQueueService = require('../services/syncQueue.service');
 
-// Optional: simple middleware for branch authentication
+// Branch authentication for HTTP sync endpoints
 const branchAuth = async (req, res, next) => {
-    const apiKey = req.headers['x-branch-api-key'];
+    const apiKey = req.headers['x-portal-sync-key'];
     if (!apiKey) {
         return res.status(401).json({ error: 'Branch API Key required' });
     }
 
-    const branch = await prisma.branch.findUnique({ where: { apiKey } });
+    const branch = await prisma.branch.findFirst({ where: { apiKey } });
     if (!branch) {
         return res.status(401).json({ error: 'Invalid Branch API Key' });
     }
 
-    // Update lastSeen and status
     await prisma.branch.update({
         where: { id: branch.id },
         data: { lastSeen: new Date(), status: 'ONLINE' }
@@ -27,11 +24,44 @@ const branchAuth = async (req, res, next) => {
     next();
 };
 
-router.use(branchAuth);
+// Branch-initiated HTTP sync: branch requests data from portal
+router.post('/request-sync', branchAuth, async (req, res) => {
+    try {
+        const { entities } = req.body || {};
 
-// Endpoint for receiving periodic stats directly (if we were using a BranchStat model)
-// BUT since schema mirrors all enterprise models, we'll accept push payloads of core models and upsert them.
-router.post('/push', async (req, res) => {
+        const result = {};
+
+        if (!entities || entities.includes('branches')) {
+            result.branches = await prisma.branch.findMany({ where: { isActive: true } });
+        }
+
+        if (!entities || entities.includes('users')) {
+            result.users = await prisma.user.findMany({
+                where: { isActive: true, branchId: req.branch.id }
+            });
+        }
+
+        if (!entities || entities.includes('machineParameters')) {
+            result.machineParameters = await prisma.machineParameter.findMany();
+        }
+
+        if (!entities || entities.includes('spareParts')) {
+            result.spareParts = await prisma.masterSparePart.findMany();
+        }
+
+        if (!entities || entities.includes('globalParameters')) {
+            result.globalParameters = await prisma.globalParameter.findMany();
+        }
+
+        res.json({ success: true, data: result });
+    } catch (error) {
+        console.error('Branch sync request failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Branch data push endpoint (upward sync)
+router.post('/push', branchAuth, async (req, res) => {
     try {
         const { payments, maintenanceRequests, users, customers, posMachines } = req.body;
         const branchId = req.branch.id;

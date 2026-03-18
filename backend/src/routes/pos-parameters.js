@@ -45,6 +45,8 @@ router.post('/', async (req, res) => {
             data: { prefix, model, manufacturer }
         });
 
+        await syncQueueService.enqueueUpdate('MACHINE_PARAMETER', 'UPSERT', parameter);
+
         res.status(201).json(parameter);
     } catch (error) {
         if (error.code === 'P2002') {
@@ -64,7 +66,9 @@ router.put('/:id', async (req, res) => {
             where: { id: req.params.id },
             data: { prefix, model, manufacturer }
         });
-        
+
+        await syncQueueService.enqueueUpdate('MACHINE_PARAMETER', 'UPDATE', parameter);
+
         res.json(parameter);
     } catch (error) {
         console.error('Failed to update POS parameter:', error);
@@ -78,6 +82,9 @@ router.delete('/:id', async (req, res) => {
         await prisma.machineParameter.delete({
             where: { id: req.params.id }
         });
+
+        await syncQueueService.enqueueUpdate('MACHINE_PARAMETER', 'DELETE', { id: req.params.id });
+
         res.json({ message: 'POS parameter deleted successfully' });
     } catch (error) {
         console.error('Failed to delete POS parameter:', error);

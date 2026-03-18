@@ -642,3 +642,12 @@ model MaintenanceApproval {
   branch          Branch?            @relation(fields: [branchId], references: [id])
   request         MaintenanceRequest @relation(fields: [requestId], references: [id])
 }
+
+model ClientType {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
