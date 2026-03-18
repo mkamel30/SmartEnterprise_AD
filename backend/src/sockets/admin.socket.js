@@ -74,21 +74,50 @@ module.exports = (io) => {
             }
         });
 
-        // Upward Sync: Listen for users created at the branch
-        socket.on('branch_user_update', async (payload) => {
-            console.log(`[Sync] Received user update from branch ${socket.branchCode}`);
+        // Upward Sync: Listen for Full Push from Branch
+        socket.on('branch_push_all', async (payload) => {
+            console.log(`[Sync] Received Full Push from branch ${socket.branchCode}`);
             try {
-                const { user } = payload;
-                if (user) {
-                    await prisma.user.upsert({
-                        where: { id: user.id },
-                        update: { ...user, branchId: socket.branchId },
-                        create: { ...user, branchId: socket.branchId }
-                    });
-                    console.log(`[Sync] User ${user.username} synced to Central DB`);
+                const { users, machineParams, spareParts } = payload;
+
+                // 1. Sync Users (Clean them first)
+                if (users && Array.isArray(users)) {
+                    for (const user of users) {
+                        // Strip nested objects to avoid Prisma errors
+                        const { branch, ...cleanUser } = user;
+                        await prisma.user.upsert({
+                            where: { id: cleanUser.id },
+                            update: { ...cleanUser, branchId: socket.branchId },
+                            create: { ...cleanUser, branchId: socket.branchId }
+                        });
+                    }
                 }
+
+                // 2. Sync Machine Parameters
+                if (machineParams && Array.isArray(machineParams)) {
+                    for (const param of machineParams) {
+                        await prisma.machineParameter.upsert({
+                            where: { id: param.id },
+                            update: param,
+                            create: param
+                        });
+                    }
+                }
+
+                // 3. Sync Spare Parts
+                if (spareParts && Array.isArray(spareParts)) {
+                    for (const part of spareParts) {
+                        await prisma.sparePart.upsert({
+                            where: { id: part.id },
+                            update: part,
+                            create: part
+                        });
+                    }
+                }
+
+                console.log(`[Sync] Full Push completed for branch ${socket.branchCode}`);
             } catch (error) {
-                console.error('[Sync] Error processing branch_user_update:', error.message);
+                console.error('[Sync] Full Push processing failed:', error.message);
             }
         });
 
