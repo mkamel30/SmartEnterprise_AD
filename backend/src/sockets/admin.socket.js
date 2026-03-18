@@ -8,8 +8,28 @@ module.exports = (io) => {
             return next(new Error('Authentication error: Missing API Key'));
         }
 
+        const globalApiKey = process.env.PORTAL_API_KEY || 'master_portal_key_internal';
+        
         try {
-            const branch = await prisma.branch.findUnique({ where: { apiKey } });
+            // Check if this key belongs to an existing branch
+            let branch = await prisma.branch.findFirst({ where: { apiKey: apiKey } });
+
+            // Robust check: If it matches our master key, allow auto-creation/login
+            if (!branch && apiKey === globalApiKey) {
+                console.log(`[Socket] New branch detected with Master Key. Creating...`);
+                // Use a default code or extract it from handshake query if available
+                const branchCode = socket.handshake.query.branchCode || 'BR-GEN';
+                branch = await prisma.branch.create({
+                    data: {
+                        name: 'Auto-Registered Branch',
+                        code: branchCode,
+                        apiKey: apiKey,
+                        status: 'ONLINE',
+                        lastSeen: new Date()
+                    }
+                });
+            }
+
             if (!branch) {
                 return next(new Error('Authentication error: Invalid API Key'));
             }
@@ -18,13 +38,12 @@ module.exports = (io) => {
             socket.branchId = branch.id;
             socket.branchCode = branch.code;
             
-            // Mark branch as ONLINE
+            // Mark as ONLINE
             await prisma.branch.update({
                 where: { id: branch.id },
                 data: { status: 'ONLINE', lastSeen: new Date() }
             });
             
-            // Join a secure room exclusively for this branch
             socket.join(`branch_${branch.id}`);
             next();
         } catch (err) {
