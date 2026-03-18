@@ -50,6 +50,32 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'Central Admin Portal API is running' });
 });
 
+// VERY DANGEROUS: Emergency Reset Route (Only for setup phase)
+app.post('/api/admin/reset-database', async (req, res) => {
+    const { secret } = req.body;
+    if (secret !== 'master_reset_2026') return res.status(403).json({ error: 'Unauthorized' });
+
+    try {
+        console.log('--- CRITICAL: DATA RESET INITIATED ---');
+        // Order matters due to foreign keys
+        await prisma.syncLog.deleteMany({});
+        await prisma.syncQueue.deleteMany({});
+        await prisma.payment.deleteMany({});
+        await prisma.machineMovementLog.deleteMany({});
+        await prisma.maintenanceRequest.deleteMany({});
+        await prisma.posMachine.deleteMany({});
+        await prisma.systemLog.deleteMany({});
+        await prisma.machineParameter.deleteMany({});
+        await prisma.sparePart.deleteMany({});
+        await prisma.customer.deleteMany({});
+        await prisma.user.deleteMany({ where: { role: { not: 'SUPER_ADMIN' } } });
+        
+        res.json({ status: 'SUCCESS', message: 'Database cleared. Ready for fresh Branch sync.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Setup Socket.io Event Handlers
 require('./src/sockets/admin.socket')(io);
 
