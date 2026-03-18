@@ -14,9 +14,13 @@ export default function SyncStatus() {
             setLoading(true);
             const statusParams = filter !== 'ALL' ? `?status=${filter}` : '';
             const response = (await api.get(`/sync-queue${statusParams}`)) as any;
-            setQueues(response.data.data);
-            setSummary(response.data.summary);
+            
+            // Safe fallback if data is missing
+            setQueues(response.data?.data || []);
+            setSummary(response.data?.summary || { total: 0, pending: 0, synced: 0, error: 0 });
+            
         } catch (error) {
+            console.error('Sync fetch error:', error);
             toast.error('فشل في جلب بيانات طابور المزامنة');
         } finally {
             setLoading(false);
@@ -25,7 +29,7 @@ export default function SyncStatus() {
 
     useEffect(() => {
         fetchSyncQueue();
-        const interval = setInterval(fetchSyncQueue, 15000); // Auto refresh every 15s
+        const interval = setInterval(fetchSyncQueue, 15000); 
         return () => clearInterval(interval);
     }, [filter]);
 
@@ -65,10 +69,10 @@ export default function SyncStatus() {
             {/* Summary Cards */}
             <div className="grid grid-cols-4 gap-6">
                 {[
-                    { label: 'إجمالي العمليات', value: summary.total, color: 'text-brand-primary', bg: 'bg-brand-primary/10' },
-                    { label: 'مكتمل بنجاح', value: summary.synced, color: 'text-success', bg: 'bg-success/10' },
-                    { label: 'قيد الانتظار', value: summary.pending, color: 'text-warning', bg: 'bg-warning/10' },
-                    { label: 'عمليات فاشلة', value: summary.error, color: 'text-danger', bg: 'bg-danger/10' }
+                    { label: 'إجمالي العمليات', value: summary?.total || 0, color: 'text-brand-primary', bg: 'bg-brand-primary/10' },
+                    { label: 'مكتمل بنجاح', value: summary?.synced || 0, color: 'text-success', bg: 'bg-success/10' },
+                    { label: 'قيد الانتظار', value: summary?.pending || 0, color: 'text-warning', bg: 'bg-warning/10' },
+                    { label: 'عمليات فاشلة', value: summary?.error || 0, color: 'text-danger', bg: 'bg-danger/10' }
                 ].map((stat, i) => (
                     <div key={i} className="layout-card p-6 border-l-4 border-white transition-all hover:border-brand-primary">
                         <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
