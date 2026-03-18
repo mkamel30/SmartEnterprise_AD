@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const prisma = require('../../db');
-const { adminAuth } = require('../../middleware/auth');
+const prisma = require('../db'); // Correct path for standalone
+const { adminAuth } = require('../middleware/auth'); // Correct path for standalone
 
 router.use(adminAuth);
 
