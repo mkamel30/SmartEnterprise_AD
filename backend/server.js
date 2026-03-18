@@ -58,20 +58,24 @@ app.post('/api/admin/reset-database', async (req, res) => {
 
     try {
         console.log('--- CRITICAL: DATA RESET INITIATED ---');
-        // Clear all tables that might have dummy data
-        await prisma.syncLog.deleteMany({});
-        await prisma.syncQueue.deleteMany({});
-        await prisma.maintenanceRequest.deleteMany({});
-        await prisma.posMachine.deleteMany({});
-        await prisma.machineParameter.deleteMany({});
-        await prisma.sparePart.deleteMany({});
-        await prisma.customer.deleteMany({});
-        // For users, let's wipe all except the current requester if possible, 
-        // or just wipe all non-super-admins using a simpler filter
-        await prisma.user.deleteMany({
-            where: {
-                NOT: { role: 'SUPER_ADMIN' }
+        // Final desperate attempt at absolute wipe
+        const tables = [
+            'SyncLog', 'SyncQueue', 'Payment', 'MachineMovementLog', 
+            'MaintenanceRequest', 'POSMachine', 'SystemLog', 
+            'MachineParameter', 'SparePart', 'Customer'
+        ];
+
+        for (const table of tables) {
+            try {
+                await prisma.$executeRawUnsafe(`DELETE FROM \"${table}\"`);
+            } catch (e) {
+                console.warn(`Failed to clear ${table}: ${e.message}`);
             }
+        }
+        
+        // Clean users (except Super Admins)
+        await prisma.user.deleteMany({
+            where: { NOT: { role: 'SUPER_ADMIN' } }
         });
         
         res.json({ status: 'SUCCESS', message: 'Database cleared. Ready for fresh Branch sync.' });
