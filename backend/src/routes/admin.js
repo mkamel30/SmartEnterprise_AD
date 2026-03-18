@@ -4,6 +4,7 @@ const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
 const { logAuditAction } = require('../utils/auditLogger');
 const os = require('os');
+const syncQueueService = require('../services/syncQueue.service');
 
 router.use(adminAuth);
 
@@ -134,6 +135,31 @@ router.put('/settings', async (req, res) => {
         res.json(setting);
     } catch (error) {
         res.status(500).json({ error: 'Update failed' });
+    }
+});
+
+// --- Manually Trigger User Sync ---
+router.post('/sync/users', async (req, res) => {
+    try {
+        const users = await prisma.user.findMany();
+        
+        for (const user of users) {
+             await syncQueueService.enqueueUpdate('USER', 'UPSERT', user);
+        }
+
+        await logAuditAction({
+            userId: req.admin.id,
+            userName: req.admin.username,
+            entityType: 'USER_SYNC',
+            action: 'FORCE_REBROADCAST',
+            details: `Manually triggered re-sync for ${users.length} users`,
+            req
+        });
+
+        res.json({ message: `Initiated sync for ${users.length} users to all branches.` });
+    } catch (error) {
+        console.error('Manual user sync failed:', error);
+        res.status(500).json({ error: 'Sync failed' });
     }
 });
 

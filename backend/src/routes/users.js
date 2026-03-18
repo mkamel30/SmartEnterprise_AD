@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
+const syncQueueService = require('../services/syncQueue.service');
 
 router.use(adminAuth);
 
@@ -36,9 +37,13 @@ router.post('/', async (req, res) => {
                 branchId
             }
         });
+
+        // Sync to branches
+        await syncQueueService.enqueueUpdate('USER', 'CREATE', user);
         
         res.status(201).json(user);
     } catch (error) {
+        console.error('Failed to create user:', error);
         res.status(500).json({ error: 'Failed to create user' });
     }
 });
@@ -52,9 +57,13 @@ router.put('/:id', async (req, res) => {
             where: { id: req.params.id },
             data: { displayName, role, branchId, email, isActive }
         });
+
+        // Sync to branches
+        await syncQueueService.enqueueUpdate('USER', 'UPDATE', user);
         
         res.json(user);
     } catch (error) {
+        console.error('Failed to update user:', error);
         res.status(500).json({ error: 'Failed to update user' });
     }
 });
@@ -63,8 +72,13 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         await prisma.user.delete({ where: { id: req.params.id } });
+
+        // Sync to branches
+        await syncQueueService.enqueueUpdate('USER', 'DELETE', { id: req.params.id });
+
         res.json({ message: 'User deleted' });
     } catch (error) {
+        console.error('Failed to delete user:', error);
         res.status(500).json({ error: 'Failed to delete user' });
     }
 });

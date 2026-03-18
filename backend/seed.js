@@ -62,22 +62,6 @@ async function main() {
 
   logger.info(`${defaultParams.length} Default parameters seeded.`);
 
-  // 3. POS Machine Parameters
-  const posParams = [
-    { prefix: '191', model: 'S90', manufacturer: 'PAX' },
-    { prefix: '203', model: 'A920', manufacturer: 'PAX' },
-    { prefix: 'N86', model: 'N86', manufacturer: 'NEXGO' }
-  ];
-
-  for (const posP of posParams) {
-    await prisma.machineParameter.upsert({
-      where: { prefix: posP.prefix },
-      update: {},
-      create: posP
-    });
-  }
-  logger.info('POS Parameters seeded.');
-
   // 4. Master Spare Parts
   const masterParts = [
     { partNumber: 'BATT-S90', name: 'S90 Battery', defaultCost: 450, category: 'POS', isConsumable: true },

@@ -93,7 +93,8 @@ module.exports = (io) => {
                     }
                 }
 
-                // 2. Sync Machine Parameters
+                // 2. Sync Machine Parameters (DISABLED: Portal is source of truth for parameters)
+                /*
                 if (machineParams && Array.isArray(machineParams)) {
                     for (const param of machineParams) {
                         await prisma.machineParameter.upsert({
@@ -103,6 +104,7 @@ module.exports = (io) => {
                         });
                     }
                 }
+                */
 
                 // 3. Sync Spare Parts
                 if (spareParts && Array.isArray(spareParts)) {

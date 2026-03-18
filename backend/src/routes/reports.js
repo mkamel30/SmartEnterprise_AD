@@ -60,7 +60,61 @@ router.get('/financial-summary', async (req, res) => {
         });
     } catch (error) {
         console.error('Financial summary failed:', error);
-        res.status(500).json({ error: 'Failed to fetch financial summary' });
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Branch Performance Rankings
+router.get('/rankings', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            include: {
+                _count: { select: { requests: true, payments: true } },
+                payments: { select: { amount: true } }
+            }
+        });
+
+        const rankings = branches.map(b => ({
+            id: b.id,
+            name: b.name,
+            totalRevenue: b.payments.reduce((sum, p) => sum + p.amount, 0),
+            requestCount: b._count.requests
+        })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+        res.json(rankings);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Inventory Valuation (Across all branches)
+router.get('/inventory-valuation', async (req, res) => {
+    try {
+        const inventory = await prisma.inventoryItem.findMany({
+            include: {
+                part: { select: { defaultCost: true } },
+                branch: { select: { name: true } }
+            }
+        });
+
+        let totalValuation = 0;
+        const branchValuation = {};
+
+        inventory.forEach(item => {
+            const val = (item.quantity || 0) * (item.part?.defaultCost || 0);
+            totalValuation += val;
+            
+            const bName = item.branch?.name || 'Unknown';
+            branchValuation[bName] = (branchValuation[bName] || 0) + val;
+        });
+
+        res.json({
+            totalValuation,
+            branchValuation
+        });
+    } catch (error) {
+        console.error('Inventory valuation failed:', error);
+        res.status(500).json({ error: 'Failed' });
     }
 });
 
