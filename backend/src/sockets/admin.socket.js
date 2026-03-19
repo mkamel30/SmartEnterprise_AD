@@ -181,7 +181,7 @@ module.exports = (io) => {
                 // 3. Sync Spare Parts
                 if (spareParts && Array.isArray(spareParts)) {
                     for (const part of spareParts) {
-                        await prisma.sparePart.upsert({
+                        await prisma.masterSparePart.upsert({
                             where: { id: part.id },
                             update: part,
                             create: part

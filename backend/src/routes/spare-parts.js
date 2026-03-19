@@ -115,6 +115,72 @@ router.post('/bulk-delete', async (req, res) => {
     }
 });
 
+// Import master spare parts from Excel (client-side parsed)
+router.post('/import', async (req, res) => {
+    try {
+        const { parts } = req.body;
+        if (!parts || !Array.isArray(parts)) {
+            return res.status(400).json({ error: 'parts array is required' });
+        }
+
+        const results = { imported: 0, skipped: 0, errors: 0 };
+        const syncedParts = [];
+
+        for (const item of parts) {
+            if (!item.name || !item.name.trim()) {
+                results.skipped++;
+                continue;
+            }
+
+            try {
+                const existing = await prisma.masterSparePart.findFirst({
+                    where: { name: item.name.trim() }
+                });
+
+                if (existing) {
+                    await prisma.masterSparePart.update({
+                        where: { id: existing.id },
+                        data: {
+                            compatibleModels: item.compatibleModels || existing.compatibleModels,
+                            defaultCost: parseFloat(item.defaultCost) || existing.defaultCost,
+                            isConsumable: !!item.allowsMultiple
+                        }
+                    });
+                } else {
+                    const created = await prisma.masterSparePart.create({
+                        data: {
+                            name: item.name.trim(),
+                            compatibleModels: item.compatibleModels || null,
+                            defaultCost: parseFloat(item.defaultCost) || 0,
+                            isConsumable: !!item.allowsMultiple
+                        }
+                    });
+                    syncedParts.push(created);
+                }
+
+                results.imported++;
+            } catch (e) {
+                results.errors++;
+                console.warn('Import item error:', e.message);
+            }
+        }
+
+        if (syncedParts.length > 0) {
+            await syncQueueService.enqueueUpdate('SPARE_PART', 'BROADCAST', syncedParts);
+        }
+
+        res.json({
+            message: `تم استيراد ${results.imported} قطعة بنجاح`,
+            imported: results.imported,
+            skipped: results.skipped,
+            errors: results.errors
+        });
+    } catch (error) {
+        console.error('Import failed:', error);
+        res.status(500).json({ error: 'Import failed' });
+    }
+});
+
 // Delete Master Spare Part
 router.delete('/:id', async (req, res) => {
     try {
