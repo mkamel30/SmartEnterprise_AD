@@ -9,7 +9,7 @@ export default function Branches() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', code: '', authorizedHWID: '', address: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', authorizedHWID: '', address: '', phone: '' });
 
   const fetchBranches = async () => {
     try {
@@ -30,16 +30,15 @@ export default function Branches() {
   const handleOpenModal = (branch: any = null) => {
     if (branch) {
       setEditingBranch(branch);
-      setFormData({ 
-        name: branch.name, 
-        code: branch.code, 
+      setFormData({
+        name: branch.name,
         authorizedHWID: branch.authorizedHWID || '',
         address: branch.address || '',
         phone: branch.phone || ''
       });
     } else {
       setEditingBranch(null);
-      setFormData({ name: '', code: '', authorizedHWID: '', address: '', phone: '' });
+      setFormData({ name: '', authorizedHWID: '', address: '', phone: '' });
     }
     setIsModalOpen(true);
   };
@@ -51,8 +50,8 @@ export default function Branches() {
         await adminClient.put(`/branches/${editingBranch.id}`, formData);
         toast.success('تم تحديث بيانات الفرع بنجاح');
       } else {
-        await adminClient.post('/branches', formData);
-        toast.success('تم تسجيل الفرع الجديد بنجاح');
+        const res = await adminClient.post('/branches', formData);
+        toast.success(`تم تسجيل الفرع الجديد بنجاح${res.data?.code ? ` — الكود: ${res.data.code}` : ''}`);
       }
       setIsModalOpen(false);
       fetchBranches();
@@ -210,17 +209,6 @@ export default function Branches() {
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               className="smart-input h-14 px-6 text-brand-primary font-black uppercase tracking-tight text-right text-sm"
               placeholder="مثال: الفرع الرئيسي"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-brand-primary/60 uppercase tracking-widest mr-4">كود الفرع</label>
-            <input 
-              type="text" 
-              required
-              value={formData.code}
-              onChange={e => setFormData({ ...formData, code: e.target.value })}
-              className="smart-input h-14 px-6 text-brand-primary font-black uppercase tracking-widest text-right text-sm"
-              placeholder="مثال: BR001"
             />
           </div>
           <div className="space-y-2">

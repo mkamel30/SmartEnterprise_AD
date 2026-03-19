@@ -76,13 +76,12 @@ router.post('/', async (req, res) => {
 // Update branch
 router.put('/:id', async (req, res) => {
     try {
-        const { name, code, address, authorizedHWID, status } = req.body;
+        const { name, address, authorizedHWID, status } = req.body;
         
         const branch = await prisma.branch.update({
             where: { id: req.params.id },
             data: {
                 name,
-                code,
                 address,
                 authorizedHWID,
                 status

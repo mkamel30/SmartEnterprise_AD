@@ -120,12 +120,20 @@ module.exports = (io) => {
             try {
                 if (user) {
                     const { branch, ...cleanUser } = user;
-                    await prisma.user.upsert({
-                        where: { id: cleanUser.id || { username: cleanUser.username } },
-                        update: { ...cleanUser, branchId: socket.branchId },
-                        create: { ...cleanUser, branchId: socket.branchId }
-                    });
-                    console.log(`[Sync] User '${user.username}' upserted from branch ${socket.branchCode}`);
+                    if (cleanUser._deleted) {
+                        await prisma.user.update({
+                            where: { id: cleanUser.id },
+                            data: { isActive: false }
+                        });
+                        console.log(`[Sync] User '${user.username}' deactivated on portal`);
+                    } else {
+                        await prisma.user.upsert({
+                            where: { id: cleanUser.id || { username: cleanUser.username } },
+                            update: { ...cleanUser, branchId: socket.branchId },
+                            create: { ...cleanUser, branchId: socket.branchId }
+                        });
+                        console.log(`[Sync] User '${user.username}' upserted from branch ${socket.branchCode}`);
+                    }
                 }
             } catch (error) {
                 console.error('[Sync] Error upserting user from branch:', error.message);
@@ -141,13 +149,19 @@ module.exports = (io) => {
                 // 1. Sync Users (Clean them first)
                 if (users && Array.isArray(users)) {
                     for (const user of users) {
-                        // Strip nested objects to avoid Prisma errors
                         const { branch, ...cleanUser } = user;
-                        await prisma.user.upsert({
-                            where: { id: cleanUser.id },
-                            update: { ...cleanUser, branchId: socket.branchId },
-                            create: { ...cleanUser, branchId: socket.branchId }
-                        });
+                        if (cleanUser._deleted) {
+                            await prisma.user.update({
+                                where: { id: cleanUser.id },
+                                data: { isActive: false }
+                            }).catch(() => {});
+                        } else {
+                            await prisma.user.upsert({
+                                where: { id: cleanUser.id },
+                                update: { ...cleanUser, branchId: socket.branchId },
+                                create: { ...cleanUser, branchId: socket.branchId }
+                            });
+                        }
                     }
                 }
 

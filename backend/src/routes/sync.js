@@ -91,11 +91,18 @@ router.post('/push', branchAuth, async (req, res) => {
         // Upsert Users
         if (users && Array.isArray(users)) {
             for (const user of users) {
-                await prisma.user.upsert({
-                    where: { id: user.id },
-                    update: { ...user, branchId },
-                    create: { ...user, branchId } // we leave password matching if it's there
-                }).catch(e => console.warn('User sync skip:', e.message));
+                if (user._deleted) {
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { isActive: false }
+                    }).catch(() => {});
+                } else {
+                    await prisma.user.upsert({
+                        where: { id: user.id },
+                        update: { ...user, branchId },
+                        create: { ...user, branchId }
+                    }).catch(e => console.warn('User sync skip:', e.message));
+                }
             }
         }
 
