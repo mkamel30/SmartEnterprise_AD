@@ -40,31 +40,54 @@ router.post('/', async (req, res) => {
                 where: { code: { startsWith: 'BR' } }
             });
 
-            if (!lastBranch) {
-                code = 'BR001';
-            } else {
-                const currentNum = parseInt(lastBranch.code.substring(2)) || 0;
-                code = `BR${String(currentNum + 1).padStart(3, '0')}`;
+            let nextNum = 1;
+            if (lastBranch) {
+                nextNum = parseInt(lastBranch.code.substring(2)) || 0;
             }
-        }
-
-        const existing = await prisma.branch.findUnique({ where: { code } });
-        if (existing) {
-            return res.status(400).json({ error: 'Branch code already exists' });
+            code = `BR${String(nextNum).padStart(3, '0')}`;
+            while (await prisma.branch.findUnique({ where: { code } })) {
+                nextNum++;
+                code = `BR${String(nextNum).padStart(3, '0')}`;
+            }
+        } else {
+            const existing = await prisma.branch.findUnique({ where: { code } });
+            if (existing) {
+                return res.status(400).json({ error: 'Branch code already exists' });
+            }
         }
 
         // Generate a unique API Key for the branch
         const apiKey = crypto.randomBytes(32).toString('hex');
 
-        const branch = await prisma.branch.create({
-            data: {
-                code,
-                name,
-                address,
-                apiKey,
-                authorizedHWID
+        let branch;
+        let attempts = 0;
+        const maxAttempts = 10;
+        while (attempts < maxAttempts) {
+            try {
+                branch = await prisma.branch.create({
+                    data: {
+                        code,
+                        name,
+                        address,
+                        apiKey,
+                        authorizedHWID
+                    }
+                });
+                break;
+            } catch (error) {
+                if (error.code === 'P2002' && code) {
+                    attempts++;
+                    const lastBranch = await prisma.branch.findFirst({
+                        orderBy: { code: 'desc' },
+                        where: { code: { startsWith: 'BR' } }
+                    });
+                    let nextNum = lastBranch ? (parseInt(lastBranch.code.substring(2)) || 0) + 1 : 1;
+                    code = `BR${String(nextNum).padStart(3, '0')}`;
+                    continue;
+                }
+                throw error;
             }
-        });
+        }
 
         res.status(201).json(branch);
     } catch (error) {

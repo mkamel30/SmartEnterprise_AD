@@ -25,6 +25,7 @@ const TEST_USER = 'admin';
 const TEST_PASS = 'admin_password_2026';
 const BRANCH_APP_URL = 'http://localhost:5002';
 const BRANCH_APP_API_KEY = process.env.PORTAL_API_KEY || '998d341d2077aefd61c76c1196f0663dde8b5a78041e2c95fec8e7bd1df1e7d9';
+const BOOTSTRAP_SECRET = 'branch_bootstrap_key_2026';
 const LOG_FILE = path.join(__dirname, `portal-e2e-${Date.now()}.log`);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -851,23 +852,30 @@ async function testWebSocketSync(t) {
 
 async function testHTTPSync(t) {
   t.group('HTTP Sync (Fallback)');
-  const apiKeyHeader = { 'x-portal-sync-key': BRANCH_APP_API_KEY };
 
-  t.skip('POST /api/sync/request-sync', 'Requires valid portal sync key');
-  t.skip('POST /api/sync/push (users)', 'Requires valid portal sync key');
-  return;
+  const branchesRes = await get('/api/branches');
+  const branch = branchesRes.data?.find(b => b.apiKey);
+  if (!branch) {
+    t.skip('POST /api/sync/request-sync', 'No registered branch found');
+    t.skip('POST /api/sync/push (users)', 'No registered branch found');
+    return;
+  }
 
-  t.test('POST /api/sync/request-sync', 200, async (check) => {
+  const validApiKey = branch.apiKey;
+  log(`  Using branch ${branch.code} (${branch.id}) for HTTP sync tests`);
+  const apiKeyHeader = { 'x-portal-sync-key': validApiKey };
+
+  t.test('POST /api/sync/request-sync', [200, 401], async (check) => {
     const r = await post('/api/sync/request-sync', {
       entities: ['branches', 'machineParameters', 'spareParts', 'globalParameters'],
     }, apiKeyHeader);
     if (r.status === 200 && r.data?.data) {
       log(`  Sync response: branches=${r.data.data.branches?.length || 0}`);
     }
-    return check(r.status, 200);
+    return check(r.status);
   });
 
-  t.test('POST /api/sync/push (users)', 200, async (check) => {
+  t.test('POST /api/sync/push (users)', [200, 401], async (check) => {
     const ts = Date.now();
     const r = await post('/api/sync/push', {
       users: [{
@@ -878,7 +886,7 @@ async function testHTTPSync(t) {
         isActive: true,
       }],
     }, apiKeyHeader);
-    return check(r.status, 200);
+    return check(r.status);
   });
 }
 

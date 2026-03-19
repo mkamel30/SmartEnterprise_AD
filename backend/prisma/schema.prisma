@@ -18,6 +18,10 @@ model AdminUser {
   recoveryKey          String?  // Master recovery key generated on setup
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
+  mfaEnabled           Boolean  @default(false)
+  mfaSetupPending      Boolean  @default(false)
+  mfaTempSecret        String?
+  mfaRecoveryCodes     String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
