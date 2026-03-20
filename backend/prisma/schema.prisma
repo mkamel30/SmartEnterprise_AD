@@ -178,6 +178,17 @@ model MasterSparePart {
   category         String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  priceLogs        SparePartPriceLog[]
+}
+
+model SparePartPriceLog {
+  id        String   @id @default(cuid())
+  partId    String
+  part      MasterSparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
+  oldCost   Float
+  newCost   Float
+  changedBy String?
+  changedAt DateTime @default(now())
 }
 
 // --- ENTERPRISE MODELS (Mirroring main system) ---

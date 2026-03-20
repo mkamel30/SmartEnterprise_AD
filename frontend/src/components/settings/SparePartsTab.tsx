@@ -490,7 +490,13 @@ export function SparePartsTab() {
 }
 
 function PartFormModal({ title, initialData, onSubmit, onClose }: any) {
-    const [formData, setFormData] = useState(initialData);
+    const [formData, setFormData] = useState({
+        name: '',
+        compatibleModels: '',
+        defaultCost: 0,
+        allowsMultiple: false,
+        ...initialData,
+    });
 
     return (
         <div className="modal-overlay" onClick={onClose}>

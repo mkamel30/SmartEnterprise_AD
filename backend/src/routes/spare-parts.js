@@ -70,6 +70,20 @@ router.put('/:id', async (req, res) => {
     try {
         const { partNumber, name, description, compatibleModels, defaultCost, isConsumable, category } = req.body;
         
+        const oldPart = await prisma.masterSparePart.findUnique({ where: { id: req.params.id } });
+        const newCost = parseFloat(defaultCost);
+
+        if (oldPart && oldPart.defaultCost !== newCost) {
+            await prisma.sparePartPriceLog.create({
+                data: {
+                    partId: req.params.id,
+                    oldCost: oldPart.defaultCost,
+                    newCost,
+                    changedBy: req.user?.name || req.user?.username || 'Admin'
+                }
+            });
+        }
+
         const part = await prisma.masterSparePart.update({
             where: { id: req.params.id },
             data: { 
@@ -77,7 +91,7 @@ router.put('/:id', async (req, res) => {
                 name, 
                 description, 
                 compatibleModels, 
-                defaultCost: parseFloat(defaultCost), 
+                defaultCost: newCost, 
                 isConsumable: !!isConsumable, 
                 category 
             }
@@ -89,6 +103,20 @@ router.put('/:id', async (req, res) => {
     } catch (error) {
         console.error('Failed to update master spare part:', error);
         res.status(500).json({ error: 'Failed to update master spare part' });
+    }
+});
+
+// Get price change logs for a spare part
+router.get('/:id/price-logs', async (req, res) => {
+    try {
+        const logs = await prisma.sparePartPriceLog.findMany({
+            where: { partId: req.params.id },
+            orderBy: { changedAt: 'desc' }
+        });
+        res.json(logs);
+    } catch (error) {
+        console.error('Failed to fetch price logs:', error);
+        res.status(500).json({ error: 'Failed to fetch price logs' });
     }
 });
 
