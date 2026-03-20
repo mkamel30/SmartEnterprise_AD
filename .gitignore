@@ -44,3 +44,8 @@ LOGIN_INFO.txt
 logs/
 *.log
 portal-debug*.log
+
+# noise
+nul
+*.xlsx
+backend/register-branches.js
