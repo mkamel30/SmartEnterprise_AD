@@ -77,9 +77,38 @@ syncQueueService.init(io);
 const logger = require('./utils/logger');
 const PORT = process.env.PORT || 5005;
 
+async function ensureAdminUser() {
+    try {
+        const bcrypt = require('bcryptjs');
+        const prisma = require('./src/db');
+        const adminPassword = 'Mk@351762';
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+        const existing = await prisma.adminUser.findUnique({ where: { username: 'Admin@' } });
+        if (!existing) {
+            await prisma.adminUser.create({
+                data: {
+                    username: 'Admin@',
+                    passwordHash: hashedPassword,
+                    name: 'Super Admin',
+                    role: 'SUPER_ADMIN'
+                }
+            });
+            logger.info('Super Admin created: Admin@ / Mk@351762');
+        } else {
+            logger.info('Super Admin verified: Admin@ / Mk@351762');
+        }
+        await prisma.$disconnect();
+    } catch (error) {
+        logger.warn({ err: error }, 'Admin user check failed — will retry on next startup');
+    }
+}
+
 if (require.main === module) {
-    server.listen(PORT, () => {
-        logger.info(`--- Central Admin Portal running on port ${PORT} ---`);
+    ensureAdminUser().then(() => {
+        server.listen(PORT, () => {
+            logger.info(`--- Central Admin Portal running on port ${PORT} ---`);
+        });
     });
 }
 
