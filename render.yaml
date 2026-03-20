@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     rootDir: backend
-    buildCommand: npm install && npx prisma generate && npx prisma db push --accept-data-loss && node seed.js
+    buildCommand: npm install && npx prisma generate && npx prisma db push --force-reset && node seed.js
     startCommand: bash startup.sh
     healthCheckPath: /health
     autoDeploy: true

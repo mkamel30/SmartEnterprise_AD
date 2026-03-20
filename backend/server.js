@@ -67,8 +67,6 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'Central Admin Portal API is running' });
 });
 
-});
-
 // Setup Socket.io Event Handlers
 require('./src/sockets/admin.socket')(io);
 
