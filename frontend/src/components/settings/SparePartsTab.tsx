@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Package, Edit, Download, Upload, History, Check, X, Briefcase, Search, Broadcast } from 'lucide-react';
+import { Plus, Trash2, Package, Edit, Download, Upload, History, Check, X, Briefcase, Search, Radio } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
 import * as XLSX from 'xlsx';
@@ -279,7 +279,7 @@ export function SparePartsTab() {
                         disabled={broadcastMutation.isPending}
                         className="gap-1.5"
                     >
-                        <Broadcast size={14} />
+                        <Radio size={14} />
                         {broadcastMutation.isPending ? 'جاري البث...' : 'بث للقانون'}
                     </Button>
 
