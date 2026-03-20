@@ -178,16 +178,8 @@ module.exports = (io) => {
                 }
                 */
 
-                // 3. Sync Spare Parts
-                if (spareParts && Array.isArray(spareParts)) {
-                    for (const part of spareParts) {
-                        await prisma.masterSparePart.upsert({
-                            where: { id: part.id },
-                            update: part,
-                            create: part
-                        });
-                    }
-                }
+                // 3. Sync Spare Parts — DISABLED: Admin Portal is the source of truth
+                // Branches receive spare parts via normal sync, not via branch_push_all
 
                 console.log(`[Sync] Full Push completed for branch ${socket.branchCode}`);
             } catch (error) {
@@ -195,7 +187,28 @@ module.exports = (io) => {
             }
         });
 
-        socket.on('disconnect', async () => {
+                // Admin requests branch stock for a specific spare part
+                // Broadcasts to all connected branches; each branch responds with its stock
+        socket.on('request_branch_stock', async (data) => {
+            const { partId, requestId } = data;
+            socket.adminRequestId = requestId;
+            console.log(`[Sync] Admin requested stock for part ${partId} (requestId: ${requestId})`);
+
+            io.emit('admin_request_branch_stock', {
+                partId,
+                requestId
+            });
+            console.log(`[Sync] Broadcast admin_request_branch_stock to all branches for part ${partId}`);
+        });
+
+        socket.on('branch_stock_response', (data) => {
+            const { requestId } = data;
+            if (socket.branchId && requestId) {
+                io.emit('admin_branch_stock_response', data);
+            }
+        });
+
+socket.on('disconnect', async () => {
             console.log(`[Socket] Branch Disconnected: ${socket.branchCode}`);
             try {
                 await prisma.branch.update({

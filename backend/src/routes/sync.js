@@ -46,7 +46,11 @@ router.post('/request-sync', branchAuth, async (req, res) => {
         }
 
         if (!entities || entities.includes('spareParts')) {
-            result.spareParts = await prisma.masterSparePart.findMany();
+            result.masterSpareParts = await prisma.masterSparePart.findMany();
+        }
+
+        if (!entities || entities.includes('sparePartPriceLogs')) {
+            result.sparePartPriceLogs = await prisma.sparePartPriceLog.findMany();
         }
 
         if (!entities || entities.includes('globalParameters')) {
@@ -161,6 +165,19 @@ router.post('/request-full-sync/:branchId', async (req, res) => {
     } catch (error) {
         console.error('Failed to request full sync:', error);
         res.status(500).json({ error: 'Failed to request sync' });
+    }
+});
+
+
+
+// HTTP fallback: get branch stock for a specific part (called by admin socket handler)
+router.get('/branch-stock/:branchId/:partId', async (req, res) => {
+    try {
+        const { branchId, partId } = req.params;
+        res.json({ stock: [], branchId, partId, note: 'Branch stock queried via WebSocket' });
+    } catch (error) {
+        console.error('Branch stock query failed:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 

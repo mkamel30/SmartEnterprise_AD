@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -251,7 +251,6 @@ model Branch {
   childBranches                                   Branch[]              @relation("BranchHierarchy")
   customers                                       Customer[]
   installments                                    Installment[]
-  inventory                                       InventoryItem[]
   machineMovementLogs                             MachineMovementLog[]
   machineSales                                    MachineSale[]
   requests                                        MaintenanceRequest[]
@@ -308,29 +307,6 @@ model Customer {
   machines        PosMachine[]
   simCards        SimCard[]
   warehouseMachines WarehouseMachine[]
-}
-
-model SparePart {
-  id               String          @id @default(cuid())
-  partNumber       String?
-  name             String
-  description      String?
-  compatibleModels String?
-  defaultCost      Float           @default(0)
-  isConsumable     Boolean?        @default(false)
-  allowsMultiple   Boolean?        @default(false)
-  inventoryItems   InventoryItem[]
-}
-
-model InventoryItem {
-  id       String    @id @default(cuid())
-  partId   String
-  quantity Int       @default(0)
-  minLevel Int       @default(0)
-  location String?
-  branchId String?
-  branch   Branch?   @relation(fields: [branchId], references: [id])
-  part     SparePart @relation(fields: [partId], references: [id])
 }
 
 model MaintenanceRequest {
