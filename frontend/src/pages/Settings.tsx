@@ -93,7 +93,7 @@ export default function Settings() {
                 {activeTab === 'security' && <SecurityTab />}
                 {activeTab === 'permissions' && isAdmin && <PermissionsTab />}
                 {activeTab === 'database' && isSuperAdmin && (
-                    <div className="bg-card rounded-[2rem] border border-border shadow-2xl p-8">
+                    <div className="bg-card rounded-2xl border-2 border-primary/10 shadow-md p-6">
                         <DatabaseAdmin />
                     </div>
                 )}

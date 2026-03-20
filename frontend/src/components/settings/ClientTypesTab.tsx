@@ -71,8 +71,8 @@ export function ClientTypesTab() {
     if (isLoading) return <div>جاري التحميل...</div>;
 
     return (
-        <div className="bg-card rounded-[2rem] border border-border shadow-2xl overflow-hidden animate-fade-in transition-all">
-            <div className="p-10 border-b border-border flex justify-between items-center bg-muted/20">
+        <div className="bg-card rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden animate-fade-in transition-all">
+            <div className="p-5 border-b border-border flex justify-between items-center bg-muted/30">
                 <div>
                     <h3 className="text-2xl font-black flex items-center gap-3">
                         <Users className="text-primary" size={32} />

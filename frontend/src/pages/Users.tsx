@@ -104,108 +104,106 @@ export default function Users() {
     };
 
     return (
-        <div className="space-y-8 pb-10 font-arabic" dir="rtl">
+        <div className="space-y-6 font-arabic" dir="rtl">
             {/* Header section */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div className="text-right">
-                    <h1 className="text-3xl sm:text-4xl font-black text-brand-primary uppercase tracking-tight flex items-center gap-3">
-                        <ShieldCheck className="text-brand-cyan shrink-0" size={40} />
+                    <h1 className="text-xl lg:text-2xl font-black text-primary uppercase tracking-tight flex items-center gap-3">
+                        <ShieldCheck className="text-brand-cyan shrink-0" size={24} />
                         إدارة المستخدمين <span className="text-brand-cyan">والصلاحيات</span>
                     </h1>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2">التحكم المركزي في هويات ووصول موظفي المجموعة</p>
+                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">التحكم المركزي في هويات ووصول موظفي المجموعة</p>
                 </div>
-                <div className="flex gap-4 w-full lg:w-auto flex-col sm:flex-row-reverse">
-                    <div className="flex gap-4 flex-1">
-                        <button 
-                            onClick={fetchUsers} 
-                            className="p-4 bg-white border border-slate-100 text-slate-400 rounded-2xl hover:text-brand-primary transition-all active:scale-90 shadow-sm shrink-0"
-                        >
-                            <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-                        </button>
-                        <div className="relative flex-1">
-                            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                            <input 
-                                type="text" 
-                                placeholder="بحث شامل..." 
-                                className="w-full pr-12 pl-6 py-4 bg-white border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-brand-primary/5 transition-all font-bold text-sm shadow-sm text-right"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                <div className="flex gap-3 w-full lg:w-auto flex-row-reverse">
+                    <button 
+                        onClick={fetchUsers} 
+                        className="p-3 bg-white border-2 border-primary/10 text-muted-foreground hover:text-primary transition-all active:scale-90 shadow-sm shrink-0 rounded-lg"
+                    >
+                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                    </button>
+                    <div className="relative flex-1">
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40" size={16} />
+                        <input 
+                            type="text" 
+                            placeholder="بحث شامل..." 
+                            className="w-full pr-10 pl-4 py-2.5 bg-white border-2 border-primary/10 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 transition-all font-bold text-sm text-right"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                     <button 
                         onClick={() => { resetForm(); setIsIdenOpen(true); }}
-                        className="flex items-center justify-center gap-3 px-8 py-4 bg-brand-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-brand-blue shadow-lg shadow-brand-primary/10 transition-all active:scale-95"
+                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-black uppercase tracking-widest text-[10px] hover:shadow-md transition-all active:scale-95"
                     >
-                        <UserPlus size={18} />
+                        <UserPlus size={16} />
                         <span>إضافة مستخدم</span>
                     </button>
                 </div>
             </div>
 
             {/* Responsive Users Table/Cards */}
-            <div className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto custom-scroll">
-                    <table className="w-full text-right min-w-[800px]">
+                    <table className="w-full text-right min-w-[700px]">
                         <thead>
-                            <tr className="border-b border-slate-50 bg-slate-50/30">
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">الهوية المؤسسية</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">الدور والصلاحيات</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">الفرع</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">الحالة</th>
-                                <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-left">الإجراءات</th>
+                            <tr className="border-b-2 border-primary/10 bg-muted/50">
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الهوية المؤسسية</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الدور والصلاحيات</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الفرع</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الحالة</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] text-left">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-border/50">
                             {loading ? (
                                 Array(5).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={5} className="px-8 py-8"><div className="h-8 bg-slate-50 rounded-xl w-full"></div></td>
+                                        <td colSpan={5} className="p-4"><div className="h-8 bg-muted rounded-lg w-full"></div></td>
                                     </tr>
                                 ))
                             ) : filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-8 py-20 text-center">
-                                        <UsersIcon className="mx-auto mb-4 opacity-10" size={60} />
-                                        <p className="text-slate-300 font-bold uppercase tracking-widest text-sm">لا توجد هويات مطابقة للبحث</p>
+                                    <td colSpan={5} className="p-12 text-center">
+                                        <UsersIcon className="mx-auto mb-3 text-muted-foreground/20" size={48} />
+                                        <p className="text-muted-foreground/40 font-bold uppercase tracking-widest text-sm">لا توجد هويات مطابقة للبحث</p>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredUsers.map((u) => (
-                                    <tr key={u.id} className="group hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-4 flex-row-reverse">
-                                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-brand-primary group-hover:text-white transition-all shadow-inner shrink-0 ml-0 mr-auto">
-                                                    <UsersIcon size={20} />
+                                    <tr key={u.id} className="group hover:bg-muted/30 transition-colors">
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3 flex-row-reverse">
+                                                <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                                                    <UsersIcon size={18} />
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="font-black text-brand-primary group-hover:text-brand-blue transition-colors uppercase leading-tight">{u.displayName}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1" dir="ltr">{u.username}</p>
+                                                    <p className="font-black text-primary group-hover:text-primary/70 transition-colors uppercase leading-tight">{u.displayName}</p>
+                                                    <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest mt-0.5" dir="ltr">{u.username}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6 text-right">
+                                        <td className="p-4 text-right">
                                             <div className="flex flex-col gap-1 items-start">
-                                                <span className="text-[10px] font-black px-3 py-1 bg-brand-primary/5 text-brand-primary rounded-full uppercase border border-brand-primary/10">
+                                                <span className="text-[10px] font-black px-2.5 py-1 bg-primary/5 text-primary rounded-full uppercase border border-primary/10">
                                                     {roleMap[u.role] || u.role}
                                                 </span>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase truncate max-w-[150px] text-left" dir="ltr">{u.email}</span>
+                                                <span className="text-[10px] font-bold text-muted-foreground/60 uppercase truncate max-w-[150px] text-left" dir="ltr">{u.email}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <div className="flex items-center gap-2 flex-row-reverse">
-                                                <Building className="text-slate-300" size={14} />
-                                                <span className="text-sm font-black text-slate-600 uppercase italic leading-none">{u.branch?.name || 'الإدارة المركزية'}</span>
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center gap-1.5 flex-row-reverse">
+                                                <Building className="text-muted-foreground/30" size={12} />
+                                                <span className="text-xs font-black text-muted-foreground uppercase leading-none">{u.branch?.name || 'الإدارة المركزية'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter flex-row-reverse ${u.isActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                                                <div className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                                        <td className="p-4 text-right">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter flex-row-reverse ${u.isActive ? 'bg-success/10 text-success border border-success/20' : 'bg-destructive/10 text-destructive border border-destructive/20'}`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-success animate-pulse' : 'bg-destructive'}`}></div>
                                                 {u.isActive ? 'نشط' : 'موقف'}
                                             </span>
                                         </td>
-                                        <td className="px-8 py-6 text-left">
-                                            <div className="flex justify-start gap-2">
+                                        <td className="p-4 text-left">
+                                            <div className="flex justify-start gap-1">
                                                 <button 
                                                     onClick={() => {
                                                         setSelectedUser(u);
@@ -221,15 +219,15 @@ export default function Users() {
                                                         setIsEditMode(true);
                                                         setIsIdenOpen(true);
                                                     }}
-                                                    className="w-9 h-9 bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-brand-primary hover:border-brand-primary/30 rounded-xl transition-all shadow-sm shrink-0"
+                                                    className="p-2 bg-white border border-border text-muted-foreground hover:text-primary hover:border-primary/30 rounded-lg transition-all shadow-sm shrink-0"
                                                 >
-                                                    <Pencil size={16} />
+                                                    <Pencil size={15} />
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDelete(u.id)}
-                                                    className="w-9 h-9 bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 rounded-xl transition-all shadow-sm shrink-0"
+                                                    className="p-2 bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 rounded-lg transition-all shadow-sm shrink-0"
                                                 >
-                                                    <Trash2 size={16} />
+                                                    <Trash2 size={15} />
                                                 </button>
                                             </div>
                                         </td>
@@ -326,29 +324,29 @@ export default function Users() {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-4 p-5 sm:p-6 bg-slate-50 rounded-[2rem] flex-row-reverse border border-slate-100">
+                    <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl flex-row-reverse border border-border">
                         <input 
                             type="checkbox" 
                             id="isActive"
-                            className="w-6 h-6 rounded-lg text-brand-primary focus:ring-brand-primary accent-brand-primary"
+                            className="w-5 h-5 rounded-md text-primary focus:ring-primary accent-primary"
                             checked={formData.isActive}
                             onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
                         />
-                        <label htmlFor="isActive" className="text-xs sm:text-sm font-black text-slate-600 uppercase italic text-right">تفعيل وصول هذا المستخدم للنظام</label>
+                        <label htmlFor="isActive" className="text-xs font-black text-muted-foreground uppercase text-right">تفعيل وصول هذا المستخدم للنظام</label>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row-reverse gap-4 pt-4">
+                    <div className="flex flex-col sm:flex-row-reverse gap-3 pt-2">
                         <button 
                             type="submit" 
-                            className="flex-[2] h-16 bg-brand-primary text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-brand-blue shadow-xl shadow-brand-primary/20 transition-all flex items-center justify-center gap-3 active:scale-95"
+                            className="flex-[2] h-12 bg-primary text-white rounded-lg font-black uppercase tracking-widest text-[10px] hover:shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
                         >
-                            <Save size={18} />
+                            <Save size={16} />
                             حفظ واعتماد الهوية
                         </button>
                         <button 
                             type="button" 
                             onClick={() => setIsIdenOpen(false)}
-                            className="flex-1 h-16 bg-slate-100 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-slate-200 transition-all"
+                            className="flex-1 h-12 bg-muted text-muted-foreground rounded-lg font-black uppercase tracking-widest text-[10px] hover:bg-muted/80 transition-all"
                         >
                             إلغاء
                         </button>

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Package, Edit, Download, Upload, History, Check, X, Briefcase } from 'lucide-react';
+import { Plus, Trash2, Package, Edit, Download, Upload, History, Check, X, Briefcase, Search, Broadcast } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
+import { Button } from '../ui/button';
 import * as XLSX from 'xlsx';
 import { api } from '../../api/client';
 import { useApiMutation } from '../../hooks/useApiMutation';
@@ -22,7 +23,6 @@ export function SparePartsTab() {
     const [searchTerm, setSearchTerm] = useState('');
     const [modelFilter, setModelFilter] = useState('');
 
-    // ESC key handler for modals
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -101,12 +101,10 @@ export function SparePartsTab() {
         }
     });
 
-    // Extract unique models for classification
     const allModels = Array.from(new Set(
         parts.flatMap((p: any) => p.compatibleModels?.split(';').filter(Boolean).map((m: string) => m.trim()) || [])
     )).sort();
 
-    // Filter parts based on search and model
     const filteredParts = parts.filter((p: any) => {
         const matchesSearch = !searchTerm ||
             p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -195,7 +193,7 @@ export function SparePartsTab() {
         reader.readAsArrayBuffer(file);
     };
 
-    const handleConfirmImport = async () => {
+    const handleConfirmImport = () => {
         importMutation.mutate(importData);
     };
 
@@ -214,158 +212,217 @@ export function SparePartsTab() {
         XLSX.writeFile(wb, 'spare_parts.xlsx');
     };
 
-    if (isLoading) return <div>جاري التحميل...</div>;
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                    <p className="text-sm font-bold text-muted-foreground">جاري التحميل...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-card rounded-[2rem] border border-border shadow-2xl overflow-hidden animate-fade-in">
-            <div className="p-8 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center bg-muted/20 gap-6">
+        <div className="space-y-6 animate-fade-in">
+            {/* Page Header */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h3 className="text-2xl font-black flex items-center gap-3">
-                        <Package className="text-primary" size={28} />
+                    <h1 className="text-2xl font-black text-primary flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <Package size={22} className="text-primary" />
+                        </div>
                         قانون قطع الغيار
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-2">
-                        الموديلات مفصولة بفاصلة منقوطة (;) • الحروف الصغيرة فقط
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1 font-medium">
+                        الموديلات مفصولة بفاصلة منقوطة (;) · الحروف الصغيرة فقط
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+
+                <div className="flex flex-wrap items-center gap-2">
                     {selectedIds.size > 0 && (
-                        <button
+                        <Button
+                            variant="destructive"
+                            size="sm"
                             onClick={() => {
                                 if (confirm(`هل أنت متأكد من حذف ${selectedIds.size} عنصر؟`)) {
                                     bulkDeleteMutation.mutate(Array.from(selectedIds));
                                 }
                             }}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-2xl font-black text-xs transition-all shadow-lg animate-pulse"
+                            className="gap-1.5 animate-pulse"
                         >
-                            <Trash2 size={16} className="inline ml-2" />
-                            حذف المحدد ({selectedIds.size})
-                        </button>
+                            <Trash2 size={14} />
+                            حذف ({selectedIds.size})
+                        </Button>
                     )}
-                    <button onClick={handleDownloadTemplate} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-muted hover:bg-accent text-foreground px-4 py-3 rounded-2xl font-black text-xs transition-all border border-border">
-                        <Download size={16} /> قالب Excel
-                    </button>
-                    <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-muted hover:bg-accent text-foreground px-4 py-3 rounded-2xl font-black text-xs transition-all border border-border">
-                        <Upload size={16} /> استيراد
-                    </button>
+
+                    <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-1.5">
+                        <Download size={14} />
+                        قالب
+                    </Button>
+
+                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
+                        <Upload size={14} />
+                        استيراد
+                    </Button>
                     <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
-                    <button onClick={handleExport} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-muted hover:bg-accent text-foreground px-4 py-3 rounded-2xl font-black text-xs transition-all border border-border">
-                        <Download size={16} /> تصدير
-                    </button>
-                    <button
+
+                    <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
+                        <Download size={14} />
+                        تصدير
+                    </Button>
+
+                    <Button
+                        variant="success"
+                        size="sm"
                         onClick={() => broadcastMutation.mutate({})}
                         disabled={broadcastMutation.isPending}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-2xl font-black text-xs transition-all shadow-lg active:scale-95 disabled:opacity-50"
-                        title="إرسال قائمة قطع الغيار لجميع الفروع فوراً"
+                        className="gap-1.5"
                     >
-                        {broadcastMutation.isPending ? '⏳ جاري البث...' : '📡 بث للقانون'}
-                    </button>
-                    <button onClick={() => setShowAddForm(true)} className="w-full md:w-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-black transition-all hover:shadow-lg active:scale-95">
-                        <Plus size={20} strokeWidth={3} /> إضافة قطعة
-                    </button>
+                        <Broadcast size={14} />
+                        {broadcastMutation.isPending ? 'جاري البث...' : 'بث للقانون'}
+                    </Button>
+
+                    <Button variant="default" size="sm" onClick={() => setShowAddForm(true)} className="gap-1.5">
+                        <Plus size={14} strokeWidth={3} />
+                        إضافة قطعة
+                    </Button>
                 </div>
             </div>
 
-            {/* Search and Classification Bar */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-                <div className="flex-1 relative">
-                    <input
-                        type="text"
-                        placeholder="بحث بالاسم أو الكود..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-muted/30 border border-border rounded-2xl px-12 py-3 text-sm font-bold focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-muted-foreground">
-                        <Package size={18} />
-                    </div>
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl border-2 border-primary/10 p-4 shadow-sm">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">إجمالي القطع</p>
+                    <p className="text-2xl font-black text-primary">{parts.length}</p>
                 </div>
-                <div className="w-full md:w-64 relative">
-                    <select
-                        value={modelFilter}
-                        onChange={(e) => setModelFilter(e.target.value)}
-                        className="w-full bg-muted/30 border border-border rounded-2xl px-10 py-3 text-sm font-bold appearance-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                    >
-                        <option value="">كل الموديلات</option>
-                        {allModels.map((m: any) => (
-                            <option key={m} value={m}>{m.toUpperCase()}</option>
-                        ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-muted-foreground">
-                        <Briefcase size={16} />
-                    </div>
+                <div className="bg-white rounded-2xl border-2 border-success/20 p-4 shadow-sm">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">متعدد</p>
+                    <p className="text-2xl font-black text-success">{parts.filter((p: any) => p.allowsMultiple).length}</p>
+                </div>
+                <div className="bg-white rounded-2xl border-2 border-primary/10 p-4 shadow-sm">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">الموديلات</p>
+                    <p className="text-2xl font-black text-primary">{allModels.length}</p>
+                </div>
+                <div className="bg-white rounded-2xl border-2 border-warning/20 p-4 shadow-sm">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">السعر الأعلى</p>
+                    <p className="text-2xl font-black text-amber-600">
+                        {parts.length > 0 ? Math.max(...parts.map((p: any) => p.defaultCost || 0)) : 0}
+                    </p>
                 </div>
             </div>
 
-            <div className="overflow-x-auto max-h-[600px] custom-scroll">
-                <table className="w-full">
-                    <thead className="bg-muted/90 backdrop-blur-md sticky top-0 z-10 border-b border-border">
-                        <tr>
-                            <th className="p-5 text-center w-12 bg-muted/90">
-                                <div className="flex justify-center">
+            {/* Search & Filter Bar */}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 p-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1 relative">
+                        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="بحث بالاسم أو الكود..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full border-2 border-primary/10 rounded-lg px-10 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        />
+                    </div>
+                    <div className="relative w-full sm:w-56">
+                        <Briefcase size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <select
+                            value={modelFilter}
+                            onChange={(e) => setModelFilter(e.target.value)}
+                            className="w-full border-2 border-primary/10 rounded-lg px-9 py-2.5 text-sm font-bold appearance-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white"
+                        >
+                            <option value="">كل الموديلات</option>
+                            {allModels.map((m: any) => (
+                                <option key={m} value={m}>{m.toUpperCase()}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {(searchTerm || modelFilter) && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setSearchTerm(''); setModelFilter(''); }}
+                            className="gap-1.5 text-muted-foreground"
+                        >
+                            <X size={14} />
+                            مسح
+                        </Button>
+                    )}
+                </div>
+            </div>
+
+            {/* Data Table */}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-muted/50 border-b-2 border-primary/10">
+                            <tr>
+                                <th className="p-4 w-12">
                                     <Checkbox
                                         checked={selectedIds.size > 0 && selectedIds.size === parts?.length}
                                         onCheckedChange={toggleSelectAll}
                                         className="h-5 w-5 rounded-md"
                                     />
-                                </div>
-                            </th>
-                            <th className="text-center p-5 text-xs font-black uppercase tracking-widest text-muted-foreground bg-muted/90">الكود</th>
-                            <th className="text-center p-5 text-xs font-black uppercase tracking-widest text-muted-foreground bg-muted/90">اسم القطعة</th>
-                            <th className="text-center p-5 text-xs font-black uppercase tracking-widest text-muted-foreground bg-muted/90">الموديلات المتوافقة</th>
-                            <th className="text-center p-5 text-xs font-black uppercase tracking-widest text-muted-foreground bg-muted/90">السعر الرسمي</th>
-                            <th className="text-center p-5 text-xs font-black uppercase tracking-widest text-muted-foreground bg-muted/90">متعدد؟</th>
-                            <th className="text-center p-5 text-xs font-black uppercase tracking-widest text-muted-foreground bg-muted/90">إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/50">
-                        {filteredParts?.map((p: any) => (
-                            <tr key={p.id} className={`hover:bg-muted/30 transition-colors group ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
-                                <td className="p-5 text-center">
-                                    <div className="flex justify-center">
+                                </th>
+                                <th className="text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">الكود</th>
+                                <th className="text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">اسم القطعة</th>
+                                <th className="text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">الموديلات</th>
+                                <th className="text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">السعر</th>
+                                <th className="text-center p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">متعدد</th>
+                                <th className="text-center p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                            {filteredParts?.map((p: any) => (
+                                <tr key={p.id} className={`hover:bg-muted/20 transition-colors ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
+                                    <td className="p-4">
                                         <Checkbox
                                             checked={selectedIds.has(p.id)}
                                             onCheckedChange={() => toggleSelect(p.id)}
                                             className="h-5 w-5 rounded-md"
                                         />
-                                    </div>
-                                </td>
-                                <td className="p-5 font-mono font-black text-primary text-sm">{p.partNumber}</td>
-                                <td className="p-5 font-black text-foreground">{p.name}</td>
-                                <td className="p-5">
-                                    <div className="flex flex-wrap gap-1">
-                                        {p.compatibleModels?.split(';').map((m: string, i: number) => (
-                                            <span key={i} className="px-2 py-0.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[10px] font-black uppercase">{m}</span>
-                                        )) || '-'}
-                                    </div>
-                                </td>
-                                <td className="p-5 font-bold text-emerald-500">{p.defaultCost} ج.م</td>
-                                <td className="p-5 text-center">
-                                    {p.allowsMultiple ?
-                                        <span className="bg-emerald-500/10 text-emerald-500 p-1 rounded-lg inline-block"><Check size={16} /></span> :
-                                        <span className="bg-muted text-muted-foreground/30 p-1 rounded-lg inline-block"><Check size={16} /></span>
-                                    }
-                                </td>
-                                <td className="p-5">
-                                    <div className="flex gap-2">
-                                        <button onClick={() => { setSelectedPart({ ...p }); setShowEditForm(true); }} className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all" title="تعديل"><Edit size={18} /></button>
-                                        <button onClick={() => { setSelectedPart(p); setShowPriceLogs(true); }} className="p-2 text-purple-500 hover:bg-purple-500/10 rounded-xl transition-all" title="سجل الأسعار"><History size={18} /></button>
-                                        <button onClick={() => { if (confirm('حذف هذه القطعة من القانون نهائياً؟')) deleteMutation.mutate(p.id); }} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all" title="حذف"><Trash2 size={18} /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                        {(!filteredParts?.length) && (
-                            <tr><td colSpan={7} className="p-20 text-center text-muted-foreground">
-                                <Package size={64} className="mx-auto mb-4 opacity-20" />
-                                <p className="font-black text-xl">لا توجد قطع غيار مسجلة</p>
-                                <p className="text-sm mt-1">ابدأ بإضافة قطع يدوياً أو استيراد ملف Excel</p>
-                            </td></tr>
-                        )}
-                    </tbody>
-                </table>
+                                    </td>
+                                    <td className="p-4 font-mono font-black text-primary text-sm">{p.partNumber}</td>
+                                    <td className="p-4 font-black text-foreground">{p.name}</td>
+                                    <td className="p-4">
+                                        <div className="flex flex-wrap gap-1">
+                                            {p.compatibleModels?.split(';').map((m: string, i: number) => (
+                                                <span key={i} className="px-2 py-0.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[10px] font-black uppercase">{m}</span>
+                                            )) || '-'}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 font-bold text-success">{p.defaultCost} ج.م</td>
+                                    <td className="p-4 text-center">
+                                        {p.allowsMultiple ?
+                                            <span className="bg-success/10 text-success p-1.5 rounded-lg inline-block"><Check size={16} /></span> :
+                                            <span className="bg-muted text-muted-foreground/30 p-1.5 rounded-lg inline-block"><X size={16} /></span>
+                                        }
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <button onClick={() => { setSelectedPart({ ...p }); setShowEditForm(true); }} className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all" title="تعديل"><Edit size={16} /></button>
+                                            <button onClick={() => { setSelectedPart(p); setShowPriceLogs(true); }} className="p-2 text-purple-500 hover:bg-purple-500/10 rounded-lg transition-all" title="سجل الأسعار"><History size={16} /></button>
+                                            <button onClick={() => { if (confirm('حذف هذه القطعة من القانون نهائياً؟')) deleteMutation.mutate(p.id); }} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all" title="حذف"><Trash2 size={16} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {(!filteredParts?.length) && (
+                                <tr>
+                                    <td colSpan={7} className="p-16 text-center">
+                                        <Package size={48} className="mx-auto mb-3 text-muted-foreground/20" />
+                                        <p className="font-black text-lg text-muted-foreground">لا توجد قطع غيار</p>
+                                        <p className="text-sm mt-1 text-muted-foreground/60">ابدأ بإضافة قطعة يدوياً أو استيراد ملف Excel</p>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
+            {/* Modals */}
             {showAddForm && (
                 <PartFormModal
                     title="إضافة قطعة غيار"
@@ -407,14 +464,14 @@ export function SparePartsTab() {
                             </p>
 
                             <div className="border border-border rounded-xl overflow-hidden mb-6">
-                                <div className="max-h-60 overflow-y-auto bg-muted/30 custom-scroll">
+                                <div className="max-h-60 overflow-y-auto bg-muted/30 custom-scrollbar">
                                     {Array.isArray(importData) && importData.map((p, i) => (
                                         <div key={i} className="px-4 py-3 border-b border-border/50 last:border-0 flex justify-between items-center bg-white/50">
                                             <div>
                                                 <div className="font-bold text-sm">{p.name}</div>
                                                 <div className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">{p.compatibleModels}</div>
                                             </div>
-                                            <div className="text-emerald-600 font-bold text-sm">{p.defaultCost} ج.م</div>
+                                            <div className="text-success font-bold text-sm">{p.defaultCost} ج.م</div>
                                         </div>
                                     ))}
                                 </div>
@@ -422,18 +479,8 @@ export function SparePartsTab() {
                         </div>
 
                         <div className="modal-footer">
-                            <button
-                                onClick={() => { setShowImportDialog(false); setImportData([]); }}
-                                className="smart-btn-secondary"
-                            >
-                                إلغاء
-                            </button>
-                            <button
-                                onClick={handleConfirmImport}
-                                className="smart-btn-primary bg-emerald-600 hover:bg-emerald-700"
-                            >
-                                تأكيد الاستيراد
-                            </button>
+                            <button onClick={() => { setShowImportDialog(false); setImportData([]); }} className="smart-btn-secondary">إلغاء</button>
+                            <button onClick={handleConfirmImport} className="smart-btn-primary bg-success hover:bg-success/80">تأكيد الاستيراد</button>
                         </div>
                     </div>
                 </div>
@@ -487,13 +534,13 @@ function PartFormModal({ title, initialData, onSubmit, onClose }: any) {
                                 type="number"
                                 value={formData.defaultCost}
                                 onChange={e => setFormData({ ...formData, defaultCost: parseFloat(e.target.value) })}
-                                className="smart-input font-bold text-emerald-600"
+                                className="smart-input font-bold text-success"
                                 required
                             />
                         </div>
 
                         <div
-                            className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm ${formData.allowsMultiple
+                            className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.allowsMultiple
                                 ? 'bg-primary/5 border-primary/20 ring-4 ring-primary/5'
                                 : 'bg-slate-50 border-slate-100 hover:border-primary/20 hover:bg-white'
                                 }`}
@@ -545,33 +592,33 @@ function PriceLogsModal({ partId, partName, onClose }: { partId: string; partNam
                 </div>
 
                 <div className="modal-body">
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-                        <span className="text-xs text-slate-500 block mb-1">اسم القطعة</span>
-                        <span className="font-bold">{partName}</span>
+                    <div className="bg-muted/50 border border-border rounded-xl p-4 mb-6">
+                        <span className="text-[10px] text-muted-foreground block mb-1 font-black uppercase tracking-widest">اسم القطعة</span>
+                        <span className="font-bold text-foreground">{partName}</span>
                     </div>
 
                     {isLoading ? (
-                        <div className="text-center py-8 text-slate-500">جاري التحميل...</div>
+                        <div className="text-center py-8 text-muted-foreground font-bold">جاري التحميل...</div>
                     ) : (
-                        <div className="border rounded-xl overflow-hidden">
-                            <div className="max-h-60 overflow-y-auto custom-scroll">
+                        <div className="border border-border rounded-xl overflow-hidden">
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
                                 {displayLogs.length === 0 ? (
-                                    <div className="p-8 text-center text-slate-500">لا توجد تغييرات في السعر</div>
+                                    <div className="p-8 text-center text-muted-foreground font-bold">لا توجد تغييرات في السعر</div>
                                 ) : (
                                     <table className="w-full text-right text-sm">
-                                        <thead className="bg-slate-50 sticky top-0 border-b">
+                                        <thead className="bg-muted/50 sticky top-0 border-b border-border">
                                             <tr>
-                                                <th className="px-4 py-2 border-l">السعر القديم</th>
-                                                <th className="px-4 py-2 border-l">السعر الجديد</th>
-                                                <th className="px-4 py-2">التاريخ</th>
+                                                <th className="px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground">السعر القديم</th>
+                                                <th className="px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground">السعر الجديد</th>
+                                                <th className="px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground">التاريخ</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody className="divide-y divide-border/50">
                                             {displayLogs.map((log: any) => (
-                                                <tr key={log.id} className="hover:bg-slate-50">
-                                                    <td className="px-4 py-2 text-red-500 font-bold">{log.oldCost} ج.م</td>
-                                                    <td className="px-4 py-2 text-emerald-600 font-bold">{log.newCost} ج.م</td>
-                                                    <td className="px-4 py-2 text-[10px] text-slate-500">{new Date(log.changedAt).toLocaleString('ar-EG')}</td>
+                                                <tr key={log.id} className="hover:bg-muted/20">
+                                                    <td className="px-4 py-2 text-destructive font-bold">{log.oldCost} ج.م</td>
+                                                    <td className="px-4 py-2 text-success font-bold">{log.newCost} ج.م</td>
+                                                    <td className="px-4 py-2 text-[10px] text-muted-foreground">{new Date(log.changedAt).toLocaleString('ar-EG')}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

@@ -46,45 +46,45 @@ export default function SyncStatus() {
     };
 
     return (
-        <div className="space-y-8 animate-fade-in pl-10 pr-4">
+        <div className="space-y-6 animate-fade-in">
             {/* Header Section */}
-            <div className="flex justify-between items-center mb-10 layout-card p-6">
+            <div className="flex justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 tracking-tight uppercase flex items-center gap-3">
-                        <RefreshCw className="text-brand-primary" size={28} />
+                    <h1 className="text-xl lg:text-2xl font-black text-primary tracking-tight uppercase flex items-center gap-3">
+                        <RefreshCw className="text-brand-cyan" size={24} />
                         محرك المزامنة اللحظية
                     </h1>
-                    <p className="text-slate-400 font-bold text-sm mt-3 tracking-widest text-[11px] uppercase pr-10">
+                    <p className="text-xs text-muted-foreground font-bold mt-1 tracking-widest uppercase">
                         مراقبة طابور التحديثات بين المركز الرئيسي والفروع
                     </p>
                 </div>
-                <div className="flex gap-4">
-                    <button onClick={fetchSyncQueue} className="btn-secondary text-[11px]" disabled={loading}>
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                        تحديث البيانات
+                <div className="flex gap-3">
+                    <button onClick={fetchSyncQueue} className="px-4 py-2 bg-white border-2 border-primary/10 text-primary rounded-lg font-black uppercase tracking-widest text-[10px] hover:bg-primary/5 transition-all disabled:opacity-50" disabled={loading}>
+                        <RefreshCw size={14} className={`inline ml-1.5 ${loading ? 'animate-spin' : ''}`} />
+                        تحديث
                     </button>
                 </div>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'إجمالي العمليات', value: summary?.total || 0, color: 'text-brand-primary', bg: 'bg-brand-primary/10' },
+                    { label: 'إجمالي العمليات', value: summary?.total || 0, color: 'text-primary', bg: 'bg-primary/5' },
                     { label: 'مكتمل بنجاح', value: summary?.synced || 0, color: 'text-success', bg: 'bg-success/10' },
-                    { label: 'قيد الانتظار', value: summary?.pending || 0, color: 'text-warning', bg: 'bg-warning/10' },
-                    { label: 'عمليات فاشلة', value: summary?.error || 0, color: 'text-danger', bg: 'bg-danger/10' }
+                    { label: 'قيد الانتظار', value: summary?.pending || 0, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: 'عمليات فاشلة', value: summary?.error || 0, color: 'text-destructive', bg: 'bg-destructive/10' }
                 ].map((stat, i) => (
-                    <div key={i} className="layout-card p-6 border-l-4 border-white transition-all hover:border-brand-primary">
-                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                        <h3 className={`text-3xl font-black mt-2 ${stat.color}`}>{stat.value}</h3>
+                    <div key={i} className="bg-white p-4 rounded-2xl border-2 border-primary/10 shadow-sm transition-all hover:shadow-md">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+                        <h3 className={`text-2xl font-black mt-1 ${stat.color}`}>{stat.value}</h3>
                     </div>
                 ))}
             </div>
 
             {/* Main Log Table */}
-            <div className="layout-card overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <h2 className="font-black text-slate-700 tracking-wide text-sm flex items-center gap-3">
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-border/50 flex justify-between items-center bg-muted/30">
+                    <h2 className="font-black text-primary tracking-wide text-sm flex items-center gap-2">
                         <div className="w-1.5 h-4 bg-brand-cyan rounded-full"></div>
                         سجل طابور المزامنة
                     </h2>
@@ -92,7 +92,7 @@ export default function SyncStatus() {
                         <select 
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            className="bg-white border-none shadow-sm rounded-xl px-4 py-2 text-xs font-black text-slate-600 focus:ring-2 focus:ring-brand-primary focus:outline-none"
+                            className="bg-white border-2 border-border rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                         >
                             <option value="ALL">الكل</option>
                             <option value="SYNCED">المكتملة</option>
@@ -104,39 +104,39 @@ export default function SyncStatus() {
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-right">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                        <thead className="bg-muted/50 border-b-2 border-primary/10">
                             <tr>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">رقم العملية</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">الفرع الوجهة</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">نوع الكيان</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">الإجراء</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">تاريخ الإرسال</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">الحالة</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">رقم العملية</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الفرع</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">النوع</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الإجراء</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">التاريخ</th>
+                                <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الحالة</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-border/50">
                             {queues.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-bold">
+                                    <td colSpan={6} className="p-10 text-center text-muted-foreground font-bold">
                                         لا توجد عمليات مزامنة حالياً
                                     </td>
                                 </tr>
                             ) : (
                                 queues.map((q) => (
-                                    <tr key={q.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4 font-mono text-xs text-slate-500">#{q.id.substring(q.id.length - 6).toUpperCase()}</td>
-                                        <td className="px-6 py-4 font-black text-brand-primary text-xs">{q.branch?.name || q.branchId}</td>
-                                        <td className="px-6 py-4 font-bold text-slate-600 text-[11px] uppercase tracking-widest">{q.entityType}</td>
-                                        <td className="px-6 py-4 font-bold text-slate-600 text-[11px] uppercase tracking-widest">{q.action}</td>
-                                        <td className="px-6 py-4 text-xs text-slate-400 font-medium">
+                                    <tr key={q.id} className="hover:bg-muted/30 transition-colors">
+                                        <td className="p-4 font-mono text-xs text-muted-foreground">#{q.id.substring(q.id.length - 6).toUpperCase()}</td>
+                                        <td className="p-4 font-black text-primary text-xs">{q.branch?.name || q.branchId}</td>
+                                        <td className="p-4 font-bold text-muted-foreground/70 text-[10px] uppercase tracking-widest">{q.entityType}</td>
+                                        <td className="p-4 font-bold text-muted-foreground/70 text-[10px] uppercase tracking-widest">{q.action}</td>
+                                        <td className="p-4 text-xs text-muted-foreground/60 font-medium">
                                             {new Date(q.createdAt).toLocaleString('ar-EG')}
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="p-4">
                                             <div className="flex items-center gap-2">
                                                 {getStatusIcon(q.status)}
                                                 <span className={`text-[11px] font-black tracking-widest ${
                                                     q.status === 'SYNCED' ? 'text-success' : 
-                                                    q.status === 'PENDING' ? 'text-warning' : 'text-danger'
+                                                    q.status === 'PENDING' ? 'text-amber-600' : 'text-destructive'
                                                 }`}>
                                                     {getStatusText(q.status)}
                                                 </span>

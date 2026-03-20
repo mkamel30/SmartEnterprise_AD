@@ -61,11 +61,11 @@ export function MachineParametersTab() {
     if (isLoading) return <div>جاري التحميل...</div>;
 
     return (
-        <div className="bg-card rounded-[2rem] border border-border shadow-2xl overflow-hidden animate-fade-in">
-            <div className="p-8 border-b border-border flex flex-wrap justify-between items-center bg-muted/20 gap-4">
+        <div className="bg-card rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden animate-fade-in">
+            <div className="p-5 border-b border-border flex flex-wrap justify-between items-center bg-muted/30 gap-4">
                 <div>
-                    <h3 className="text-xl font-black">بارامترات الماكينات</h3>
-                    <p className="text-sm text-muted-foreground mt-1">إجمالي البارامترات المسجلة: {params?.length || 0}</p>
+                    <h3 className="text-base font-black">بارامترات الماكينات</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">إجمالي البارامترات المسجلة: {params?.length || 0}</p>
                 </div>
                 <div className="flex gap-3 flex-wrap">
                     <button

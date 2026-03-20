@@ -36,32 +36,32 @@ export function SystemParamsTab() {
         updateMutation.mutate({ id, value });
     };
 
-    if (isLoading) return <div className="p-10 text-center">جاري التحميل...</div>;
+    if (isLoading) return <div className="p-8 text-center text-muted-foreground font-bold">جاري التحميل...</div>;
 
     return (
-        <div className="bg-card rounded-[2.5rem] border border-border shadow-2xl overflow-hidden animate-fade-in">
-            <div className="p-8 border-b border-border flex justify-between items-center bg-muted/20">
+        <div className="bg-card rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden animate-fade-in">
+            <div className="p-5 border-b border-border flex justify-between items-center bg-muted/30">
                 <div>
-                    <h3 className="text-xl font-black flex items-center gap-3">
-                        <Settings className="text-primary" size={24} />
+                    <h3 className="text-base font-black flex items-center gap-2">
+                        <Settings className="text-primary" size={20} />
                         إعدادات النظام العامة
                     </h3>
-                    <p className="text-sm text-muted-foreground mt-1">تؤثر هذه الإعدادات على جميع الفروع فور المزامنة</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">تؤثر هذه الإعدادات على جميع الفروع فور المزامنة</p>
                 </div>
                 <button
                     onClick={() => broadcastMutation.mutate({})}
                     disabled={broadcastMutation.isPending}
-                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-black transition-all hover:shadow-lg active:scale-95 disabled:opacity-50"
+                    className="flex items-center gap-2 bg-success hover:bg-success/80 text-white px-5 py-2.5 rounded-lg font-black transition-all hover:shadow-md active:scale-95 disabled:opacity-50"
                 >
                     {broadcastMutation.isPending ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
                     بث الإعدادات للفروع فوراً
                 </button>
             </div>
 
-            <div className="p-8 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {params?.map((p: any) => (
-                        <div key={p.id} className="bg-muted/30 border border-border rounded-2xl p-6 space-y-3 transition-all hover:border-primary/20">
+                        <div key={p.id} className="bg-muted/30 border border-border rounded-xl p-4 space-y-2 transition-all hover:border-primary/20">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full mb-1 inline-block">

@@ -188,8 +188,8 @@ export function PermissionsTab() {
     const hasChanges = pendingChanges.size > 0;
 
     return (
-        <div className="bg-card rounded-[2.5rem] border border-border shadow-2xl overflow-hidden animate-fade-in relative">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-[120px] -ml-40 -mt-40 pointer-events-none" />
+        <div className="bg-card rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden animate-fade-in relative">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -ml-32 -mt-32 pointer-events-none" />
 
             <div className="p-4 sm:p-6 border-b border-border relative z-10">
                 <div className="flex justify-between items-center flex-wrap gap-4">

@@ -80,7 +80,7 @@ export function AppearanceTab() {
     return (
         <div className="space-y-6">
             {/* Notification Preferences */}
-            <div className="bg-card rounded-4xl border border-border shadow-md p-10 animate-fade-in">
+            <div className="bg-card rounded-2xl border border-border shadow-md p-10 animate-fade-in">
                 <h2 className="text-2xl font-black mb-8 text-foreground border-b border-border pb-6 flex items-center gap-4">
                     <Sparkles size={28} className="text-primary" />
                     إعدادات الإشعارات
@@ -156,7 +156,7 @@ export function AppearanceTab() {
             </div>
 
             {/* Font Size */}
-            <div className="bg-card rounded-4xl border border-border shadow-md p-10 animate-fade-in">
+            <div className="bg-card rounded-2xl border border-border shadow-md p-10 animate-fade-in">
                 <h2 className="text-2xl font-black mb-8 text-foreground border-b border-border pb-6 flex items-center gap-4">
                     <Type size={28} className="text-primary" />
                     حجم الخط
@@ -194,7 +194,7 @@ export function AppearanceTab() {
             </div>
 
             {/* Font Family */}
-            <div className="bg-card rounded-4xl border border-border shadow-md p-10 animate-fade-in relative overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border shadow-md p-10 animate-fade-in relative overflow-hidden">
                 <h2 className="text-2xl font-black mb-10 text-foreground border-b border-border pb-6 flex items-center gap-4 relative z-10">
                     <Palette size={28} className="text-primary" />
                     تخصيص الخطوط العامة
