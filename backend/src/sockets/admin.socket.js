@@ -14,36 +14,28 @@ module.exports = (io) => {
             // Check if this key belongs to an existing branch
             let branch = await prisma.branch.findFirst({ where: { apiKey: apiKey } });
 
-            // Robust check: If it matches our master key, allow auto-creation/login
+            // Master key check: find branch by code from handshake query, reject if not found
             if (!branch && apiKey === globalApiKey) {
-                const branchCode = socket.handshake.query.branchCode || 'BR-GEN';
-                console.log(`[Socket] Branch ${branchCode} connecting with Master Key`);
+                const branchCode = socket.handshake.query.branchCode;
+                if (!branchCode) {
+                    return next(new Error('Authentication error: Branch code required'));
+                }
 
-                // Check if branch already exists by code
-                const existingByCode = await prisma.branch.findFirst({ where: { code: branchCode } });
-                if (existingByCode) {
-                    // Update existing branch's API key and status
+                // Look up branch by code — must be created on portal first
+                branch = await prisma.branch.findFirst({ where: { code: branchCode } });
+                if (branch) {
+                    // Update branch status
                     branch = await prisma.branch.update({
-                        where: { id: existingByCode.id },
+                        where: { id: branch.id },
                         data: {
                             apiKey: apiKey,
                             status: 'ONLINE',
                             lastSeen: new Date()
                         }
                     });
-                    console.log(`[Socket] Updated existing branch ${branchCode}`);
+                    console.log(`[Socket] Branch ${branchCode} connected`);
                 } else {
-                    // Create new branch
-                    branch = await prisma.branch.create({
-                        data: {
-                            name: 'Auto-Registered Branch',
-                            code: branchCode,
-                            apiKey: apiKey,
-                            status: 'ONLINE',
-                            lastSeen: new Date()
-                        }
-                    });
-                    console.log(`[Socket] Created new branch ${branchCode}`);
+                    return next(new Error(`Authentication error: Branch '${branchCode}' not found on portal. Create it first.`));
                 }
             }
 
