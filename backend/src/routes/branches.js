@@ -33,6 +33,11 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Branch Name is required' });
         }
 
+        // Clean empty strings to null for optional FK fields
+        managerEmail = managerEmail || undefined;
+        maintenanceCenterId = maintenanceCenterId || undefined;
+        parentBranchId = parentBranchId || undefined;
+
         // Auto-generate code if missing
         if (!code) {
             const lastBranch = await prisma.branch.findFirst({
