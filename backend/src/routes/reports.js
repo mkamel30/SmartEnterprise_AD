@@ -17,7 +17,7 @@ router.get('/financial-summary', async (req, res) => {
                         users: true,
                         customers: true,
                         posMachines: true,
-                        inventory: true
+                        warehouseMachines: true
                     }
                 }
             }
@@ -32,8 +32,8 @@ router.get('/financial-summary', async (req, res) => {
                  requestCount: b._count.requests,
                  userCount: b._count.users,
                  customerCount: b._count.customers,
-                 machineCount: b._count.posMachines,
-                 stockCount: b._count.inventory
+                  machineCount: b._count.posMachines,
+                  stockCount: b._count.warehouseMachines
              };
         });
 
