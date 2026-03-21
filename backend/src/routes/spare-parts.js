@@ -35,10 +35,27 @@ router.post('/broadcast', async (req, res) => {
 // Create Master Spare Part
 router.post('/', async (req, res) => {
     try {
-        const { partNumber, name, description, compatibleModels, defaultCost, isConsumable, category } = req.body;
+        let { partNumber, name, description, compatibleModels, defaultCost, isConsumable, category } = req.body;
         
         if (!name) {
             return res.status(400).json({ error: 'Part Name is required' });
+        }
+
+        // Auto-generate part number if missing
+        if (!partNumber) {
+            const lastPart = await prisma.masterSparePart.findFirst({
+                where: { partNumber: { startsWith: 'SP' } },
+                orderBy: { partNumber: 'desc' }
+            });
+            let nextNum = 1;
+            if (lastPart?.partNumber) {
+                nextNum = parseInt(lastPart.partNumber.substring(2)) + 1;
+            }
+            partNumber = `SP${String(nextNum).padStart(4, '0')}`;
+            while (await prisma.masterSparePart.findUnique({ where: { partNumber } })) {
+                nextNum++;
+                partNumber = `SP${String(nextNum).padStart(4, '0')}`;
+            }
         }
 
         const part = await prisma.masterSparePart.create({
