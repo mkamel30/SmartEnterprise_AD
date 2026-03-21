@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2, Package, Edit, Download, Upload, History, X, Briefcase, Search, Radio, Eye, Wifi, WifiOff, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
+import Modal from '../Modal';
 import * as XLSX from 'xlsx';
 import { api } from '../../api/client';
 import { useApiMutation } from '../../hooks/useApiMutation';
@@ -88,7 +89,14 @@ export function SparePartsTab() {
             {showEditForm&&selectedPart&&<PartFormModal title='تعديل بيانات القطعة' initialData={selectedPart} onSubmit={(d)=>updateMutation.mutate({id:selectedPart.id,data:d})} onClose={()=>{setShowEditForm(false);setSelectedPart(null);}} />}
             {showPriceLogs&&selectedPart&&<PriceLogsModal partId={selectedPart.id} partName={selectedPart.name} onClose={()=>setShowPriceLogs(false)} />}
             {showDetailModal&&selectedPart&&<PartDetailModal part={selectedPart} onClose={()=>setShowDetailModal(false)} />}
-            {showImportDialog&&<div className='modal-overlay' onClick={()=>{setShowImportDialog(false);setImportData([]);}}><div className='modal-container modal-sm' onClick={(e)=>e.stopPropagation()}><div className='modal-header'><div className='modal-header-content'><Upload className='modal-icon text-primary' size={24} /><h2 className='modal-title'>تأكيد استيراد البيانات</h2></div><button type='button' className='modal-close' onClick={()=>{setShowImportDialog(false);setImportData([]);}}><X size={20} /></button></div><div className='modal-body'><p className='text-muted-foreground mb-6'>سيتم إضافة <span className='text-foreground font-black underline decoration-primary decoration-4'>{importData.length}</span> قطعة غيار جديدة للقانون.</p><div className='border border-border rounded-xl overflow-hidden mb-6'><div className='max-h-60 overflow-y-auto bg-muted/30 custom-scrollbar'>{Array.isArray(importData)&&importData.map((p,i)=><div key={i} className='px-4 py-3 border-b border-border/50 last:border-0 flex justify-between items-center bg-white/50'><div><div className='font-bold text-sm'>{p.name}</div><div className='text-[10px] text-muted-foreground font-bold tracking-widest uppercase'>{p.compatibleModels}</div></div><div className='text-success font-bold text-sm'>{p.defaultCost} ج.م</div></div>)}</div></div></div><div className='modal-footer'><button onClick={()=>{setShowImportDialog(false);setImportData([]);}} className='smart-btn-secondary'>إلغاء</button><button onClick={()=>importMutation.mutate(importData)} className='smart-btn-primary bg-success hover:bg-success/80'>تأكيد الاستيراد</button></div></div></div>}
+            {showImportDialog&&<Modal isOpen={true} onClose={()=>{setShowImportDialog(false);setImportData([]);}} title='تأكيد استيراد البيانات' icon={<Upload size={36} className='text-primary' />}>
+                <p className='text-muted-foreground mb-6'>سيتم إضافة <span className='text-foreground font-black underline decoration-primary decoration-4'>{importData.length}</span> قطعة غيار جديدة للقانون.</p>
+                <div className='border border-border rounded-xl overflow-hidden mb-6'><div className='max-h-60 overflow-y-auto bg-muted/30'>{Array.isArray(importData)&&importData.map((p,i)=><div key={i} className='px-4 py-3 border-b border-border/50 last:border-0 flex justify-between items-center bg-white/50'><div><div className='font-bold text-sm'>{p.name}</div><div className='text-[10px] text-muted-foreground font-bold tracking-widest uppercase'>{p.compatibleModels}</div></div><div className='text-success font-bold text-sm'>{p.defaultCost} ج.م</div></div>)}</div></div>
+                <div className='flex gap-3'>
+                    <button onClick={()=>{setShowImportDialog(false);setImportData([]);}} className='flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-50 transition-all text-sm'>إلغاء</button>
+                    <button onClick={()=>importMutation.mutate(importData)} className='flex-1 bg-success text-white py-3 rounded-xl font-bold hover:bg-success/80 transition-all text-sm'>تأكيد الاستيراد</button>
+                </div>
+            </Modal>}
         </div>
     );
 }
@@ -96,23 +104,23 @@ export function SparePartsTab() {
 function PartFormModal({ title, initialData, onSubmit, onClose }) {
     const [formData, setFormData] = useState({ name:'', partNumber:'', compatibleModels:'', defaultCost:0, isConsumable:false, category:'', ...initialData });
     return (
-        <div className='modal-overlay' onClick={onClose}><div className='modal-container modal-sm' onClick={(e)=>e.stopPropagation()}>
-            <div className='modal-header'><div className='modal-header-content'><Package className='modal-icon text-primary' size={24} /><h2 className='modal-title'>{title}</h2></div><button type='button' className='modal-close' onClick={onClose}><X size={20} /></button></div>
-            <form onSubmit={(e)=>{e.preventDefault();onSubmit(formData);}}>
-                <div className='modal-body space-y-4'>
-                    <div className='modal-form-field'><label className='modal-form-label required uppercase tracking-widest text-[10px]'>اسم القطعة</label><input value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} className='smart-input' required /></div>
-                    <div className='modal-form-field'><label className='modal-form-label uppercase tracking-widest text-[10px]'>رقم القطعة (اختياري)</label><input value={formData.partNumber||''} onChange={e=>setFormData({...formData,partNumber:e.target.value})} className='smart-input font-mono' /></div>
-                    <div className='modal-form-field'><label className='modal-form-label uppercase tracking-widest text-[10px]'>الموديلات المتوافقة</label><input placeholder='s90;d210;vx520' value={formData.compatibleModels} onChange={e=>setFormData({...formData,compatibleModels:e.target.value})} className='smart-input font-mono' /><p className='text-[10px] text-slate-400 mt-1'>افصل بين الموديلات بفاصلة منقوطة (;)</p></div>
-                    <div className='modal-form-field'><label className='modal-form-label required uppercase tracking-widest text-[10px]'>السعر الرسمي (ج.م)</label><input type='number' value={formData.defaultCost} onChange={e=>setFormData({...formData,defaultCost:parseFloat(e.target.value)||0})} className='smart-input font-bold text-success' required /></div>
-                    <div className='modal-form-field'><label className='modal-form-label uppercase tracking-widest text-[10px]'>التصنيف</label><input value={formData.category||''} onChange={e=>setFormData({...formData,category:e.target.value})} className='smart-input' placeholder='POS, GENERAL, etc.' /></div>
-                    <div className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.isConsumable?'bg-primary/5 border-primary/20 ring-4 ring-primary/5':'bg-slate-50 border-slate-100 hover:border-primary/20 hover:bg-white'}`} onClick={()=>setFormData({...formData,isConsumable:!formData.isConsumable})}>
-                        <div className='flex items-center gap-3'><div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${formData.isConsumable?'bg-primary text-white':'bg-slate-200 text-slate-500'}`}><Package size={18} /></div><span className='text-xs font-black text-slate-700'>قطعة استهلاكية</span></div>
-                        <Checkbox checked={formData.isConsumable} onCheckedChange={(c)=>setFormData({...formData,isConsumable:!!c})} className='h-6 w-6 rounded-lg' />
-                    </div>
+        <Modal isOpen={true} onClose={onClose} title={title} icon={<Package size={36} className='text-primary' />}>
+            <form onSubmit={(e)=>{e.preventDefault();onSubmit(formData);}} className='space-y-4'>
+                <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>اسم القطعة</label><input value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} className='smart-input h-12 px-5' required /></div>
+                <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>رقم القطعة (اختياري)</label><input value={formData.partNumber||''} onChange={e=>setFormData({...formData,partNumber:e.target.value})} className='smart-input h-12 px-5 font-mono' /></div>
+                <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>الموديلات المتوافقة</label><input placeholder='s90;d210;vx520' value={formData.compatibleModels} onChange={e=>setFormData({...formData,compatibleModels:e.target.value})} className='smart-input h-12 px-5 font-mono' /><p className='text-[10px] text-slate-400 mt-1'>افصل بين الموديلات بفاصلة منقوطة (;)</p></div>
+                <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>السعر الرسمي (ج.م)</label><input type='number' value={formData.defaultCost} onChange={e=>setFormData({...formData,defaultCost:parseFloat(e.target.value)||0})} className='smart-input h-12 px-5 font-bold text-success' required /></div>
+                <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>التصنيف</label><input value={formData.category||''} onChange={e=>setFormData({...formData,category:e.target.value})} className='smart-input h-12 px-5' placeholder='POS, GENERAL, etc.' /></div>
+                <div className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.isConsumable?'bg-primary/5 border-primary/20':'bg-slate-50 border-slate-100'}`} onClick={()=>setFormData({...formData,isConsumable:!formData.isConsumable})}>
+                    <div className='flex items-center gap-3'><div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${formData.isConsumable?'bg-primary text-white':'bg-slate-200 text-slate-500'}`}><Package size={18} /></div><span className='text-xs font-black text-slate-700'>قطعة استهلاكية</span></div>
+                    <Checkbox checked={formData.isConsumable} onCheckedChange={(c)=>setFormData({...formData,isConsumable:!!c})} className='h-6 w-6 rounded-lg' />
                 </div>
-                <div className='modal-footer'><button type='button' onClick={onClose} className='smart-btn-secondary'>إلغاء</button><button type='submit' className='smart-btn-primary'>حفظ البيانات</button></div>
+                <div className='pt-4 flex gap-3'>
+                    <button type='submit' className='flex-1 bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-all text-sm'>حفظ</button>
+                    <button type='button' onClick={onClose} className='flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-50 transition-all text-sm'>إلغاء</button>
+                </div>
             </form>
-        </div></div>
+        </Modal>
     );
 }
 
@@ -120,12 +128,40 @@ function PriceLogsModal({ partId, partName, onClose }) {
     const { data: logs, isLoading } = useQuery({ queryKey: ['price-logs', partId], queryFn: () => api.get('/spare-parts/' + partId + '/price-logs') });
     const displayLogs = Array.isArray(logs) ? logs : [];
     return (
-        <div className='modal-overlay' onClick={onClose}><div className='modal-container modal-sm' onClick={(e)=>e.stopPropagation()}>
-            <div className='modal-header'><div className='modal-header-content'><History className='modal-icon text-purple-600' size={24} /><h2 className='modal-title'>سجل تغييرات السعر</h2></div><button type='button' className='modal-close' onClick={onClose}><X size={20} /></button></div>
-            <div className='modal-body'><div className='bg-muted/50 border border-border rounded-xl p-4 mb-6'><span className='text-[10px] text-muted-foreground block mb-1 font-black uppercase tracking-widest'>اسم القطعة</span><span className='font-bold text-foreground'>{partName}</span></div>
-                {isLoading ? <div className='text-center py-8 text-muted-foreground font-bold'>جاري التحميل...</div> : <div className='border border-border rounded-xl overflow-hidden'><div className='max-h-60 overflow-y-auto custom-scrollbar'>{displayLogs.length===0 ? <div className='p-8 text-center text-muted-foreground font-bold'>لا توجد تغييرات في السعر</div> : <table className='w-full text-right text-sm'><thead className='bg-muted/50 sticky top-0 border-b border-border'><tr><th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>السعر القديم</th><th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>السعر الجديد</th><th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>التاريخ</th></tr></thead><tbody className='divide-y divide-border/50'>{displayLogs.map((log)=><tr key={log.id} className='hover:bg-muted/20'><td className='px-4 py-2 text-destructive font-bold'>{log.oldCost} ج.م</td><td className='px-4 py-2 text-success font-bold'>{log.newCost} ج.م</td><td className='px-4 py-2 text-[10px] text-muted-foreground'>{new Date(log.changedAt).toLocaleString('ar-EG')}</td></tr>)}</tbody></table>}</div></div>}</div>
-            <div className='modal-footer'><button onClick={onClose} className='smart-btn-secondary w-full'>إغلاق</button></div>
-        </div></div>
+        <Modal isOpen={true} onClose={onClose} title='سجل تغييرات السعر' icon={<History size={36} className='text-purple-600' />}>
+            <div className='bg-muted/50 border border-border rounded-xl p-4 mb-6'>
+                <span className='text-[10px] text-muted-foreground block mb-1 font-black uppercase tracking-widest'>اسم القطعة</span>
+                <span className='font-bold text-foreground'>{partName}</span>
+            </div>
+            {isLoading ? (
+                <div className='text-center py-8 text-muted-foreground font-bold'>جاري التحميل...</div>
+            ) : displayLogs.length === 0 ? (
+                <div className='text-center py-8 text-muted-foreground font-bold'>لا توجد تغييرات في السعر</div>
+            ) : (
+                <div className='border border-border rounded-xl overflow-hidden'>
+                    <div className='max-h-60 overflow-y-auto'>
+                        <table className='w-full text-right text-sm'>
+                            <thead className='bg-muted/50 sticky top-0 border-b border-border'>
+                                <tr>
+                                    <th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>القديم</th>
+                                    <th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>الجديد</th>
+                                    <th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>التاريخ</th>
+                                </tr>
+                            </thead>
+                            <tbody className='divide-y divide-border/50'>
+                                {displayLogs.map((log) => (
+                                    <tr key={log.id} className='hover:bg-muted/20'>
+                                        <td className='px-4 py-2 text-destructive font-bold'>{log.oldCost} ج.م</td>
+                                        <td className='px-4 py-2 text-success font-bold'>{log.newCost} ج.م</td>
+                                        <td className='px-4 py-2 text-[10px] text-muted-foreground'>{new Date(log.changedAt).toLocaleString('ar-EG')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </Modal>
     );
 }
 
@@ -172,33 +208,63 @@ function PartDetailModal({ part, onClose }) {
     const offlineCount = branchStock.filter(b => b.error).length;
 
     return (
-        <div className='modal-overlay' onClick={onClose}><div className='modal-container modal-lg' onClick={(e)=>e.stopPropagation()}>
-            <div className='modal-header'><div className='modal-header-content'><Eye className='modal-icon text-green-600' size={24} /><h2 className='modal-title'>تفاصيل قطعة الغيار</h2></div><button type='button' className='modal-close' onClick={onClose}><X size={20} /></button></div>
-            <div className='modal-body'>
-                <div className='grid grid-cols-2 gap-3 mb-6'>
-                    <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>الاسم</span><span className='font-bold text-sm'>{part.name}</span></div>
-                    <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>رقم القطعة</span><span className='font-bold font-mono text-sm'>{part.partNumber || '-'}</span></div>
-                    <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>السعر</span><span className='font-bold text-sm text-success'>{part.defaultCost} ج.م</span></div>
-                    <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>التصنيف</span><span className='font-bold text-sm'>{part.category || '-'}</span></div>
-                    {part.compatibleModels && <div className='col-span-2 bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>الموديلات المتوافقة</span><div className='flex flex-wrap gap-1 mt-1'>{part.compatibleModels.split(';').filter(Boolean).map((m,i)=><span key={i} className='px-2 py-0.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[10px] font-black uppercase'>{m}</span>)}</div></div>}
-                </div>
-                {priceLogsData.length > 0 && <div className='mb-6'><h3 className='text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2'><History size={12} /> سجل الأسعار</h3><div className='border border-border rounded-xl overflow-hidden'><div className='max-h-32 overflow-y-auto custom-scrollbar'><table className='w-full text-right text-sm'><thead className='bg-muted/50 sticky top-0 border-b border-border'><tr><th className='px-3 py-1.5 text-right text-[10px] font-black text-muted-foreground'>من</th><th className='px-3 py-1.5 text-right text-[10px] font-black text-muted-foreground'>إلى</th><th className='px-3 py-1.5 text-right text-[10px] font-black text-muted-foreground'>التاريخ</th></tr></thead><tbody className='divide-y divide-border/50'>{priceLogsData.slice(0,5).map((log)=><tr key={log.id}><td className='px-3 py-1.5 text-destructive font-bold text-xs'>{log.oldCost}</td><td className='px-3 py-1.5 text-success font-bold text-xs'>{log.newCost}</td><td className='px-3 py-1.5 text-[10px] text-muted-foreground'>{new Date(log.changedAt).toLocaleString('ar-EG')}</td></tr>)}</tbody></table></div></div></div>}
-                <div>
-                    <div className='flex items-center justify-between mb-2'>
-                        <h3 className='text-[10px] font-black uppercase text-muted-foreground flex items-center gap-2'><Package size={12} /> مخزون الفروع</h3>
-                        <div className='flex items-center gap-2'>
-                            {isQuerying && <span className='text-[10px] text-muted-foreground flex items-center gap-1'><Loader2 size={12} className='animate-spin' /> جاري الاستعلام...</span>}
-                            {queriedAt && !isQuerying && <span className='text-[10px] text-muted-foreground'>آخر استعلام: {queriedAt.toLocaleTimeString('ar-EG')}</span>}
-                            {branchStock.length > 0 && <span className='text-[10px] font-black'><span className='text-green-600'>{onlineCount} متصل</span> / <span className='text-slate-400'>{offlineCount} غير متصل</span></span>}
-                            <Button variant='outline' size='sm' onClick={queryBranchStock} disabled={isQuerying} className='h-7 text-[10px] gap-1'><Wifi size={12} />{isQuerying?'جاري...':'استعلام'}</Button>
-                            {branchStock.length > 0 && <Button variant='outline' size='sm' onClick={handleExportStock} className='h-7 text-[10px] gap-1'><FileSpreadsheet size={12} />تصدير</Button>}
+        <Modal isOpen={true} onClose={onClose} title='تفاصيل قطعة الغيار' maxWidth='max-w-2xl' icon={<Eye size={36} className='text-green-600' />}>
+            <div className='grid grid-cols-2 gap-3 mb-6'>
+                <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>الاسم</span><span className='font-bold text-sm'>{part.name}</span></div>
+                <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>رقم القطعة</span><span className='font-bold font-mono text-sm'>{part.partNumber || '-'}</span></div>
+                <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>السعر</span><span className='font-bold text-sm text-success'>{part.defaultCost} ج.م</span></div>
+                <div className='bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>التصنيف</span><span className='font-bold text-sm'>{part.category || '-'}</span></div>
+                {part.compatibleModels && <div className='col-span-2 bg-muted/50 rounded-xl p-3'><span className='text-[10px] font-black uppercase text-muted-foreground block mb-1'>الموديلات المتوافقة</span><div className='flex flex-wrap gap-1 mt-1'>{part.compatibleModels.split(';').filter(Boolean).map((m,i)=><span key={i} className='px-2 py-0.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[10px] font-black uppercase'>{m}</span>)}</div></div>}
+            </div>
+            {priceLogsData.length > 0 && (
+                <div className='mb-6'>
+                    <h3 className='text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2'><History size={12} /> سجل الأسعار</h3>
+                    <div className='border border-border rounded-xl overflow-hidden'>
+                        <div className='max-h-32 overflow-y-auto'>
+                            <table className='w-full text-right text-sm'>
+                                <thead className='bg-muted/50 sticky top-0 border-b border-border'>
+                                    <tr><th className='px-3 py-1.5 text-right text-[10px] font-black text-muted-foreground'>من</th><th className='px-3 py-1.5 text-right text-[10px] font-black text-muted-foreground'>إلى</th><th className='px-3 py-1.5 text-right text-[10px] font-black text-muted-foreground'>التاريخ</th></tr>
+                                </thead>
+                                <tbody className='divide-y divide-border/50'>
+                                    {priceLogsData.slice(0,5).map((log)=><tr key={log.id}><td className='px-3 py-1.5 text-destructive font-bold text-xs'>{log.oldCost}</td><td className='px-3 py-1.5 text-success font-bold text-xs'>{log.newCost}</td><td className='px-3 py-1.5 text-[10px] text-muted-foreground'>{new Date(log.changedAt).toLocaleString('ar-EG')}</td></tr>)}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    {branchStock.length === 0 && !isQuerying && <div className='border border-border rounded-xl p-8 text-center'><WifiOff size={32} className='mx-auto mb-2 text-muted-foreground/30' /><p className='text-sm font-bold text-muted-foreground'>اضغط "استعلام" للتحقق من مخزون الفروع</p><p className='text-[10px] text-muted-foreground/60 mt-1'>يتم الاستعلام عن الفروع المتصلة عبر الوقت الفعلي</p></div>}
-                    {branchStock.length > 0 && <div className='border border-border rounded-xl overflow-hidden'><div className='max-h-64 overflow-y-auto custom-scrollbar'><table className='w-full text-right text-sm'><thead className='bg-muted/50 sticky top-0 border-b border-border'><tr><th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>الفرع</th><th className='px-4 py-2 text-center text-[10px] font-black uppercase text-muted-foreground'>الحالة</th><th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>الوقت</th></tr></thead><tbody className='divide-y divide-border/50'>{branchStock.map((b) => <tr key={b.branchId} className='hover:bg-muted/20'><td className='px-4 py-2'><div className='font-bold text-sm'>{b.branchName}</div><div className='text-[10px] text-muted-foreground font-mono'>{b.branchCode}</div></td><td className='px-4 py-2 text-center'>{b.error ? <span className='inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black'><WifiOff size={10} /> غير متصل</span> : <span className='inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-lg text-[10px] font-black'><Wifi size={10} /> متصل</span>}</td><td className='px-4 py-2 text-[10px] text-muted-foreground'>{b.timestamp ? new Date(b.timestamp).toLocaleString('ar-EG') : '-'}</td></tr>)}</tbody></table></div></div>}
                 </div>
+            )}
+            <div>
+                <div className='flex items-center justify-between mb-2'>
+                    <h3 className='text-[10px] font-black uppercase text-muted-foreground flex items-center gap-2'><Package size={12} /> مخزون الفروع</h3>
+                    <div className='flex items-center gap-2'>
+                        {isQuerying && <span className='text-[10px] text-muted-foreground flex items-center gap-1'><Loader2 size={12} className='animate-spin' /> جاري الاستعلام...</span>}
+                        {queriedAt && !isQuerying && <span className='text-[10px] text-muted-foreground'>آخر استعلام: {queriedAt.toLocaleTimeString('ar-EG')}</span>}
+                        {branchStock.length > 0 && <span className='text-[10px] font-black'><span className='text-green-600'>{onlineCount} متصل</span> / <span className='text-slate-400'>{offlineCount} غير متصل</span></span>}
+                        <Button variant='outline' size='sm' onClick={queryBranchStock} disabled={isQuerying} className='h-7 text-[10px] gap-1'><Wifi size={12} />{isQuerying?'جاري...':'استعلام'}</Button>
+                        {branchStock.length > 0 && <Button variant='outline' size='sm' onClick={handleExportStock} className='h-7 text-[10px] gap-1'><FileSpreadsheet size={12} />تصدير</Button>}
+                    </div>
+                </div>
+                {branchStock.length === 0 && !isQuerying && <div className='border border-border rounded-xl p-8 text-center'><WifiOff size={32} className='mx-auto mb-2 text-muted-foreground/30' /><p className='text-sm font-bold text-muted-foreground'>اضغط "استعلام" للتحقق من مخزون الفروع</p></div>}
+                {branchStock.length > 0 && (
+                    <div className='border border-border rounded-xl overflow-hidden'>
+                        <div className='max-h-64 overflow-y-auto'>
+                            <table className='w-full text-right text-sm'>
+                                <thead className='bg-muted/50 sticky top-0 border-b border-border'>
+                                    <tr><th className='px-4 py-2 text-right text-[10px] font-black uppercase text-muted-foreground'>الفرع</th><th className='px-4 py-2 text-center text-[10px] font-black uppercase text-muted-foreground'>الحالة</th></tr>
+                                </thead>
+                                <tbody className='divide-y divide-border/50'>
+                                    {branchStock.map((b) => (
+                                        <tr key={b.branchId} className='hover:bg-muted/20'>
+                                            <td className='px-4 py-2'><div className='font-bold text-sm'>{b.branchName}</div><div className='text-[10px] text-muted-foreground font-mono'>{b.branchCode}</div></td>
+                                            <td className='px-4 py-2 text-center'>{b.error ? <span className='inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black'><WifiOff size={10} /> غير متصل</span> : <span className='inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-lg text-[10px] font-black'><Wifi size={10} /> متصل</span>}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
-            <div className='modal-footer'><button onClick={onClose} className='smart-btn-secondary w-full'>إغلاق</button></div>
-        </div></div>
+        </Modal>
     );
 }
