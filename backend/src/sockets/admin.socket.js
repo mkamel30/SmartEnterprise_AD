@@ -16,18 +16,35 @@ module.exports = (io) => {
 
             // Robust check: If it matches our master key, allow auto-creation/login
             if (!branch && apiKey === globalApiKey) {
-                console.log(`[Socket] New branch detected with Master Key. Creating...`);
-                // Use a default code or extract it from handshake query if available
                 const branchCode = socket.handshake.query.branchCode || 'BR-GEN';
-                branch = await prisma.branch.create({
-                    data: {
-                        name: 'Auto-Registered Branch',
-                        code: branchCode,
-                        apiKey: apiKey,
-                        status: 'ONLINE',
-                        lastSeen: new Date()
-                    }
-                });
+                console.log(`[Socket] Branch ${branchCode} connecting with Master Key`);
+
+                // Check if branch already exists by code
+                const existingByCode = await prisma.branch.findFirst({ where: { code: branchCode } });
+                if (existingByCode) {
+                    // Update existing branch's API key and status
+                    branch = await prisma.branch.update({
+                        where: { id: existingByCode.id },
+                        data: {
+                            apiKey: apiKey,
+                            status: 'ONLINE',
+                            lastSeen: new Date()
+                        }
+                    });
+                    console.log(`[Socket] Updated existing branch ${branchCode}`);
+                } else {
+                    // Create new branch
+                    branch = await prisma.branch.create({
+                        data: {
+                            name: 'Auto-Registered Branch',
+                            code: branchCode,
+                            apiKey: apiKey,
+                            status: 'ONLINE',
+                            lastSeen: new Date()
+                        }
+                    });
+                    console.log(`[Socket] Created new branch ${branchCode}`);
+                }
             }
 
             if (!branch) {
