@@ -1,255 +1,202 @@
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Users, Building2, Activity, Clock, Zap,
-  UserPlus, Settings, Cpu, Box, Database
+  Users, Building2, Activity, Clock, Zap, Package, Wifi, WifiOff,
+  AlertTriangle, ChevronRight, RefreshCw, Eye
 } from 'lucide-react';
-import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar
-} from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import adminClient from '../api/adminClient';
-import toast from 'react-hot-toast';
-import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const [stats, setStats] = useState<any>(null);
 
-    const fetchStats = async () => {
-        try {
-            const res = await adminClient.get('/dashboard/stats');
-            setStats(res.data);
-        } catch (error) {
-            toast.error('فشل في مزامنة بيانات لوحة التحكم');
-        }
-    };
+    const { data: branches } = useQuery({
+        queryKey: ['dashboard-branches'],
+        queryFn: () => adminClient.get('/branches').then(r => r.data),
+    });
 
-    useEffect(() => {
-        fetchStats();
-    }, []);
+    const { data: spareParts } = useQuery({
+        queryKey: ['dashboard-spare-parts'],
+        queryFn: () => adminClient.get('/spare-parts').then(r => r.data),
+    });
+
+    const { data: syncLogs } = useQuery({
+        queryKey: ['dashboard-sync-logs'],
+        queryFn: () => adminClient.get('/sync/logs?limit=10').then(r => r.data),
+    });
+
+    const branchList = Array.isArray(branches) ? branches : [];
+    const sparePartList = Array.isArray(spareParts) ? spareParts : [];
+    const syncLogList = syncLogs?.data || [];
+
+    const onlineBranches = branchList.filter(b => b.status === 'ONLINE');
+    const offlineBranches = branchList.filter(b => b.status !== 'ONLINE');
+    const failedLogs = syncLogList.filter(l => l.status === 'FAILED');
+    const totalSparePartsCost = sparePartList.reduce((sum, p) => sum + (p.defaultCost || 0), 0);
 
     return (
         <div className="space-y-6 pb-6" dir="rtl">
-            {/* Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-smart-blue rounded-2xl p-6 lg:p-8 text-white shadow-lg">
-                <div className="absolute top-0 left-0 w-1/3 h-full bg-white/5 skew-x-12 transform -translate-x-20"></div>
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div>
-                        <h1 className="text-2xl lg:text-3xl font-black tracking-tight uppercase mb-2">
-                            مركز التحكم <span className="text-brand-cyan">الرئيسي</span>
-                        </h1>
-                        <p className="text-brand-cyan/80 font-bold uppercase tracking-[0.2em] text-[10px]">
-                            مجموعة سمارت للخدمات المتكاملة • وحدة الإدارة المركزية 2026
-                        </p>
-                    </div>
-                    <div className="flex gap-6">
-                        <div className="text-center group cursor-pointer" onClick={() => navigate('/branches')}>
-                            <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-2 group-hover:bg-brand-cyan/20 transition-all">
-                                <Building2 size={24} className="text-brand-cyan" />
-                            </div>
-                            <p className="text-[10px] font-black uppercase">الفروع</p>
-                        </div>
-                        <div className="text-center group cursor-pointer" onClick={() => navigate('/parameters')}>
-                            <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-2 group-hover:bg-brand-cyan/20 transition-all">
-                                <Settings size={24} className="text-brand-cyan" />
-                            </div>
-                            <p className="text-[10px] font-black uppercase">الإعدادات</p>
-                        </div>
-                    </div>
+            {/* Hero */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-primary via-primary/95 to-primary/90 rounded-2xl p-6 text-white shadow-lg">
+                <div className="relative z-10">
+                    <h1 className="text-2xl font-black tracking-tight">مركز التحكم الرئيسي</h1>
+                    <p className="text-white/60 font-bold text-xs mt-1">متابعة حالة الفروع والمزامنة والمخزون</p>
                 </div>
             </div>
 
-            {/* Stats Grid */}
+            {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard 
-                    title="المستخدمين النشطين" 
-                    value={stats?.usersCount || 0} 
-                    icon={<Users />} 
-                    trend="+12% نمو"
-                    color="blue"
-                />
-                <MetricCard 
-                    title="إجمالي الماكينات" 
-                    value={stats?.totalMachines || 0} 
-                    icon={<Cpu />} 
-                    trend="+45 جهاز"
-                    color="cyan"
-                />
-                <MetricCard 
-                    title="حالة النظام" 
-                    value={`${stats?.systemHealth || 100}%`} 
-                    icon={<Activity />} 
-                    trend="مستقرة"
-                    color="green"
-                />
-                <MetricCard 
-                    title="عمليات اليوم" 
-                    value={stats?.dailyOps || 0} 
-                    icon={<Zap />} 
-                    trend="معدل طبيعي"
-                    color="orange"
-                />
+                <StatCard icon={<Building2 />} label="فروع متصلة" value={onlineBranches.length} color="text-success" bgColor="bg-success/10" />
+                <StatCard icon={<WifiOff />} label="فروع غير متصلة" value={offlineBranches.length} color="text-slate-400" bgColor="bg-slate-100" />
+                <StatCard icon={<Package />} label="قطع غيار" value={sparePartList.length} color="text-primary" bgColor="bg-primary/10" />
+                <StatCard icon={<AlertTriangle />} label="أخطاء مزامنة" value={failedLogs.length} color="text-destructive" bgColor="bg-destructive/10" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Performance Chart */}
-                <div className="lg:col-span-2 bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-md">
-                    <div className="flex justify-between items-center mb-6">
+            {/* Branch Status + Recent Sync Errors */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Branch Connection Status */}
+                <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-border/50 flex items-center justify-between">
                         <div>
-                            <h3 className="text-lg font-black text-primary tracking-tight uppercase">معدلات الأداء العام</h3>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">تحليل الإيرادات عبر شبكة الفروع</p>
+                            <h3 className="font-black text-primary text-sm uppercase tracking-widest">حالة الفروع</h3>
+                            <p className="text-[10px] text-muted-foreground font-bold">آخر حالة اتصال</p>
                         </div>
-                        <div className="flex gap-2">
-                             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                                <div className="w-2 h-2 rounded-full bg-brand-primary animate-pulse ml-2"></div>
-                                <span className="text-[10px] font-black text-brand-primary uppercase">بيانات حية</span>
-                             </div>
-                        </div>
+                        <button onClick={() => navigate('/branches')} className="text-[10px] text-primary font-bold hover:underline flex items-center gap-1">
+                            عرض الكل <ChevronRight size={12} />
+                        </button>
                     </div>
-                    <div className="h-80 w-full" dir="ltr">
-                        <ResponsiveContainer width="100%" height="100%" minHeight={1}>
-                            <BarChart data={stats?.performanceData || []}>
-                                <defs>
-                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#0A2472" />
-                                        <stop offset="100%" stopColor="#0E6BA8" />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis 
-                                    dataKey="name" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} 
-                                />
-                                <YAxis 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} 
-                                />
-                                <Tooltip 
-                                    cursor={{ fill: '#f8fafc' }}
-                                    contentStyle={{ 
-                                        borderRadius: '1.5rem', 
-                                        border: 'none', 
-                                        boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                                        padding: '1.5rem',
-                                        textAlign: 'right'
-                                    }}
-                                />
-                                <Bar dataKey="revenue" fill="url(#barGradient)" radius={[15, 15, 0, 0]} barSize={40} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* System Logs */}
-                <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-md">
-                    <div className="mb-6 text-right">
-                        <h3 className="text-lg font-black text-primary tracking-tight uppercase">سجل الأحداث المركزية</h3>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">تتبع التدفقات العالمية</p>
-                    </div>
-                    <div className="space-y-4">
-                        {stats?.recentActions.map((log: any) => (
-                            <div key={log.id} className="flex gap-3 group cursor-pointer hover:-translate-x-1 transition-all">
-                                <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all shrink-0">
-                                    <Clock size={16} />
-                                </div>
-                                <div className="flex-1 border-b border-border/50 pb-3 group-last:border-0 text-right">
-                                    <p className="text-sm font-black text-primary group-hover:text-brand-blue transition-colors">
-                                        {log.action}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-1 justify-end">
-                                        <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">{log.time}</span>
-                                        <span className="text-[9px] font-black px-2 py-0.5 bg-muted text-muted-foreground rounded uppercase tracking-tighter">{log.branch}</span>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-border/50">
+                        {branchList.length === 0 ? (
+                            <div className="p-8 text-center text-muted-foreground font-bold">لا توجد فروع</div>
+                        ) : branchList.map((b: any) => (
+                            <div key={b.id} className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${b.status === 'ONLINE' ? 'bg-success animate-pulse' : 'bg-slate-300'}`} />
+                                    <div>
+                                        <span className="text-sm font-bold text-foreground">{b.name}</span>
+                                        <span className="text-[10px] text-muted-foreground font-mono mr-2">{b.code}</span>
                                     </div>
                                 </div>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${b.status === 'ONLINE' ? 'bg-success/10 text-success' : 'bg-slate-100 text-slate-400'}`}>
+                                    {b.status === 'ONLINE' ? 'متصل' : 'غير متصل'}
+                                </span>
                             </div>
                         ))}
                     </div>
-                    <button 
-                        onClick={() => navigate('/reports')}
-                        className="w-full mt-6 py-3 bg-muted text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all"
-                    >
-                        عرض التقارير المالية المفصلة
+                </div>
+
+                {/* Recent Sync Errors */}
+                <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-border/50 flex items-center justify-between">
+                        <div>
+                            <h3 className="font-black text-destructive text-sm uppercase tracking-widest flex items-center gap-2">
+                                <AlertTriangle size={16} /> أخطاء المزامنة
+                            </h3>
+                            <p className="text-[10px] text-muted-foreground font-bold">آخر الأخطاء من الفروع</p>
+                        </div>
+                        <button onClick={() => navigate('/settings')} className="text-[10px] text-primary font-bold hover:underline flex items-center gap-1">
+                            سجل كامل <ChevronRight size={12} />
+                        </button>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-border/50">
+                        {failedLogs.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <Activity size={24} className="mx-auto mb-2 text-success/50" />
+                                <p className="text-sm font-bold text-success">لا توجد أخطاء — النظام يعمل بشكل ممتاز</p>
+                            </div>
+                        ) : failedLogs.map((log: any) => (
+                            <div key={log.id} className="px-5 py-3 hover:bg-destructive/5 transition-colors">
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] font-black text-destructive">{log.type}</span>
+                                    <span className="text-[10px] text-muted-foreground font-bold">
+                                        {new Date(log.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                                    </span>
+                                </div>
+                                <p className="text-sm font-bold text-foreground">{log.message}</p>
+                                {log.branchCode && <span className="text-[10px] text-muted-foreground font-mono mt-1 block">{log.branchCode}</span>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Spare Parts Stats */}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-border/50 flex items-center justify-between">
+                    <div>
+                        <h3 className="font-black text-primary text-sm uppercase tracking-widest flex items-center gap-2">
+                            <Package size={16} /> قانون قطع الغيار
+                        </h3>
+                        <p className="text-[10px] text-muted-foreground font-bold">ملخص الكتالوج</p>
+                    </div>
+                    <button onClick={() => navigate('/settings')} className="text-[10px] text-primary font-bold hover:underline flex items-center gap-1">
+                        إدارة <ChevronRight size={12} />
                     </button>
                 </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-5">
+                    <div className="bg-muted/30 rounded-xl p-4 text-center">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">العدد الكلي</p>
+                        <p className="text-2xl font-black text-primary">{sparePartList.length}</p>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl p-4 text-center">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">استهلاكية</p>
+                        <p className="text-2xl font-black text-success">{sparePartList.filter(p => p.isConsumable).length}</p>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl p-4 text-center">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">أعلى سعر</p>
+                        <p className="text-2xl font-black text-amber-600">{sparePartList.length > 0 ? Math.max(...sparePartList.map(p => p.defaultCost || 0)) : 0} ج.م</p>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl p-4 text-center">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">إجمالي الأسعار</p>
+                        <p className="text-2xl font-black text-primary">{totalSparePartsCost.toLocaleString()} ج.م</p>
+                    </div>
+                </div>
             </div>
 
-            {/* Control Groups */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <ControlBox 
-                    title="الوصول والمستخدمين" 
-                    desc="إدارة الموظفين والصلاحيات والأدوار" 
-                    icon={<UserPlus />} 
-                    onClick={() => navigate('/users')}
-                    color="blue"
-                />
-                <ControlBox 
-                    title="المخزون العام" 
-                    desc="التحكم في العهد وقطع الغيار" 
-                    icon={<Box />} 
-                    onClick={() => navigate('/spare-parts')}
-                    color="cyan"
-                />
-                <ControlBox 
-                    title="النسخ الاحتياطي" 
-                    desc="مراقبة واستعادة بيانات الفروع" 
-                    icon={<Database />} 
-                    onClick={() => navigate('/branches')}
-                    color="purple"
-                />
+            {/* Recent Sync Activity */}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-border/50 flex items-center justify-between">
+                    <div>
+                        <h3 className="font-black text-primary text-sm uppercase tracking-widest">آخر أنشطة المزامنة</h3>
+                        <p className="text-[10px] text-muted-foreground font-bold">جميع الفروع</p>
+                    </div>
+                </div>
+                <div className="divide-y divide-border/50">
+                    {syncLogList.length === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground font-bold">لا توجد سجلات</div>
+                    ) : syncLogList.slice(0, 8).map((log: any) => (
+                        <div key={log.id} className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-2.5 h-2.5 rounded-full ${log.status === 'SUCCESS' ? 'bg-success' : 'bg-destructive'}`} />
+                                <div>
+                                    <span className="text-sm font-bold">{log.message}</span>
+                                    {log.branchName && <span className="text-[10px] text-muted-foreground mr-2 font-mono">{log.branchName}</span>}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${log.status === 'SUCCESS' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                                    {log.status === 'SUCCESS' ? 'نجاح' : 'فشل'}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-bold">
+                                    {new Date(log.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
 }
 
-function MetricCard({ title, value, icon, trend, color }: any) {
-    const colorStyles = {
-        blue: 'text-brand-primary bg-brand-primary/5',
-        cyan: 'text-brand-cyan bg-brand-cyan/5',
-        green: 'text-green-600 bg-green-50',
-        orange: 'text-orange-500 bg-orange-50',
-    };
-
+function StatCard({ icon, label, value, color, bgColor }: any) {
     return (
-        <div className="bg-white p-5 rounded-2xl border border-primary/10 shadow-sm hover:shadow-md transition-all group overflow-hidden relative text-right">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-slate-50/50 rounded-full -translate-x-12 -translate-y-12 group-hover:scale-150 transition-all duration-700"></div>
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 relative z-10 mr-0 ml-auto ${colorStyles[color as keyof typeof colorStyles]}`}>
+        <div className="bg-white rounded-2xl border-2 border-primary/10 p-4 shadow-sm hover:shadow-md transition-all">
+            <div className={`w-10 h-10 rounded-xl ${bgColor} ${color} flex items-center justify-center mb-3`}>
                 {icon}
             </div>
-            <div className="relative z-10">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
-                <div className="flex items-end justify-between flex-row-reverse">
-                    <h2 className="text-3xl font-black text-brand-primary tracking-tighter">{value}</h2>
-                    <span className="text-[9px] font-black px-2 py-1 bg-slate-50 rounded-lg text-slate-500 uppercase tracking-tighter">{trend}</span>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function ControlBox({ title, desc, icon, onClick, color }: any) {
-    const variants = {
-        blue: 'hover:bg-brand-primary hover:text-white border-brand-primary/10',
-        cyan: 'hover:bg-brand-cyan hover:text-white border-brand-cyan/10',
-        purple: 'hover:bg-brand-purple hover:text-white border-brand-purple/10',
-    };
-
-    return (
-        <div 
-            onClick={onClick}
-            className={`cursor-pointer bg-white p-5 rounded-2xl border-2 border-primary/10 transition-all shadow-sm group hover:shadow-md ${variants[color as keyof typeof variants]}`}
-        >
-            <div className="flex items-start gap-4 flex-row-reverse">
-                <div className="shrink-0 w-12 h-12 bg-muted rounded-xl flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all">
-                    {icon}
-                </div>
-                <div className="text-right">
-                    <h4 className="font-black text-base tracking-tight uppercase group-hover:text-white transition-colors">{title}</h4>
-                    <p className="text-xs font-medium opacity-60 mt-1">{desc}</p>
-                </div>
-            </div>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{label}</p>
+            <p className={`text-2xl font-black ${color}`}>{value}</p>
         </div>
     );
 }

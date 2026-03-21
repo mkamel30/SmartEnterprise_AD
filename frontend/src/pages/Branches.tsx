@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
-import { Plus, RefreshCw, Building2, Key, Edit2, Trash2, Check, Copy, Shield, Store, Briefcase, MapPin, Hash, Search, Filter, Users } from 'lucide-react';
+import { Plus, RefreshCw, Building2, Key, Edit2, Trash2, Check, Copy, Shield, Store, Briefcase, MapPin, Hash, Search, Filter, Users, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
+import { BranchInventoryModal } from '../components/BranchInventoryModal';
 
 type BranchType = 'BRANCH' | 'MAIN_STORE' | 'MAINTENANCE_CENTER' | 'ADMIN_AFFAIRS';
 
@@ -20,6 +21,7 @@ export default function Branches() {
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [inventoryBranch, setInventoryBranch] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -186,6 +188,7 @@ export default function Branches() {
                         {getTypeIcon(branch.type)}
                       </div>
                       <div className="flex gap-1">
+                        <button onClick={() => setInventoryBranch(branch)} className="p-2 text-slate-400 hover:text-primary transition-colors" title="جرد"><Package size={14} /></button>
                         <button onClick={() => handleRequestSync(branch.id)} className="p-2 text-slate-400 hover:text-success transition-colors" title="مزامنة"><RefreshCw size={14} /></button>
                         <button onClick={() => handleOpenModal(branch)} className="p-2 text-slate-400 hover:text-brand-primary transition-colors" title="تعديل"><Edit2 size={14} /></button>
                         <button onClick={() => handleDelete(branch.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors" title="حذف"><Trash2 size={14} /></button>
@@ -260,6 +263,7 @@ export default function Branches() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => setInventoryBranch(branch)} className="p-2 text-slate-400 hover:text-primary rounded-lg transition-all" title="جرد"><Package size={14} /></button>
                           <button onClick={() => handleRequestSync(branch.id)} className="p-2 text-slate-400 hover:text-success rounded-lg transition-all" title="مزامنة"><RefreshCw size={14} /></button>
                           <button onClick={() => handleOpenModal(branch)} className="p-2 text-slate-400 hover:text-brand-primary rounded-lg transition-all" title="تعديل"><Edit2 size={14} /></button>
                           <button onClick={() => handleDelete(branch.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-all" title="حذف"><Trash2 size={14} /></button>
@@ -413,6 +417,16 @@ export default function Branches() {
           </div>
         </form>
       </Modal>
+
+      {/* Branch Inventory Modal */}
+      {inventoryBranch && (
+        <BranchInventoryModal
+          branchId={inventoryBranch.id}
+          branchCode={inventoryBranch.code}
+          branchName={inventoryBranch.name}
+          onClose={() => setInventoryBranch(null)}
+        />
+      )}
     </div>
   );
 }

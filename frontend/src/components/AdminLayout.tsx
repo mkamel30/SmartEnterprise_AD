@@ -19,10 +19,8 @@ interface NavItem {
 const allNavItems: NavItem[] = [
     { id: 'dashboard', name: 'لوحة التحكم المركزية', href: '/', icon: LayoutDashboard },
     { id: 'branches', name: 'شبكة الفروع', href: '/branches', icon: Building2 },
-    { id: 'users', name: 'إدارة الصلاحيات', href: '/users', icon: Users },
-    { id: 'customers', name: 'سجل العملاء العام', href: '/customers', icon: Layers },
+    { id: 'users', name: 'إدارة المستخدمين', href: '/users', icon: Users },
     { id: 'warehouse', name: 'مخازن الأجهزة والعهد', href: '/warehouse', icon: Layers },
-    { id: 'reports', name: 'التقارير المالية الموحدة', href: '/reports', icon: Activity },
     { id: 'sync-status', name: 'مراقب المزامنة', href: '/sync-status', icon: RefreshCw },
     { id: 'settings', name: 'الإعدادات والتكوين', href: '/settings', icon: Settings2 },
 ];

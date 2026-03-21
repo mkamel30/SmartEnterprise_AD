@@ -3,9 +3,7 @@ import Dashboard from './pages/Dashboard';
 import Branches from './pages/Branches';
 import Settings from './pages/Settings';
 import UsersPage from './pages/Users';
-import Customers from './pages/Customers';
 import Warehouse from './pages/Warehouse';
-import Reports from './pages/Reports';
 import SyncStatus from './pages/SyncStatus';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
@@ -52,9 +50,7 @@ function AuthWrapper() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/branches" element={<Branches />} />
           <Route path="/users" element={<UsersPage />} />
-          <Route path="/customers" element={<Customers />} />
           <Route path="/warehouse" element={<Warehouse />} />
-          <Route path="/reports" element={<Reports />} />
           <Route path="/sync-status" element={<SyncStatus />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

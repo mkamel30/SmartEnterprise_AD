@@ -277,6 +277,7 @@ model Branch {
   version                                         String?
   backups                                         BranchBackup[]
   syncQueues                                      SyncQueue[]
+  syncLogs                                        PortalSyncLog[]
 
   // Extended branch info
   managerEmail                                    String?
@@ -645,4 +646,20 @@ model ClientType {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// --- PORTAL SYNC LOG ---
+
+model PortalSyncLog {
+  id          String    @id @default(cuid())
+  branchId    String?
+  branch      Branch?   @relation(fields: [branchId], references: [id])
+  branchCode  String?
+  branchName  String?
+  type        String    // CONNECT, DISCONNECT, PULL, PUSH, UPDATE
+  status      String    // SUCCESS, FAILED
+  message     String
+  details     String?
+  itemCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
 }

@@ -1,6 +1,15 @@
 const prisma = require('../db');
 const syncQueueService = require('../services/syncQueue.service');
 
+// Helper to log portal sync operations
+async function logPortalSync(branchId, branchCode, branchName, type, status, message, itemCount = 0) {
+    try {
+        await prisma.portalSyncLog.create({
+            data: { branchId, branchCode, branchName, type, status, message, itemCount }
+        });
+    } catch (e) { /* ignore */ }
+}
+
 module.exports = (io) => {
     io.use(async (socket, next) => {
         const apiKey = socket.handshake.auth.apiKey || socket.handshake.headers['x-api-key'];
@@ -46,13 +55,17 @@ module.exports = (io) => {
             // Bind branch info to socket
             socket.branchId = branch.id;
             socket.branchCode = branch.code;
+            socket.branchName = branch.name;
             
             // Mark as ONLINE
             await prisma.branch.update({
                 where: { id: branch.id },
                 data: { status: 'ONLINE', lastSeen: new Date() }
             });
-            
+
+            // Log connection
+            logPortalSync(branch.id, branch.code, branch.name, 'CONNECT', 'SUCCESS', `${branch.code} (${branch.name}) اتصل عبر WebSocket`);
+
             socket.join(`branch_${branch.id}`);
             next();
         } catch (err) {
@@ -219,6 +232,7 @@ module.exports = (io) => {
 
 socket.on('disconnect', async () => {
             console.log(`[Socket] Branch Disconnected: ${socket.branchCode}`);
+            logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) انقطع`);
             try {
                 await prisma.branch.update({
                     where: { id: socket.branchId },

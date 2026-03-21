@@ -3,6 +3,15 @@ const router = express.Router();
 const prisma = require('../../db');
 const syncQueueService = require('../services/syncQueue.service');
 
+// Helper to log sync operations
+async function logPortalSync(branchId, branchCode, branchName, type, status, message, itemCount = 0, details = null) {
+    try {
+        await prisma.portalSyncLog.create({
+            data: { branchId, branchCode, branchName, type, status, message, itemCount, details: details ? String(details).substring(0, 1000) : null }
+        });
+    } catch (e) { /* ignore */ }
+}
+
 // Branch authentication for HTTP sync endpoints
 const branchAuth = async (req, res, next) => {
     const apiKey = req.headers['x-portal-sync-key'];
@@ -72,9 +81,14 @@ router.post('/request-sync', branchAuth, async (req, res) => {
             result.globalParameters = await prisma.globalParameter.findMany();
         }
 
+        // Log the sync request
+        const totalItems = Object.values(result).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0);
+        await logPortalSync(req.branch.id, req.branch.code, req.branch.name, 'PULL', 'SUCCESS', `${req.branch.code} استقبل ${totalItems} عنصر`, totalItems);
+
         res.json({ success: true, data: result });
     } catch (error) {
         console.error('Branch sync request failed:', error);
+        await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PULL', 'FAILED', 'فشل المزامنة: ' + error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -157,9 +171,14 @@ router.post('/push', branchAuth, async (req, res) => {
             }
         });
 
+        // Log the push
+        const pushTotal = (payments?.length || 0) + (maintenanceRequests?.length || 0) + (users?.length || 0) + (customers?.length || 0) + (posMachines?.length || 0);
+        await logPortalSync(req.branch.id, req.branch.code, req.branch.name, 'PUSH', 'SUCCESS', `${req.branch.code} أرسل ${pushTotal} عنصر`, pushTotal);
+
         res.json({ message: 'Sync successful' });
     } catch (error) {
         console.error('Push sync failed:', error);
+        await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PUSH', 'FAILED', 'فشل الإرسال: ' + error.message);
         res.status(500).json({ error: 'Push sync failed' });
     }
 });
@@ -192,6 +211,35 @@ router.get('/branch-stock/:branchId/:partId', async (req, res) => {
         res.json({ stock: [], branchId, partId, note: 'Branch stock queried via WebSocket' });
     } catch (error) {
         console.error('Branch stock query failed:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /sync/logs - Portal sync logs (paginated, filterable by branch)
+router.get('/logs', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = parseInt(req.query.offset) || 0;
+        const type = req.query.type || '';
+        const branchId = req.query.branchId || '';
+
+        const where = {};
+        if (type) where.type = type;
+        if (branchId) where.branchId = branchId;
+
+        const [logs, total] = await Promise.all([
+            prisma.portalSyncLog.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip: offset
+            }),
+            prisma.portalSyncLog.count({ where })
+        ]);
+
+        res.json({ data: logs, pagination: { total, limit, offset, pages: Math.ceil(total / limit) } });
+    } catch (error) {
+        console.error('Failed to get sync logs:', error);
         res.status(500).json({ error: error.message });
     }
 });
