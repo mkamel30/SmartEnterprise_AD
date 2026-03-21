@@ -40,8 +40,10 @@ const miscRoutes = require('./src/routes/misc');
 const settingsRoutes = require('./src/routes/settings');
 const mfaRoutes = require('./src/routes/mfa');
 const bootstrapRoutes = require('./src/routes/bootstrap');
+const branchSetupRoutes = require('./src/routes/branch-setup');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/branch-setup', branchSetupRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/parameters', parameterRoutes);
 app.use('/api/pos-parameters', posParameterRoutes);
