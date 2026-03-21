@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 // Register new branch
 router.post('/', async (req, res) => {
     try {
-        let { code, name, address, authorizedHWID } = req.body;
+        let { code, name, address, authorizedHWID, type, phone, managerEmail, maintenanceCenterId, parentBranchId } = req.body;
         
         if (!name) {
             return res.status(400).json({ error: 'Branch Name is required' });
@@ -70,7 +70,12 @@ router.post('/', async (req, res) => {
                         name,
                         address,
                         apiKey,
-                        authorizedHWID
+                        authorizedHWID,
+                        type: type || 'BRANCH',
+                        phone,
+                        managerEmail,
+                        maintenanceCenterId,
+                        parentBranchId
                     }
                 });
                 break;
@@ -99,7 +104,7 @@ router.post('/', async (req, res) => {
 // Update branch
 router.put('/:id', async (req, res) => {
     try {
-        const { name, address, authorizedHWID, status } = req.body;
+        const { name, address, authorizedHWID, status, type, phone, managerEmail, maintenanceCenterId, parentBranchId } = req.body;
         
         const branch = await prisma.branch.update({
             where: { id: req.params.id },
@@ -107,6 +112,11 @@ router.put('/:id', async (req, res) => {
                 name,
                 address,
                 authorizedHWID,
+                type,
+                phone,
+                managerEmail,
+                maintenanceCenterId,
+                parentBranchId,
                 status
             }
         });

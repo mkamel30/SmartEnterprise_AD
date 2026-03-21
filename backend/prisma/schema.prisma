@@ -277,6 +277,10 @@ model Branch {
   version                                         String?
   backups                                         BranchBackup[]
   syncQueues                                      SyncQueue[]
+
+  // Extended branch info
+  managerEmail                                    String?
+  maintenanceCenterId                             String?
 }
 
 model Customer {
