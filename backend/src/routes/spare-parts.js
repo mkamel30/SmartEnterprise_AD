@@ -192,8 +192,27 @@ router.post('/import', async (req, res) => {
                         }
                     });
                 } else {
+                    // Auto-generate part number
+                    let partNumber = item.partNumber;
+                    if (!partNumber) {
+                        const lastPart = await prisma.masterSparePart.findFirst({
+                            where: { partNumber: { startsWith: 'SP' } },
+                            orderBy: { partNumber: 'desc' }
+                        });
+                        let nextNum = 1;
+                        if (lastPart?.partNumber) {
+                            nextNum = parseInt(lastPart.partNumber.substring(2)) + 1;
+                        }
+                        partNumber = `SP${String(nextNum).padStart(4, '0')}`;
+                        while (await prisma.masterSparePart.findUnique({ where: { partNumber } })) {
+                            nextNum++;
+                            partNumber = `SP${String(nextNum).padStart(4, '0')}`;
+                        }
+                    }
+
                     const created = await prisma.masterSparePart.create({
                         data: {
+                            partNumber,
                             name: item.name.trim(),
                             compatibleModels: item.compatibleModels || null,
                             defaultCost: parseFloat(item.defaultCost) || 0,
