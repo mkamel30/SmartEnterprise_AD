@@ -16,3 +16,5 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+      - key: PORTAL_API_KEY
+        value: master_portal_key_internal
