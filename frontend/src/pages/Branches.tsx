@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
-import { Plus, RefreshCw, Building2, Key, Edit2, Trash2, Check, Copy, Shield, Store, Briefcase, MapPin, Hash, Search, Filter, Users, Package } from 'lucide-react';
+import { Plus, RefreshCw, Building2, Key, Edit2, Trash2, Check, Copy, Shield, Store, Briefcase, MapPin, Hash, Search, Filter, Users, Package, Download, AlertCircle, CheckCircle, Clock, RefreshCw as SyncIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 import { BranchInventoryModal } from '../components/BranchInventoryModal';
@@ -17,6 +17,9 @@ const TYPE_CONFIG: Record<BranchType, { label: string; color: string; icon: any 
 export default function Branches() {
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [versions, setVersions] = useState<Record<string, any>>({});
+  const [pushingUpdate, setPushingUpdate] = useState<string | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,13 +42,56 @@ export default function Branches() {
   const fetchBranches = async () => {
     try {
       setLoading(true);
-      const res = await adminClient.get('/branches');
-      setBranches(res.data);
+      const [branchesRes, versionsRes] = await Promise.all([
+        adminClient.get('/branches'),
+        adminClient.get('/versions').catch(() => ({ data: { branches: [] } }))
+      ]);
+      setBranches(branchesRes.data);
+      const versionMap: Record<string, any> = {};
+      (versionsRes.data.branches || []).forEach((v: any) => { versionMap[v.branchCode] = v; });
+      setVersions(versionMap);
     } catch {
       toast.error('فشل في جلب بيانات الفروع');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCheckUpdate = async (branchCode: string) => {
+    setCheckingUpdate(branchCode);
+    try {
+      await adminClient.post(`/versions/${branchCode}/check`);
+      toast.success('تم التحقق من الإصدار بنجاح');
+      fetchBranches();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'فشل في التحقق من الإصدار');
+    } finally {
+      setCheckingUpdate(null);
+    }
+  };
+
+  const handlePushUpdate = async (branchCode: string) => {
+    if (!window.confirm('هل أنت متأكد من إرسال تحديث لهذا الفرع؟')) return;
+    setPushingUpdate(branchCode);
+    try {
+      await adminClient.post(`/versions/${branchCode}/push`);
+      toast.success('تم إرسال طلب التحديث بنجاح');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'فشل في إرسال التحديث');
+    } finally {
+      setPushingUpdate(null);
+    }
+  };
+
+  const getVersionBadge = (branchCode: string) => {
+    const v = versions[branchCode];
+    if (!v) return null;
+    const status = v.updateStatus;
+    if (status === 'up_to_date') return { color: 'bg-success/10 text-success', icon: CheckCircle, label: `v${v.appVersion}` };
+    if (status === 'update_available') return { color: 'bg-amber-100 text-amber-700', icon: AlertCircle, label: `v${v.appVersion} متاح` };
+    if (status === 'updating') return { color: 'bg-blue-100 text-blue-700', icon: Clock, label: 'جاري التحديث' };
+    if (status === 'failed') return { color: 'bg-red-100 text-red-700', icon: AlertCircle, label: 'فشل' };
+    return { color: 'bg-slate-100 text-slate-400', icon: AlertCircle, label: v.appVersion || 'غير معروف' };
   };
 
   const handleOpenModal = (branch: any = null) => {
@@ -234,6 +280,7 @@ export default function Branches() {
                     <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">الفرع</th>
                     <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">الكود</th>
                     <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">الحالة</th>
+                    <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">الإصدار</th>
                     <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">آخر اتصال</th>
                     <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">الإجراءات</th>
                   </tr>
@@ -257,6 +304,51 @@ export default function Branches() {
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${branch.status === 'ONLINE' ? 'bg-success/10 text-success' : 'bg-slate-100 text-slate-400'}`}>
                           {branch.status === 'ONLINE' ? 'متصل' : 'غير متصل'}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        {(() => {
+                          const badge = getVersionBadge(branch.code);
+                          if (!badge) {
+                            return (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] font-bold text-slate-300">—</span>
+                                <button
+                                  onClick={() => handleCheckUpdate(branch.code)}
+                                  disabled={checkingUpdate === branch.code}
+                                  className="p-1.5 text-slate-300 hover:text-brand-primary disabled:opacity-50 rounded transition-all"
+                                  title="فحص الإصدار"
+                                >
+                                  <SyncIcon size={12} className={checkingUpdate === branch.code ? 'animate-spin' : ''} />
+                                </button>
+                              </div>
+                            );
+                          }
+                          const Icon = badge.icon;
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 ${badge.color}`}>
+                                <Icon size={10} />
+                                {badge.label}
+                              </span>
+                              <button
+                                onClick={() => handleCheckUpdate(branch.code)}
+                                disabled={checkingUpdate === branch.code}
+                                className="p-1.5 text-slate-400 hover:text-brand-primary disabled:opacity-50 rounded transition-all"
+                                title="فحص الإصدار"
+                              >
+                                <SyncIcon size={12} className={checkingUpdate === branch.code ? 'animate-spin' : ''} />
+                              </button>
+                              <button
+                                onClick={() => handlePushUpdate(branch.code)}
+                                disabled={pushingUpdate === branch.code}
+                                className="p-1.5 text-slate-400 hover:text-success disabled:opacity-50 rounded transition-all"
+                                title="إرسال تحديث"
+                              >
+                                <Download size={12} className={pushingUpdate === branch.code ? 'animate-pulse' : ''} />
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="p-4 text-[10px] text-slate-400 font-bold">
                         {branch.lastSeen ? new Date(branch.lastSeen).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '—'}

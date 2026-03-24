@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import {
     LayoutDashboard, Building2, Users, Layers,
-    Activity, RefreshCw, Settings2, LogOut,
+    Activity,     RefreshCw, Settings2, LogOut, RotateCcw,
     UserCircle, Menu, ChevronDown, ZoomIn, ZoomOut,
     Bell, ShieldCheck
 } from 'lucide-react';
@@ -22,6 +22,7 @@ const allNavItems: NavItem[] = [
     { id: 'users', name: 'إدارة المستخدمين', href: '/users', icon: Users },
     { id: 'warehouse', name: 'مخازن الأجهزة والعهد', href: '/warehouse', icon: Layers },
     { id: 'sync-status', name: 'مراقب المزامنة', href: '/sync-status', icon: RefreshCw },
+    { id: 'version-logs', name: 'سجلات الإصدارات', href: '/version-logs', icon: RotateCcw },
     { id: 'settings', name: 'الإعدادات والتكوين', href: '/settings', icon: Settings2 },
 ];
 
