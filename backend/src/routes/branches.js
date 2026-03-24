@@ -4,6 +4,74 @@ const prisma = require('../db');
 const crypto = require('crypto');
 const { adminAuth } = require('../middleware/auth');
 
+// Auto-register branch (no auth required - called by installer/branch app on first run)
+router.post('/register', async (req, res) => {
+    try {
+        const { code, name, apiKey, hardwareId, installationId, branchType } = req.body;
+
+        if (!code || !apiKey) {
+            return res.status(400).json({ error: 'Missing required fields: code and apiKey' });
+        }
+
+        // Check if branch already exists
+        const existing = await prisma.branch.findUnique({ where: { code } });
+        if (existing) {
+            // If API key matches, return success (re-registration)
+            if (existing.apiKey === apiKey) {
+                return res.json({ 
+                    registered: true, 
+                    branch: existing,
+                    message: 'Branch already registered' 
+                });
+            }
+            return res.status(403).json({ error: 'Branch code already exists with different API key' });
+        }
+
+        // Create branch with provided code and API key
+        const branch = await prisma.branch.create({
+            data: {
+                code,
+                name: name || `فرع ${code}`,
+                apiKey,
+                authorizedHWID: hardwareId || installationId || null,
+                type: branchType || 'BRANCH',
+                status: 'ONLINE'
+            }
+        });
+
+        // Create initial admin user for this branch
+        const bcrypt = require('bcryptjs');
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        
+        await prisma.user.create({
+            data: {
+                username: 'admin',
+                email: `admin@${code.toLowerCase()}.local`,
+                password: hashedPassword,
+                displayName: 'مدير الفرع',
+                role: 'BRANCH_ADMIN',
+                branchId: branch.id,
+                branchCode: code,
+                isActive: true,
+                notificationSound: true
+            }
+        });
+
+        res.status(201).json({ 
+            registered: true, 
+            branch,
+            credentials: {
+                username: 'admin',
+                password: 'admin123'
+            },
+            message: 'Branch registered successfully'
+        });
+    } catch (error) {
+        console.error('Failed to register branch:', error);
+        res.status(500).json({ error: 'Failed to register branch: ' + error.message });
+    }
+});
+
 router.use(adminAuth);
 
 // Get all branches
