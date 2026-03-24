@@ -41,6 +41,8 @@ const settingsRoutes = require('./src/routes/settings');
 const mfaRoutes = require('./src/routes/mfa');
 const bootstrapRoutes = require('./src/routes/bootstrap');
 const branchSetupRoutes = require('./src/routes/branch-setup');
+const githubRoutes = require('./src/routes/github');
+const versionRoutes = require('./src/routes/versions');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/branch-setup', branchSetupRoutes);
@@ -62,6 +64,8 @@ app.use('/api/backup', backupRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/mfa', mfaRoutes);
 app.use('/api/bootstrap', bootstrapRoutes);
+app.use('/api/github', githubRoutes);
+app.use('/api/versions', versionRoutes);
 app.use('/api', miscRoutes);
 
 // Basic Health Check

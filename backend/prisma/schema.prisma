@@ -663,3 +663,47 @@ model PortalSyncLog {
   itemCount   Int       @default(0)
   createdAt   DateTime  @default(now())
 }
+
+// --- VERSION MANAGEMENT ---
+
+model BranchVersion {
+  id            String    @id @default(cuid())
+  branchCode    String    @unique
+  appVersion    String    @default("1.0.0")
+  lastChecked   DateTime  @default(now())
+  lastUpdated   DateTime?
+  updateStatus  String    @default("up_to_date") // up_to_date, update_available, updating, failed
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VersionLog {
+  id                String    @id @default(cuid())
+  branchCode        String
+  action            String    // check, download, apply, force_push, rollback, verify_backup
+  fromVersion       String?
+  toVersion         String?
+  status            String    // success, failed, in_progress, downloading, installing, verifying_backup
+  errorMessage      String?
+  initiatedBy       String?   // admin username or "system"
+  downloadProgress  Int?      @default(0) // 0-100
+  installProgress   Int?      @default(0) // 0-100
+  createdAt         DateTime  @default(now())
+
+  @@index([branchCode])
+  @@index([createdAt])
+  @@index([status])
+}
+
+// --- GITHUB SETTINGS ---
+
+model GitHubSettings {
+  id            String    @id @default(cuid())
+  patToken      String    // Personal Access Token for GitHub
+  repoOwner     String    @default("mkamel30")
+  repoName      String    @default("SmartEnterprise_BR")
+  autoCheck     Boolean   @default(true)
+  checkInterval  Int       @default(3600) // seconds (default 1 hour)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
