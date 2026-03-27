@@ -117,6 +117,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
                     {/* Footer / User Info */}
                     <div className="p-4 border-t border-white/10">
+                        <div className="text-[9px] text-white/20 text-center mb-2 font-mono">v1.0.0</div>
                         <div className="flex items-center gap-3 overflow-hidden whitespace-nowrap">
                             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 border border-white/20">
                                 <UserCircle size={20} />
