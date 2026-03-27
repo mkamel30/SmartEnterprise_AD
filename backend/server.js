@@ -43,8 +43,10 @@ const bootstrapRoutes = require('./src/routes/bootstrap');
 const branchSetupRoutes = require('./src/routes/branch-setup');
 const githubRoutes = require('./src/routes/github');
 const versionRoutes = require('./src/routes/versions');
+const licenseRoutes = require('./src/routes/licenses');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/licenses', licenseRoutes);
 app.use('/api/branch-setup', branchSetupRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/parameters', parameterRoutes);

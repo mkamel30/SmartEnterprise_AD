@@ -707,3 +707,46 @@ model GitHubSettings {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
+
+// --- LICENSE MANAGEMENT ---
+
+model License {
+  id                String    @id @default(cuid())
+  licenseKey        String    @unique
+  branchCode        String?   // null for trial/unlimited
+  branchName        String?
+  hwid              String?   // Hardware ID bound to this license
+  machineId         String?   // Unique machine identifier
+  type              String    @default("BRANCH") // BRANCH, TRIAL, UNLIMITED
+  status            String    @default("ACTIVE") // ACTIVE, SUSPENDED, REVOKED, EXPIRED
+  activationDate    DateTime?
+  expirationDate    DateTime?
+  maxActivations    Int       @default(1)
+  activationCount   Int       @default(0)
+  lastVerifiedAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([licenseKey])
+  @@index([branchCode])
+  @@index([hwid])
+  @@index([status])
+}
+
+model LicenseAudit {
+  id          String    @id @default(cuid())
+  licenseId   String?
+  licenseKey  String
+  action      String    // ACTIVATED, VERIFIED, SUSPENDED, REVOKED, EXPIRED, HWID_MISMATCH
+  branchCode  String?
+  hwid        String?
+  ipAddress   String?
+  userAgent   String?
+  details     String?   // JSON stringified additional details
+  performedBy String?   // admin username or "system"
+  createdAt   DateTime  @default(now())
+
+  @@index([licenseId])
+  @@index([licenseKey])
+  @@index([createdAt])
+}
