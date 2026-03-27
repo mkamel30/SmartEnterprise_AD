@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
 import { 
   Users, Search, RefreshCw, Building, MapPin, Phone, 
-  ChevronRight, Briefcase, Activity
+  Briefcase, Activity
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

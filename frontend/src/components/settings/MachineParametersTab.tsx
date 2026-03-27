@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useApiMutation } from '../../hooks/useApiMutation';
-import type { ClientType, MachineParameter } from '../../lib/types';
+import type { MachineParameter } from '../../lib/types';
 
 export function MachineParametersTab() {
     const [showAddForm, setShowAddForm] = useState(false);

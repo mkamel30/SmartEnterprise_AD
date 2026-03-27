@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { api } from '../api/client';
+import { useState } from 'react';
 import { Lock, Palette, Database, Users, Shield, Wifi } from 'lucide-react';
 import { DatabaseAdmin } from '../components/DatabaseAdmin';
 import { ROLES } from '../lib/permissions';

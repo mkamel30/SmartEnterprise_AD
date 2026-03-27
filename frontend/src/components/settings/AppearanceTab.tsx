@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Palette, Check, Volume2, Sparkles, Smartphone, Type } from 'lucide-react';
-import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { usePushNotifications } from '../../hooks/usePushNotifications';

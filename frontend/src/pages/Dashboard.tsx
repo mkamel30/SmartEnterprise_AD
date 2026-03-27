@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Users, Building2, Activity, Clock, Zap, Package, Wifi, WifiOff,
-  AlertTriangle, ChevronRight, RefreshCw, Eye
+  Building2, Activity, Package, WifiOff,
+  AlertTriangle, ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import adminClient from '../api/adminClient';
@@ -31,7 +30,7 @@ export default function Dashboard() {
 
     const onlineBranches = branchList.filter(b => b.status === 'ONLINE');
     const offlineBranches = branchList.filter(b => b.status !== 'ONLINE');
-    const failedLogs = syncLogList.filter(l => l.status === 'FAILED');
+    const failedLogs = syncLogList.filter((l: any) => l.status === 'FAILED');
     const totalSparePartsCost = sparePartList.reduce((sum, p) => sum + (p.defaultCost || 0), 0);
 
     return (

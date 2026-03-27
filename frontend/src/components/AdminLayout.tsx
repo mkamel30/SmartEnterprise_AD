@@ -3,9 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import {
     LayoutDashboard, Building2, Users, Layers,
-    Activity,     RefreshCw, Settings2, LogOut, RotateCcw,
+    RefreshCw, Settings2, LogOut, RotateCcw,
     UserCircle, Menu, ChevronDown, ZoomIn, ZoomOut,
-    Bell, ShieldCheck
+    ShieldCheck
 } from 'lucide-react';
 
 interface NavItem {

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import adminClient from '../../api/adminClient';
-import { RefreshCw, CheckCircle, XCircle, Clock, Wifi, Filter, ChevronRight, ChevronLeft } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, Clock, Wifi, ChevronRight, ChevronLeft } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, string> = {
     CONNECT: 'اتصال',

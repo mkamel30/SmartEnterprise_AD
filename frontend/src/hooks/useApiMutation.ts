@@ -48,7 +48,7 @@ export function useApiMutation<TData = any, TVariables = any>(
                 if (errorObj.details && typeof errorObj.details === 'object' && !Array.isArray(errorObj.details)) {
                     // Extract validation field errors: "Field: Error, Field2: Error2"
                     const detailMsgs = Object.entries(errorObj.details)
-                        .map(([field, msg]) => `${msg}`) // Just show the message for cleaner UI
+                        .map(([, msg]) => `${msg}`) // Just show the message for cleaner UI
                         .join(' | ');
                     errorMsg = detailMsgs || errorObj.message;
                 } else {

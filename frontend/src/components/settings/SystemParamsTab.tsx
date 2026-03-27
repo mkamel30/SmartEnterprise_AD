@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Settings, Save, RefreshCw, Send } from 'lucide-react';
 import { settingsApi } from '../../api/settingsApi';
 import { useApiMutation } from '../../hooks/useApiMutation';
-import toast from 'react-hot-toast';
 
 export function SystemParamsTab() {
-    const { data: params, isLoading } = useQuery({
+    const { data: params, isLoading } = useQuery<any[]>({
         queryKey: ['global-parameters'],
-        queryFn: () => settingsApi.getGlobalParameters()
+        queryFn: () => settingsApi.getGlobalParameters() as Promise<any[]>
     });
 
     const updateMutation = useApiMutation({

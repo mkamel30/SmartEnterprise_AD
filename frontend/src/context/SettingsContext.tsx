@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { api } from '../api/client';
-import axios from 'axios';
 
 interface UserPreferences {
   fontSize: 'small' | 'medium' | 'large';

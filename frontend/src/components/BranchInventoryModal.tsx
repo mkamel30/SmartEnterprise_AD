@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
-import { Package, Search, X } from 'lucide-react';
+import { Package, Search } from 'lucide-react';
 import Modal from './Modal';
 
 export function BranchInventoryModal({ branchId, branchCode, branchName, onClose }: { branchId: string; branchCode: string; branchName: string; onClose: () => void }) {
