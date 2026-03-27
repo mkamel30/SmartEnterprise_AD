@@ -10,13 +10,20 @@ const DEFAULT_REPO_NAME = 'SmartEnterprise_BR';
 
 async function getGitHubSettings() {
     let settings = await db.gitHubSettings.findFirst();
+    const envPat = process.env.GITHUB_PAT || '';
+    
     if (!settings) {
         settings = await db.gitHubSettings.create({
             data: {
-                patToken: process.env.GITHUB_PAT || '',
+                patToken: envPat,
                 repoOwner: DEFAULT_REPO_OWNER,
                 repoName: DEFAULT_REPO_NAME
             }
+        });
+    } else if (!settings.patToken && envPat) {
+        settings = await db.gitHubSettings.update({
+            where: { id: settings.id },
+            data: { patToken: envPat }
         });
     }
     return settings;

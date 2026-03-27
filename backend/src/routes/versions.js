@@ -8,13 +8,21 @@ const GITHUB_API_BASE = 'https://api.github.com';
 
 async function getGitHubSettings() {
     let settings = await db.gitHubSettings.findFirst();
+    const envPat = process.env.GITHUB_PAT || '';
+    
     if (!settings) {
         settings = await db.gitHubSettings.create({
             data: {
-                patToken: process.env.GITHUB_PAT || '',
+                patToken: envPat,
                 repoOwner: 'mkamel30',
                 repoName: 'SmartEnterprise_BR'
             }
+        });
+    } else if (!settings.patToken && envPat) {
+        // Use env token if DB token is empty
+        settings = await db.gitHubSettings.update({
+            where: { id: settings.id },
+            data: { patToken: envPat }
         });
     }
     return settings;
