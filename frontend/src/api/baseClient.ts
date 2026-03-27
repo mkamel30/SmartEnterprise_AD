@@ -1,5 +1,5 @@
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5005/api`;
+const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 
 let token: string | null = localStorage.getItem('portal_token');
 

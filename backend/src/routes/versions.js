@@ -217,8 +217,9 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (re
     });
 
     try {
+        const branchUrl = branch.url || process.env.BRANCH_API_URL;
         const response = await axios.post(
-            `${process.env.BRANCH_API_URL || 'http://localhost:5002'}/api/system/update/trigger`,
+            `${branchUrl || 'http://localhost:5002'}/api/system/update/trigger`,
             { version: version || 'latest' },
             {
                 headers: {
@@ -274,8 +275,9 @@ router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, async
     });
 
     try {
+        const branchUrl = branch.url || process.env.BRANCH_API_URL;
         await axios.post(
-            `${process.env.BRANCH_API_URL || 'http://localhost:5002'}/api/system/update/rollback`,
+            `${branchUrl || 'http://localhost:5002'}/api/system/update/rollback`,
             {},
             {
                 headers: {
