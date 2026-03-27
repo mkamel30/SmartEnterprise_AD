@@ -82,6 +82,16 @@ require('./src/sockets/admin.socket')(io);
 const syncQueueService = require('./src/services/syncQueue.service');
 syncQueueService.init(io);
 
+// Serve React frontend static files
+const path = require('path');
+const frontendDist = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(frontendDist, 'index.html'));
+    }
+});
+
 const logger = require('./utils/logger');
 const PORT = process.env.PORT || 5005;
 
