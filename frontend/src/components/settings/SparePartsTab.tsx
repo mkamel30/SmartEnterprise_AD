@@ -181,7 +181,7 @@ function PartDetailModal({ part, onClose }) {
         setBranchStock([]);
         requestIdRef.current = `req_${Date.now()}`;
         try {
-            const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5005').replace('/api', '');
+            const SOCKET_URL = (import.meta.env.VITE_API_URL || '').replace('/api', '') || window.location.origin;
             const socket = socketIo(SOCKET_URL, { transports: ['websocket', 'polling'], reconnectionAttempts: 3, reconnectionDelay: 1000 });
             socketRef.current = socket;
             socket.on('connect', () => { socket.emit('request_branch_stock', { partId: part.id, requestId: requestIdRef.current }); });

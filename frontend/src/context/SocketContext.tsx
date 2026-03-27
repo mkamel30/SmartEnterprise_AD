@@ -36,7 +36,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
         }
 
         // Create socket connection with authentication
-        const newSocket = io(import.meta.env.VITE_SOCKET_URL || `http://${window.location.hostname}:5002`, {
+        const newSocket = io(import.meta.env.VITE_SOCKET_URL || window.location.origin, {
             auth: { token },
             transports: ['websocket', 'polling'],
             reconnection: true,
