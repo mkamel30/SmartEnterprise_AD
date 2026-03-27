@@ -13,7 +13,10 @@ const io = new Server(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-app.use(helmet());
+app.use(helmet({
+    hsts: false,
+    contentSecurityPolicy: false
+}));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
