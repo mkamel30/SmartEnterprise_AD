@@ -25,8 +25,9 @@ export const usePushNotifications = () => {
 
   const initializePushNotifications = async () => {
     try {
-      // Register service worker
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      // Register service worker (silent fail - not critical)
+      const registration = await navigator.serviceWorker.register('/service-worker.js').catch(() => null);
+      if (!registration) return;
 
       // Wait for service worker to be ready
       await navigator.serviceWorker.ready;
@@ -41,7 +42,7 @@ export const usePushNotifications = () => {
 
       setSubscription(sub);
     } catch (error) {
-      console.error('Failed to initialize push notifications:', error);
+      // Silent fail - push notifications are optional
     }
   };
 
@@ -53,7 +54,7 @@ export const usePushNotifications = () => {
 
     try {
       // Get VAPID public key from backend
-      const response = await axios.get(`http://${window.location.hostname}:5002/api/push/vapid-public-key`);
+      const response = await axios.get(`${window.location.origin}/api/push/vapid-public-key`);
       const publicKey = response.data.publicKey;
 
       const subscription = await registration.pushManager.subscribe({
@@ -63,7 +64,7 @@ export const usePushNotifications = () => {
 
       // Send subscription to backend
       await axios.post(
-        `http://${window.location.hostname}:5002/api/push/subscribe`,
+        `${window.location.origin}/api/push/subscribe`,
         {
           subscription: subscription.toJSON(),
           userId: user.id
@@ -116,7 +117,7 @@ export const usePushNotifications = () => {
 
         // Notify backend
         await axios.post(
-          `http://${window.location.hostname}:5002/api/push/unsubscribe`,
+          `${window.location.origin}/api/push/unsubscribe`,
           { userId: user.id },
           {
             headers: {

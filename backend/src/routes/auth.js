@@ -107,4 +107,60 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
+// Get user preferences
+router.get('/preferences', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const admin = await prisma.adminUser.findUnique({
+            where: { id: decoded.id },
+            select: { preferences: true }
+        });
+
+        res.json({ preferences: admin?.preferences || {} });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get preferences' });
+    }
+});
+
+// Update user preferences
+router.put('/preferences', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const { theme, fontFamily, themeVariant, ...otherPrefs } = req.body;
+
+        const current = await prisma.adminUser.findUnique({
+            where: { id: decoded.id },
+            select: { preferences: true }
+        });
+
+        const updatedPreferences = {
+            ...(current?.preferences || {}),
+            theme,
+            fontFamily,
+            themeVariant,
+            ...otherPrefs
+        };
+
+        await prisma.adminUser.update({
+            where: { id: decoded.id },
+            data: { preferences: updatedPreferences }
+        });
+
+        res.json({ success: true, preferences: updatedPreferences });
+    } catch (error) {
+        console.error('Failed to update preferences:', error);
+        res.status(500).json({ error: 'Failed to update preferences' });
+    }
+});
+
 module.exports = router;

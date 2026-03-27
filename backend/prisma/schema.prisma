@@ -22,6 +22,7 @@ model AdminUser {
   mfaSetupPending      Boolean  @default(false)
   mfaTempSecret        String?
   mfaRecoveryCodes     String?
+  preferences          Json?    // User preferences: theme, fontFamily, themeVariant, etc.
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
