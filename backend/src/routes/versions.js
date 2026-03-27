@@ -3,8 +3,6 @@ const router = express.Router();
 const axios = require('axios');
 const db = require('../db');
 const { authenticateToken, requireSuperAdmin } = require('../middleware/auth');
-const { success, error } = require('../utils/apiResponse');
-const asyncHandler = require('../utils/asyncHandler');
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
@@ -41,7 +39,7 @@ async function githubRequest(endpoint, settings, options = {}) {
     }
 }
 
-router.get('/', authenticateToken, requireSuperAdmin, asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, requireSuperAdmin, async (req, res) => {
     const branches = await db.branchVersion.findMany({
         orderBy: { updatedAt: 'desc' }
     });
@@ -75,10 +73,10 @@ router.get('/', authenticateToken, requireSuperAdmin, asyncHandler(async (req, r
         });
     });
 
-    return success(res, { branches: formatted, total: formatted.length });
-}));
+    res.json({ success: true, branches: formatted, total: formatted.length });
+});
 
-router.get('/:branchCode', authenticateToken, requireSuperAdmin, asyncHandler(async (req, res) => {
+router.get('/:branchCode', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
     
     let version = await db.branchVersion.findUnique({ where: { branchCode } });
@@ -91,7 +89,8 @@ router.get('/:branchCode', authenticateToken, requireSuperAdmin, asyncHandler(as
 
     const branch = await db.branch.findUnique({ where: { code: branchCode } });
 
-    return success(res, {
+    res.json({
+        success: true,
         branchCode: version.branchCode,
         branchName: branch?.name || 'Unknown',
         appVersion: version.appVersion,
@@ -101,9 +100,9 @@ router.get('/:branchCode', authenticateToken, requireSuperAdmin, asyncHandler(as
         createdAt: version.createdAt,
         updatedAt: version.updatedAt
     });
-}));
+});
 
-router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, asyncHandler(async (req, res) => {
+router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
     const initiatedBy = req.user?.username || 'system';
 
@@ -119,7 +118,7 @@ router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, asyncHan
                 initiatedBy
             }
         });
-        return error(res, 'GitHub PAT token not configured.', 400);
+        return res.status(400).json({ error: 'GitHub PAT token not configured.' });
     }
 
     try {
@@ -157,7 +156,8 @@ router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, asyncHan
             }
         });
 
-        return success(res, {
+        res.json({
+            success: true,
             currentVersion: version.appVersion,
             latestVersion,
             updateAvailable: isUpdateAvailable,
@@ -173,18 +173,18 @@ router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, asyncHan
                 initiatedBy
             }
         });
-        return error(res, 'Failed to check version: ' + err.message, 500);
+        res.status(500).json({ error: 'Failed to check version: ' + err.message });
     }
-}));
+});
 
-router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, asyncHandler(async (req, res) => {
+router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
     const { version } = req.body;
     const initiatedBy = req.user?.username || 'system';
 
     const branch = await db.branch.findUnique({ where: { code: branchCode } });
     if (!branch) {
-        return error(res, 'Branch not found.', 404);
+        return res.status(404).json({ error: 'Branch not found.' });
     }
 
     if (!branch.apiKey) {
@@ -197,7 +197,7 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, asyncHand
                 initiatedBy
             }
         });
-        return error(res, 'Branch has no API key configured. Please configure the branch first.', 400);
+        return res.status(400).json({ error: 'Branch has no API key configured. Please configure the branch first.' });
     }
 
     await db.branchVersion.upsert({
@@ -229,7 +229,8 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, asyncHand
             }
         );
 
-        return success(res, {
+        res.json({
+            success: true,
             message: 'Update pushed successfully',
             branchCode,
             version: version || 'latest'
@@ -250,17 +251,17 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, asyncHand
             }
         });
 
-        return error(res, 'Failed to push update to branch: ' + err.message, 500);
+        res.status(500).json({ error: 'Failed to push update to branch: ' + err.message });
     }
-}));
+});
 
-router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, asyncHandler(async (req, res) => {
+router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
     const initiatedBy = req.user?.username || 'system';
 
     const branch = await db.branch.findUnique({ where: { code: branchCode } });
     if (!branch || !branch.apiKey) {
-        return error(res, 'Branch not found or has no API key.', 404);
+        return res.status(404).json({ error: 'Branch not found or has no API key.' });
     }
 
     await db.versionLog.create({
@@ -285,7 +286,7 @@ router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, async
             }
         );
 
-        return success(res, { message: 'Rollback initiated', branchCode });
+        res.json({ success: true, message: 'Rollback initiated', branchCode });
     } catch (err) {
         await db.versionLog.create({
             data: {
@@ -296,11 +297,11 @@ router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, async
                 initiatedBy
             }
         });
-        return error(res, 'Failed to rollback: ' + err.message, 500);
+        res.status(500).json({ error: 'Failed to rollback: ' + err.message });
     }
-}));
+});
 
-router.get('/logs', authenticateToken, requireSuperAdmin, asyncHandler(async (req, res) => {
+router.get('/logs', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode, action, status, limit = 50, offset = 0 } = req.query;
 
     const where = {};
@@ -317,16 +318,16 @@ router.get('/logs', authenticateToken, requireSuperAdmin, asyncHandler(async (re
 
     const total = await db.versionLog.count({ where });
 
-    return success(res, { logs, total, limit: parseInt(limit), offset: parseInt(offset) });
-}));
+    res.json({ success: true, logs, total, limit: parseInt(limit), offset: parseInt(offset) });
+});
 
-router.post('/:branchCode/status', asyncHandler(async (req, res) => {
+router.post('/:branchCode/status', async (req, res) => {
     const { branchCode } = req.params;
     const { status, version, progress, errorMessage } = req.body;
 
     const branch = await db.branch.findUnique({ where: { code: branchCode } });
     if (!branch) {
-        return error(res, 'Branch not found.', 404);
+        return res.status(404).json({ error: 'Branch not found.' });
     }
 
     await db.branchVersion.upsert({
@@ -357,7 +358,7 @@ router.post('/:branchCode/status', asyncHandler(async (req, res) => {
         }
     });
 
-    return success(res, { message: 'Status updated' });
-}));
+    res.json({ success: true, message: 'Status updated' });
+});
 
 module.exports = router;
