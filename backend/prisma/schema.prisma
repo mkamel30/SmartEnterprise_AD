@@ -176,6 +176,8 @@ model MasterSparePart {
   compatibleModels String?
   defaultCost      Float    @default(0)
   isConsumable     Boolean  @default(false)
+  allowsMultiple   Boolean  @default(false)  // يمكن استخدام أكثر من قطعة في نفس الصيانة
+  maxQuantity      Int      @default(1)     // الحد الأقصى للقطع في المرة الواحدة
   category         String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

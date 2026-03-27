@@ -32,12 +32,12 @@ export function SparePartsTab() {
         return () => window.removeEventListener('keydown', handleEsc);
     }, []);
 
-    const [newPart, setNewPart] = useState({ name: '', compatibleModels: '', defaultCost: 0, isConsumable: false, category: '' });
+    const [newPart, setNewPart] = useState({ name: '', compatibleModels: '', defaultCost: 0, isConsumable: false, allowsMultiple: false, maxQuantity: 1, category: '' });
 
     const { data: partsData, isLoading } = useQuery({ queryKey: ['spare-parts'], queryFn: () => api.get('/spare-parts') });
     const parts = Array.isArray(partsData) ? partsData : (partsData?.data || []);
 
-    const createMutation = useApiMutation({ mutationFn: (data) => api.post('/spare-parts', { ...data, userId: user?.id, userName: user?.displayName || user?.email }), successMessage: 'تم إضافة القطعة بنجاح', errorMessage: 'فشل إضافة القطعة', invalidateKeys: [['spare-parts']], onSuccess: () => { setShowAddForm(false); setNewPart({ name: '', compatibleModels: '', defaultCost: 0, isConsumable: false, category: '' }); } });
+    const createMutation = useApiMutation({ mutationFn: (data) => api.post('/spare-parts', { ...data, userId: user?.id, userName: user?.displayName || user?.email }), successMessage: 'تم إضافة القطعة بنجاح', errorMessage: 'فشل إضافة القطعة', invalidateKeys: [['spare-parts']], onSuccess: () => { setShowAddForm(false); setNewPart({ name: '', compatibleModels: '', defaultCost: 0, isConsumable: false, allowsMultiple: false, maxQuantity: 1, category: '' }); } });
     const updateMutation = useApiMutation({ mutationFn: ({ id, data }) => api.put('/spare-parts/' + id, { ...data, userId: user?.id, userName: user?.displayName || user?.email }), successMessage: 'تم تحديث القطعة بنجاح', errorMessage: 'فشل تحديث القطعة', invalidateKeys: [['spare-parts']], onSuccess: () => { setShowEditForm(false); setSelectedPart(null); } });
     const deleteMutation = useApiMutation({ mutationFn: (id) => api.delete('/spare-parts/' + id), successMessage: 'تم حذف القطعة', errorMessage: 'فشل حذف القطعة', invalidateKeys: [['spare-parts']] });
     const bulkDeleteMutation = useApiMutation({ mutationFn: (ids) => api.post('/spare-parts/bulk-delete', { ids, userId: user?.id, userName: user?.displayName || user?.email }), successMessage: 'تم حذف القطع المحددة', errorMessage: 'فشل حذف القطع', invalidateKeys: [['spare-parts']], onSuccess: () => { setSelectedIds(new Set()); } });
@@ -62,17 +62,18 @@ export function SparePartsTab() {
                 <div><h1 className='text-2xl font-black text-primary flex items-center gap-3'><div className='w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center'><Package size={22} className='text-primary' /></div> قانون قطع الغيار</h1><p className='text-sm text-muted-foreground mt-1 font-medium'>الموديلات مفصولة بفاصلة منقوطة (;) · الحروف الصغيرة فقط</p></div>
                 <div className='flex flex-wrap items-center gap-2'>
                     {selectedIds.size > 0 && <Button variant='destructive' size='sm' onClick={() => { if (confirm(`هل أنت متأكد من حذف ${selectedIds.size} عنصر؟`)) bulkDeleteMutation.mutate(Array.from(selectedIds)); }} className='gap-1.5 animate-pulse'><Trash2 size={14} /> حذف ({selectedIds.size})</Button>}
-                    <Button variant='outline' size='sm' onClick={() => { const d=[{n:'شاشة LCD',m:'s90;d210;vx520',p:150,c:'نعم',cat:'POS'},{n:'لوحة مفاتيح',m:'vx680;s80',p:80,c:'لا',cat:'GENERAL'}]; const ws=XLSX.utils.json_to_sheet(d.map(x=>({'اسم القطعة':x.n,'الموديلات المتوافقة':x.m,'السعر':x.p,'قابلة للاستهلاك':x.c,'التصنيف':x.cat}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'قطع الغيار'); XLSX.writeFile(wb,'spare_parts_template.xlsx'); }} className='gap-1.5'><Download size={14} /> قالب</Button>
+                    <Button variant='outline' size='sm' onClick={() => { const d=[{n:'شاشة LCD',m:'s90;d210;vx520',p:150,c:false,a:true,q:3,cat:'POS'},{n:'لوحة مفاتيح',m:'vx680;s80',p:80,c:false,a:false,q:1,cat:'GENERAL'}]; const ws=XLSX.utils.json_to_sheet(d.map(x=>({'اسم القطعة':x.n,'الموديلات المتوافقة':x.m,'السعر':x.p,'قطعة استهلاكية':x.c?'نعم':'لا','يمكن تغير أكثر من واحدة':x.a?'نعم':'لا','الحد الأقصى':x.q,'التصنيف':x.cat}))); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'قطع الغيار'); XLSX.writeFile(wb,'spare_parts_template.xlsx'); }} className='gap-1.5'><Download size={14} /> قالب</Button>
                     <Button variant='outline' size='sm' onClick={() => fileInputRef.current?.click()} className='gap-1.5'><Upload size={14} /> استيراد</Button>
-                    <input ref={fileInputRef} type='file' accept='.xlsx,.xls' onChange={(e) => { const file=e.target.files?.[0]; if(!file)return; const reader=new FileReader(); reader.onload=(ev)=>{const wb=XLSX.read(new Uint8Array(ev.target?.result),{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws); const parsed=rows.map((r)=>({name:r['اسم القطعة']||'',compatibleModels:r['الموديلات المتوافقة']||'',defaultCost:parseFloat(r['السعر'])||0,isConsumable:r['قابلة للاستهلاك']==='نعم',category:r['التصنيف']||''})).filter((p)=>p.name); setImportData(parsed); setShowImportDialog(true); }; reader.readAsArrayBuffer(file); }} className='hidden' />
-                    <Button variant='outline' size='sm' onClick={() => { if(!parts?.length)return; const d=parts.map((p)=>({'رقم القطعة':p.partNumber,'اسم القطعة':p.name,'الموديلات المتوافقة':p.compatibleModels||'','السعر':p.defaultCost,'قابلة للاستهلاك':p.isConsumable?'نعم':'لا','التصنيف':p.category||''})); const ws=XLSX.utils.json_to_sheet(d); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'قطع الغيار'); XLSX.writeFile(wb,'spare_parts.xlsx'); }} className='gap-1.5'><Download size={14} /> تصدير</Button>
+                    <input ref={fileInputRef} type='file' accept='.xlsx,.xls' onChange={(e) => { const file=e.target.files?.[0]; if(!file)return; const reader=new FileReader(); reader.onload=(ev)=>{const wb=XLSX.read(new Uint8Array(ev.target?.result),{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws); const parsed=rows.map((r)=>({name:r['اسم القطعة']||'',compatibleModels:r['الموديلات المتوافقة']||'',defaultCost:parseFloat(r['السعر'])||0,isConsumable:r['قطعة استهلاكية']==='نعم',allowsMultiple:r['يمكن تغير أكثر من واحدة']==='نعم',maxQuantity:parseInt(r['الحد الأقصى'])||1,category:r['التصنيف']||''})).filter((p)=>p.name); setImportData(parsed); setShowImportDialog(true); }; reader.readAsArrayBuffer(file); }} className='hidden' />
+                    <Button variant='outline' size='sm' onClick={() => { if(!parts?.length)return; const d=parts.map((p)=>({'رقم القطعة':p.partNumber,'اسم القطعة':p.name,'الموديلات المتوافقة':p.compatibleModels||'','السعر':p.defaultCost,'قطعة استهلاكية':p.isConsumable?'نعم':'لا','يمكن تغير أكثر من واحدة':p.allowsMultiple?'نعم':'لا','الحد الأقصى':p.maxQuantity||1,'التصنيف':p.category||''})); const ws=XLSX.utils.json_to_sheet(d); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'قطع الغيار'); XLSX.writeFile(wb,'spare_parts.xlsx'); }} className='gap-1.5'><Download size={14} /> تصدير</Button>
                     <Button variant='success' size='sm' onClick={() => broadcastMutation.mutate({})} disabled={broadcastMutation.isPending} className='gap-1.5'><Radio size={14} /> {broadcastMutation.isPending?'جاري البث...':'بث للفروع'}</Button>
                     <Button variant='default' size='sm' onClick={() => setShowAddForm(true)} className='gap-1.5'><Plus size={14} strokeWidth={3} /> إضافة قطعة</Button>
                 </div>
             </div>
-            <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
+            <div className='grid grid-cols-2 lg:grid-cols-5 gap-4'>
                 <div className='bg-white rounded-2xl border-2 border-primary/10 p-4 shadow-sm'><p className='text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1'>إجمالي القطع</p><p className='text-2xl font-black text-primary'>{parts.length}</p></div>
                 <div className='bg-white rounded-2xl border-2 border-success/20 p-4 shadow-sm'><p className='text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1'>استهلاكية</p><p className='text-2xl font-black text-success'>{parts.filter((p)=>p.isConsumable).length}</p></div>
+                <div className='bg-white rounded-2xl border-2 border-purple-500/20 p-4 shadow-sm'><p className='text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1'>تعدد</p><p className='text-2xl font-black text-purple-600'>{parts.filter((p)=>p.allowsMultiple).length}</p></div>
                 <div className='bg-white rounded-2xl border-2 border-primary/10 p-4 shadow-sm'><p className='text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1'>الموديلات</p><p className='text-2xl font-black text-primary'>{allModels.length}</p></div>
                 <div className='bg-white rounded-2xl border-2 border-warning/20 p-4 shadow-sm'><p className='text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1'>السعر الأعلى</p><p className='text-2xl font-black text-amber-600'>{parts.length>0?Math.max(...parts.map((p)=>p.defaultCost||0)):0}</p></div>
             </div>
@@ -103,7 +104,8 @@ export function SparePartsTab() {
 }
 
 function PartFormModal({ title, initialData, onSubmit, onClose }) {
-    const [formData, setFormData] = useState({ name:'', partNumber:'', compatibleModels:'', defaultCost:0, isConsumable:false, category:'', ...initialData });
+    const [formData, setFormData] = useState({ name:'', partNumber:'', compatibleModels:'', defaultCost:0, isConsumable:false, allowsMultiple:false, maxQuantity:1, category:'', ...initialData });
+    
     return (
         <Modal isOpen={true} onClose={onClose} title={title} icon={<Package size={36} className='text-primary' />}>
             <form onSubmit={(e)=>{e.preventDefault();onSubmit(formData);}} className='space-y-4'>
@@ -112,10 +114,29 @@ function PartFormModal({ title, initialData, onSubmit, onClose }) {
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>الموديلات المتوافقة</label><input placeholder='s90;d210;vx520' value={formData.compatibleModels} onChange={e=>setFormData({...formData,compatibleModels:e.target.value})} className='smart-input h-12 px-5 font-mono' /><p className='text-[10px] text-slate-400 mt-1'>افصل بين الموديلات بفاصلة منقوطة (;)</p></div>
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>السعر الرسمي (ج.م)</label><input type='number' value={formData.defaultCost} onChange={e=>setFormData({...formData,defaultCost:parseFloat(e.target.value)||0})} className='smart-input h-12 px-5 font-bold text-success' required /></div>
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>التصنيف</label><input value={formData.category||''} onChange={e=>setFormData({...formData,category:e.target.value})} className='smart-input h-12 px-5' placeholder='POS, GENERAL, etc.' /></div>
-                <div className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.isConsumable?'bg-primary/5 border-primary/20':'bg-slate-50 border-slate-100'}`} onClick={()=>setFormData({...formData,isConsumable:!formData.isConsumable})}>
-                    <div className='flex items-center gap-3'><div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${formData.isConsumable?'bg-primary text-white':'bg-slate-200 text-slate-500'}`}><Package size={18} /></div><span className='text-xs font-black text-slate-700'>قطعة استهلاكية</span></div>
-                    <Checkbox checked={formData.isConsumable} onCheckedChange={(c)=>setFormData({...formData,isConsumable:!!c})} className='h-6 w-6 rounded-lg' />
+                
+                {/* allowsMultiple - يمكن استخدام أكثر من قطعة في نفس الصيانة */}
+                <div className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.allowsMultiple?'bg-success/10 border-success/30':'bg-slate-50 border-slate-100'}`} onClick={()=>setFormData({...formData,allowsMultiple:!formData.allowsMultiple, maxQuantity:!formData.allowsMultiple ? 3 : 1})}>
+                    <div className='flex items-center gap-3'><div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${formData.allowsMultiple?'bg-success text-white':'bg-slate-200 text-slate-500'}`}><Package size={18} /></div><span className='text-xs font-black text-slate-700'>يمكن تغير أكثر من قطعة</span></div>
+                    <Checkbox checked={formData.allowsMultiple} onCheckedChange={(c)=>setFormData({...formData,allowsMultiple:!!c, maxQuantity:!!c ? 3 : 1})} className='h-6 w-6 rounded-lg' />
                 </div>
+                
+                {/* maxQuantity - الحد الأقصى للقطع */}
+                {formData.allowsMultiple && (
+                    <div className='space-y-2'>
+                        <label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>الحد الأقصى للتغيير (قطعة)</label>
+                        <input 
+                            type='number' 
+                            min='2' 
+                            max='10' 
+                            value={formData.maxQuantity} 
+                            onChange={e=>setFormData({...formData,maxQuantity:Math.min(10, Math.max(2, parseInt(e.target.value)||1))})} 
+                            className='smart-input h-12 px-5 font-bold' 
+                        />
+                        <p className='text-[10px] text-slate-400 mt-1'>أقصى عدد يمكن اختياره في كل صيانة</p>
+                    </div>
+                )}
+                
                 <div className='pt-4 flex gap-3'>
                     <button type='submit' className='flex-1 bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-all text-sm'>حفظ</button>
                     <button type='button' onClick={onClose} className='flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-50 transition-all text-sm'>إلغاء</button>

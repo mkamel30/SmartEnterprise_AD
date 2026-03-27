@@ -35,7 +35,7 @@ router.post('/broadcast', async (req, res) => {
 // Create Master Spare Part
 router.post('/', async (req, res) => {
     try {
-        let { partNumber, name, description, compatibleModels, defaultCost, isConsumable, category } = req.body;
+        let { partNumber, name, description, compatibleModels, defaultCost, isConsumable, allowsMultiple, maxQuantity, category } = req.body;
         
         if (!name) {
             return res.status(400).json({ error: 'Part Name is required' });
@@ -65,7 +65,9 @@ router.post('/', async (req, res) => {
                 description, 
                 compatibleModels, 
                 defaultCost: parseFloat(defaultCost) || 0, 
-                isConsumable: !!isConsumable, 
+                isConsumable: !!isConsumable,
+                allowsMultiple: !!allowsMultiple,
+                maxQuantity: parseInt(maxQuantity) || 1,
                 category 
             }
         });
@@ -85,7 +87,7 @@ router.post('/', async (req, res) => {
 // Update Master Spare Part
 router.put('/:id', async (req, res) => {
     try {
-        const { partNumber, name, description, compatibleModels, defaultCost, isConsumable, category } = req.body;
+        const { partNumber, name, description, compatibleModels, defaultCost, isConsumable, allowsMultiple, maxQuantity, category } = req.body;
         
         const oldPart = await prisma.masterSparePart.findUnique({ where: { id: req.params.id } });
         const newCost = parseFloat(defaultCost);
@@ -109,7 +111,9 @@ router.put('/:id', async (req, res) => {
                 description, 
                 compatibleModels, 
                 defaultCost: newCost, 
-                isConsumable: !!isConsumable, 
+                isConsumable: !!isConsumable,
+                allowsMultiple: !!allowsMultiple,
+                maxQuantity: parseInt(maxQuantity) || 1,
                 category 
             }
         });
@@ -188,7 +192,9 @@ router.post('/import', async (req, res) => {
                         data: {
                             compatibleModels: item.compatibleModels || existing.compatibleModels,
                             defaultCost: parseFloat(item.defaultCost) || existing.defaultCost,
-                            isConsumable: !!item.allowsMultiple
+                            isConsumable: !!item.isConsumable,
+                            allowsMultiple: item.allowsMultiple !== undefined ? !!item.allowsMultiple : existing.allowsMultiple,
+                            maxQuantity: item.maxQuantity ? parseInt(item.maxQuantity) : existing.maxQuantity
                         }
                     });
                 } else {
@@ -216,7 +222,9 @@ router.post('/import', async (req, res) => {
                             name: item.name.trim(),
                             compatibleModels: item.compatibleModels || null,
                             defaultCost: parseFloat(item.defaultCost) || 0,
-                            isConsumable: !!item.allowsMultiple
+                            isConsumable: !!item.isConsumable,
+                            allowsMultiple: !!item.allowsMultiple,
+                            maxQuantity: parseInt(item.maxQuantity) || 1
                         }
                     });
                     syncedParts.push(created);
