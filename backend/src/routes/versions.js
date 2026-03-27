@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const db = require('../../db');
-const { authenticateToken, requireSuperAdmin } = require('../../../middleware/auth');
-const { success, error } = require('../../../utils/apiResponse');
-const asyncHandler = require('../../../utils/asyncHandler');
+const db = require('../db');
+const { authenticateToken, requireSuperAdmin } = require('../middleware/auth');
+const { success, error } = require('../utils/apiResponse');
+const asyncHandler = require('../utils/asyncHandler');
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
