@@ -16,4 +16,13 @@ const adminAuth = (req, res, next) => {
     }
 };
 
-module.exports = { adminAuth };
+const authenticateToken = adminAuth;
+
+const requireSuperAdmin = (req, res, next) => {
+    if (!req.admin || req.admin.role !== 'SUPER_ADMIN') {
+        return res.status(403).json({ error: 'Super Admin access required' });
+    }
+    next();
+};
+
+module.exports = { adminAuth, authenticateToken, requireSuperAdmin };
