@@ -4,37 +4,51 @@ const prisma = require('../db');
 const crypto = require('crypto');
 const { adminAuth } = require('../middleware/auth');
 
+// Generate branch code
+function generateBranchCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'BR-';
+    for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+}
+
+// Generate API key
+function generateAPIKey() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let key = 'sk_';
+    for (let i = 0; i < 32; i++) {
+        key += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return key;
+}
+
 // Auto-register branch (no auth required - called by installer/branch app on first run)
+// Uses BOOTSTRAP_SECRET from environment to validate
 router.post('/register', async (req, res) => {
     try {
-        const { code, name, apiKey, hardwareId, installationId, branchType } = req.body;
+        const { bootstrapSecret, name, hardwareId, hostIP } = req.body;
 
-        if (!code || !apiKey) {
-            return res.status(400).json({ error: 'Missing required fields: code and apiKey' });
+        // Validate bootstrap secret
+        const expectedSecret = process.env.BOOTSTRAP_SECRET;
+        if (!expectedSecret || bootstrapSecret !== expectedSecret) {
+            return res.status(403).json({ error: 'Invalid bootstrap secret' });
         }
 
-        // Check if branch already exists
-        const existing = await prisma.branch.findUnique({ where: { code } });
-        if (existing) {
-            // If API key matches, return success (re-registration)
-            if (existing.apiKey === apiKey) {
-                return res.json({ 
-                    registered: true, 
-                    branch: existing,
-                    message: 'Branch already registered' 
-                });
-            }
-            return res.status(403).json({ error: 'Branch code already exists with different API key' });
-        }
+        // Auto-generate branch code and API key
+        const code = generateBranchCode();
+        const apiKey = generateAPIKey();
 
-        // Create branch with provided code and API key
+        // Create branch
         const branch = await prisma.branch.create({
             data: {
                 code,
                 name: name || `فرع ${code}`,
                 apiKey,
-                authorizedHWID: hardwareId || installationId || null,
-                type: branchType || 'BRANCH',
+                authorizedHWID: hardwareId || null,
+                url: hostIP ? `http://${hostIP}:5002` : null,
+                type: 'BRANCH',
                 status: 'ONLINE'
             }
         });
@@ -58,8 +72,9 @@ router.post('/register', async (req, res) => {
         });
 
         res.status(201).json({ 
-            registered: true, 
-            branch,
+            success: true,
+            branchCode: code,
+            apiKey: apiKey,
             credentials: {
                 username: 'admin',
                 password: 'admin123'
@@ -69,6 +84,36 @@ router.post('/register', async (req, res) => {
     } catch (error) {
         console.error('Failed to register branch:', error);
         res.status(500).json({ error: 'Failed to register branch: ' + error.message });
+    }
+});
+
+// Legacy register - for backward compatibility (requires auth)
+router.post('/register-manual', adminAuth, async (req, res) => {
+    try {
+        const { name, apiKey: providedApiKey } = req.body;
+
+        const code = generateBranchCode();
+        const apiKey = providedApiKey || generateAPIKey();
+
+        const branch = await prisma.branch.create({
+            data: {
+                code,
+                name: name || `فرع ${code}`,
+                apiKey,
+                type: 'BRANCH',
+                status: 'PENDING'
+            }
+        });
+
+        res.status(201).json({ 
+            success: true,
+            branch,
+            apiKey,
+            message: 'Branch created successfully'
+        });
+    } catch (error) {
+        console.error('Failed to create branch:', error);
+        res.status(500).json({ error: 'Failed to create branch: ' + error.message });
     }
 });
 
