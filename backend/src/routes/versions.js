@@ -10,6 +10,13 @@ async function getGitHubSettings() {
     let settings = await db.gitHubSettings.findFirst();
     const envPat = process.env.GITHUB_PAT || '';
     
+    // Debug log
+    if (!settings) {
+        console.log('[GitHub] Creating settings, envPat:', envPat ? 'SET' : 'EMPTY');
+    } else if (!settings.patToken) {
+        console.log('[GitHub] DB has no token, envPat:', envPat ? 'SET' : 'EMPTY');
+    }
+    
     if (!settings) {
         settings = await db.gitHubSettings.create({
             data: {
