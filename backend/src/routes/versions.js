@@ -226,8 +226,11 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (re
 
     try {
         const branchUrl = branch.url || process.env.BRANCH_API_URL;
+        if (!branchUrl) {
+            return res.status(400).json({ error: 'Branch URL not configured. Set BRANCH_API_URL in .env or configure branch URL in database.' });
+        }
         const response = await axios.post(
-            `${branchUrl || 'http://localhost:5002'}/api/system/update/trigger`,
+            `${branchUrl}/api/system/update/trigger`,
             { version: version || 'latest' },
             {
                 headers: {
@@ -284,8 +287,11 @@ router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, async
 
     try {
         const branchUrl = branch.url || process.env.BRANCH_API_URL;
+        if (!branchUrl) {
+            return res.status(400).json({ error: 'Branch URL not configured. Set BRANCH_API_URL in .env or configure branch URL in database.' });
+        }
         await axios.post(
-            `${branchUrl || 'http://localhost:5002'}/api/system/update/rollback`,
+            `${branchUrl}/api/system/update/rollback`,
             {},
             {
                 headers: {

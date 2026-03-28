@@ -57,10 +57,18 @@ module.exports = (io) => {
             socket.branchCode = branch.code;
             socket.branchName = branch.name;
             
-            // Mark as ONLINE
+            // Get branch URL from socket handshake
+            const socketHost = socket.handshake.headers.host;
+            const branchUrl = socketHost ? `http://${socketHost}` : null;
+            
+            // Mark as ONLINE and save URL
             await prisma.branch.update({
                 where: { id: branch.id },
-                data: { status: 'ONLINE', lastSeen: new Date() }
+                data: { 
+                    status: 'ONLINE', 
+                    lastSeen: new Date(),
+                    url: branchUrl  // Save the URL so portal can push updates
+                }
             });
 
             // Log connection
