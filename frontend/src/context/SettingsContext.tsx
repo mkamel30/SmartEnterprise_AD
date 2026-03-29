@@ -89,8 +89,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
     try {
       setLoading(true);
-      const data = await api.get<UserPreferences>('/user/preferences');
-      setPreferences(data);
+      const data = await api.get<any>('/auth/preferences');
+      setPreferences(data.preferences || data);
     } catch (error) {
       console.error('Failed to fetch preferences:', error);
       // Set defaults if fetch fails
@@ -109,8 +109,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
   const updatePreferences = async (updates: Partial<UserPreferences>) => {
     try {
-      const data = await api.put<UserPreferences>('/user/preferences', updates);
-      setPreferences(data);
+      const data = await api.put<any>('/auth/preferences', updates);
+      setPreferences(data.preferences || data);
     } catch (error) {
       console.error('Failed to update preferences:', error);
       throw error;
