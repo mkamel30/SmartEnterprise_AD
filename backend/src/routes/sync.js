@@ -4,6 +4,8 @@ const prisma = require('../../db');
 const syncQueueService = require('../services/syncQueue.service');
 const { adminAuth } = require('../middleware/auth');
 const logger = require('../../utils/logger');
+const validate = require('../middleware/validate');
+const { requestSyncSchema, pushSchema } = require('./sync.schema');
 
 // Helper to log sync operations
 async function logPortalSync(branchId, branchCode, branchName, type, status, message, itemCount = 0, details = null) {
@@ -51,7 +53,7 @@ const branchAuth = async (req, res, next) => {
 };
 
 // Branch-initiated HTTP sync: branch requests data from portal
-router.post('/request-sync', branchAuth, async (req, res) => {
+router.post('/request-sync', branchAuth, validate(requestSyncSchema), async (req, res) => {
     try {
         const { entities } = req.body || {};
 
@@ -96,7 +98,7 @@ router.post('/request-sync', branchAuth, async (req, res) => {
 });
 
 // Branch data push endpoint (upward sync)
-router.post('/push', branchAuth, async (req, res) => {
+router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
     try {
         const { payments, maintenanceRequests, users, customers, posMachines } = req.body;
         const branchId = req.branch.id;

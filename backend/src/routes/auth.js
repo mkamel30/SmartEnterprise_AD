@@ -5,23 +5,22 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { adminAuth } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const { loginSchema, preferencesSchema, forgotPasswordSchema, resetPasswordSchema } = require('./auth.schema');
+const { success, error: apiError } = require('../../utils/apiResponse');
 
-router.post('/login', async (req, res) => {
+router.post('/login', validate(loginSchema), async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required' });
-        }
-
         const admin = await prisma.adminUser.findUnique({ where: { username } });
         if (!admin) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return apiError(res, 'Invalid credentials', 401);
         }
 
         const isMatch = await bcrypt.compare(password, admin.passwordHash);
         if (!isMatch) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return apiError(res, 'Invalid credentials', 401);
         }
 
         const token = jwt.sign(
@@ -30,7 +29,7 @@ router.post('/login', async (req, res) => {
             { expiresIn: '24h' }
         );
 
-        res.json({
+        return success(res, {
             token,
             admin: {
                 id: admin.id,
@@ -41,12 +40,12 @@ router.post('/login', async (req, res) => {
         });
     } catch (error) {
         console.error('Login failed:', error);
-        res.status(500).json({ error: 'Login failed' });
+        return apiError(res, 'Login failed', 500);
     }
 });
 
 // Forgot Password - Validate Recovery Key or Username
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res) => {
     try {
         const { username, recoveryKey } = req.body;
         
@@ -58,7 +57,7 @@ router.post('/forgot-password', async (req, res) => {
         });
 
         if (!admin) {
-            return res.status(401).json({ error: 'الاسم أو مفتاح الاسترداد غير صحيح' });
+            return apiError(res, 'الاسم أو مفتاح الاسترداد غير صحيح', 401);
         }
 
         // Generate secure temporary reset token
@@ -71,14 +70,14 @@ router.post('/forgot-password', async (req, res) => {
             }
         });
 
-        res.json({ token, message: 'مفتاح الاسترداد صحيح. يمكنك الآن تعيين كلمة مرور جديدة.' });
+        return success(res, { token, message: 'مفتاح الاسترداد صحيح. يمكنك الآن تعيين كلمة مرور جديدة.' });
     } catch (error) {
-        res.status(500).json({ error: 'عذراً، فشلت العملية' });
+        return apiError(res, 'عذراً، فشلت العملية', 500);
     }
 });
 
 // Reset Password Completion
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', validate(resetPasswordSchema), async (req, res) => {
     try {
         const { token, newPassword } = req.body;
         
@@ -90,7 +89,7 @@ router.post('/reset-password', async (req, res) => {
         });
 
         if (!admin) {
-            return res.status(400).json({ error: 'انتهت صلاحية الجلسة أو الكود غير صالح' });
+            return apiError(res, 'انتهت صلاحية الجلسة أو الكود غير صالح', 400);
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -103,9 +102,9 @@ router.post('/reset-password', async (req, res) => {
             }
         });
 
-        res.json({ message: 'تم تغيير كلمة المرور بنجاح' });
+        return success(res, { message: 'تم تغيير كلمة المرور بنجاح' });
     } catch (error) {
-        res.status(500).json({ error: 'فشل تحديث كلمة المرور' });
+        return apiError(res, 'فشل تحديث كلمة المرور', 500);
     }
 });
 
@@ -118,14 +117,14 @@ router.get('/preferences', adminAuth, async (req, res) => {
             select: { preferences: true }
         });
 
-        res.json({ preferences: admin?.preferences || {} });
+        return success(res, { preferences: admin?.preferences || {} });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to get preferences' });
+        return apiError(res, 'Failed to get preferences', 500);
     }
 });
 
 // Update user preferences
-router.put('/preferences', adminAuth, async (req, res) => {
+router.put('/preferences', adminAuth, validate(preferencesSchema), async (req, res) => {
     try {
         const decoded = req.admin;
         const { theme, fontFamily, themeVariant, ...otherPrefs } = req.body;
@@ -148,10 +147,10 @@ router.put('/preferences', adminAuth, async (req, res) => {
             data: { preferences: updatedPreferences }
         });
 
-        res.json({ success: true, preferences: updatedPreferences });
+        return success(res, { success: true, preferences: updatedPreferences });
     } catch (error) {
         console.error('Failed to update preferences:', error);
-        res.status(500).json({ error: 'Failed to update preferences' });
+        return apiError(res, 'Failed to update preferences', 500);
     }
 });
 
