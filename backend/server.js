@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
 const prisma = require('./db');
@@ -48,7 +49,13 @@ const githubRoutes = require('./src/routes/github');
 const versionRoutes = require('./src/routes/versions');
 const licenseRoutes = require('./src/routes/licenses');
 
-app.use('/api/auth', authRoutes);
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV !== 'production' ? 1000 : 10,
+    message: { error: 'Too many login attempts, please try again after 15 minutes' }
+});
+
+app.use('/api/auth', loginLimiter, authRoutes);
 app.use('/api/licenses', licenseRoutes);
 app.use('/api/branch-setup', branchSetupRoutes);
 app.use('/api/branches', branchRoutes);
@@ -89,10 +96,18 @@ syncQueueService.init(io);
 const path = require('path');
 const frontendDist = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendDist));
-app.get('*', (req, res) => {
+app.get('*', (req, res, next) => {
     if (!req.path.startsWith('/api')) {
         res.sendFile(path.join(frontendDist, 'index.html'));
+    } else {
+        next();
     }
+});
+
+app.use((err, req, res, next) => {
+    const logger2 = require('./utils/logger');
+    logger2.error({ err: err.message, stack: err.stack }, 'Unhandled error');
+    res.status(err.status || 500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message });
 });
 
 const logger = require('./utils/logger');
@@ -101,12 +116,13 @@ const PORT = process.env.PORT || 5005;
 async function ensureAdminUser() {
     try {
         const bcrypt = require('bcryptjs');
-        const prisma = require('./src/db');
-        const adminPassword = 'Mk@351762';
-        const hashedPassword = await bcrypt.hash(adminPassword, 10);
-
+        const crypto = require('crypto');
+        
         const existing = await prisma.adminUser.findUnique({ where: { username: 'Admin@' } });
         if (!existing) {
+            const tempPassword = crypto.randomBytes(8).toString('hex');
+            const hashedPassword = await bcrypt.hash(tempPassword, 10);
+            
             await prisma.adminUser.create({
                 data: {
                     username: 'Admin@',
@@ -115,13 +131,12 @@ async function ensureAdminUser() {
                     role: 'SUPER_ADMIN'
                 }
             });
-            logger.info('Super Admin created: Admin@ / Mk@351762');
+            logger.info({ username: 'Admin@', tempPassword }, 'FIRST-TIME SETUP: Super Admin created. Please copy this temporary password and change it immediately. It will not be shown again.');
         } else {
-            logger.info('Super Admin verified: Admin@ / Mk@351762');
+            logger.info('Super Admin verified.');
         }
-        await prisma.$disconnect();
     } catch (error) {
-        logger.warn({ err: error }, 'Admin user check failed — will retry on next startup');
+        logger.warn({ err: error.message }, 'Admin user check failed — will retry on next startup');
     }
 }
 

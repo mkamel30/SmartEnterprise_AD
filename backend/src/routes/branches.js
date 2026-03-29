@@ -6,22 +6,12 @@ const { adminAuth } = require('../middleware/auth');
 
 // Generate branch code
 function generateBranchCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = 'BR-';
-    for (let i = 0; i < 6; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return code;
+    return 'BR-' + crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
 }
 
 // Generate API key
 function generateAPIKey() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let key = 'sk_';
-    for (let i = 0; i < 32; i++) {
-        key += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return key;
+    return 'sk_' + crypto.randomBytes(32).toString('hex');
 }
 
 // Auto-register branch (no auth required - called by installer/branch app on first run)
@@ -65,7 +55,6 @@ router.post('/register', async (req, res) => {
                 displayName: 'مدير الفرع',
                 role: 'BRANCH_ADMIN',
                 branchId: branch.id,
-                branchCode: code,
                 isActive: true,
                 notificationSound: true
             }

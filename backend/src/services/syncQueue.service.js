@@ -1,5 +1,6 @@
 let io = null;
 const prisma = require('../db');
+const logger = require('../../utils/logger');
 
 /**
  * Service to manage syncing data from Admin to Branches via WebSockets and Queueing.
@@ -7,6 +8,24 @@ const prisma = require('../db');
 const syncQueueService = {
     init(socketIo) {
         io = socketIo;
+        this.startCleanupJob();
+    },
+
+    startCleanupJob() {
+        // Run cleanup once a day to delete SYNCED items older than 7 days
+        setInterval(async () => {
+            try {
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const deleted = await prisma.syncQueue.deleteMany({
+                    where: { status: 'SYNCED', updatedAt: { lt: sevenDaysAgo } }
+                });
+                if (deleted.count > 0) {
+                    logger.info(`[SyncQueue] Cleaned up ${deleted.count} old SYNCED items`);
+                }
+            } catch (err) {
+                logger.error({ err: err.message }, '[SyncQueue] Cleanup job failed');
+            }
+        }, 24 * 60 * 60 * 1000);
     },
 
     /**
@@ -41,12 +60,12 @@ const syncQueueService = {
                         action,
                         payload: payloadObj
                     });
-                    console.log(`[SyncService] Emitted UPDATE to branch ${branch.code} (Queue ID: ${queueItem.id})`);
+                    logger.info(`[SyncService] Emitted UPDATE to branch ${branch.code} (Queue ID: ${queueItem.id})`);
                 } else {
-                    console.log(`[SyncService] Branch ${branch.code} is offline. Update queued (Queue ID: ${queueItem.id})`);
+                    logger.info(`[SyncService] Branch ${branch.code} is offline. Update queued (Queue ID: ${queueItem.id})`);
                 }
             } catch (error) {
-                console.error(`[SyncService] Error enqueuing update for branch ${branch.code}:`, error.message);
+                logger.error({ err: error.message }, `[SyncService] Error enqueuing update for branch ${branch.code}`);
             }
         }
     },
@@ -64,7 +83,7 @@ const syncQueueService = {
             });
 
             if (pendingItems.length > 0) {
-                console.log(`[SyncService] Pushing ${pendingItems.length} pending updates to branch ID ${branchId}`);
+                logger.info(`[SyncService] Pushing ${pendingItems.length} pending updates to branch ID ${branchId}`);
                 
                 for (const item of pendingItems) {
                     const payloadObj = JSON.parse(item.payload);
@@ -77,7 +96,7 @@ const syncQueueService = {
                 }
             }
         } catch (error) {
-            console.error(`[SyncService] Error pushing pending updates to branch ${branchId}:`, error.message);
+            logger.error({ err: error.message }, `[SyncService] Error pushing pending updates to branch ${branchId}`);
         }
     }
 };

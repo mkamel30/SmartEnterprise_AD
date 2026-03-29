@@ -1,0 +1,4 @@
+[dotenv@17.3.1] injecting env (7) from .env -- tip: ⚙️  override existing env vars with { override: true }
+{"level":30,"time":1774767940736,"name":"smart-enterprise-suite_ADMIN","pid":10928,"env":"production","msg":"Super Admin verified."}
+{"level":30,"time":1774767940743,"name":"smart-enterprise-suite_ADMIN","pid":10928,"env":"production","msg":"--- Central Admin Portal running on port 5005 ---"}
+^C

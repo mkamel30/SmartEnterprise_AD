@@ -3,6 +3,8 @@ const router = express.Router();
 const prisma = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { adminAuth } = require('../middleware/auth');
 
 router.post('/login', async (req, res) => {
     try {
@@ -59,8 +61,8 @@ router.post('/forgot-password', async (req, res) => {
             return res.status(401).json({ error: 'الاسم أو مفتاح الاسترداد غير صحيح' });
         }
 
-        // Generate temporary reset token
-        const token = Math.random().toString(36).substring(7);
+        // Generate secure temporary reset token
+        const token = crypto.randomBytes(32).toString('hex');
         await prisma.adminUser.update({
             where: { id: admin.id },
             data: {
@@ -108,14 +110,9 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // Get user preferences
-router.get('/preferences', async (req, res) => {
+router.get('/preferences', adminAuth, async (req, res) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ error: 'Authentication required' });
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = req.admin;
         const admin = await prisma.adminUser.findUnique({
             where: { id: decoded.id },
             select: { preferences: true }
@@ -128,14 +125,9 @@ router.get('/preferences', async (req, res) => {
 });
 
 // Update user preferences
-router.put('/preferences', async (req, res) => {
+router.put('/preferences', adminAuth, async (req, res) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ error: 'Authentication required' });
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = req.admin;
         const { theme, fontFamily, themeVariant, ...otherPrefs } = req.body;
 
         const current = await prisma.adminUser.findUnique({

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../../db');
 const syncQueueService = require('../services/syncQueue.service');
+const { adminAuth } = require('../middleware/auth');
+const logger = require('../../utils/logger');
 
 // Helper to log sync operations
 async function logPortalSync(branchId, branchCode, branchName, type, status, message, itemCount = 0, details = null) {
@@ -15,7 +17,7 @@ async function logPortalSync(branchId, branchCode, branchName, type, status, mes
 // Branch authentication for HTTP sync endpoints
 const branchAuth = async (req, res, next) => {
     const apiKey = req.headers['x-portal-sync-key'];
-    const masterKey = process.env.PORTAL_API_KEY || 'master_portal_key_internal';
+    const masterKey = process.env.PORTAL_API_KEY;
 
     if (!apiKey) {
         return res.status(401).json({ error: 'Branch API Key required' });
@@ -99,25 +101,33 @@ router.post('/push', branchAuth, async (req, res) => {
         const { payments, maintenanceRequests, users, customers, posMachines } = req.body;
         const branchId = req.branch.id;
 
+        const cleanEntity = (entity) => {
+            if (!entity) return {};
+            const { branch, customer, request, posMachine, payments, stockMovements, warehouseMachines, maintenanceApprovals, posMachines: pm, users: u, ...cleanData } = entity;
+            return cleanData;
+        };
+
         // Upsert Payments
         if (payments && Array.isArray(payments)) {
             for (const payment of payments) {
+                const cleanPayment = cleanEntity(payment);
                 await prisma.payment.upsert({
                     where: { id: payment.id },
-                    update: { ...payment, branchId },
-                    create: { ...payment, branchId }
-                }).catch(e => console.warn('Payment sync skip:', e.message));
+                    update: { ...cleanPayment, branchId },
+                    create: { ...cleanPayment, branchId }
+                }).catch(e => logger.warn({ err: e.message }, 'Payment sync skip'));
             }
         }
 
         // Upsert Maintenance Requests
         if (maintenanceRequests && Array.isArray(maintenanceRequests)) {
             for (const request of maintenanceRequests) {
+                const cleanRequest = cleanEntity(request);
                 await prisma.maintenanceRequest.upsert({
                     where: { id: request.id },
-                    update: { ...request, branchId },
-                    create: { ...request, branchId }
-                }).catch(e => console.warn('Request sync skip:', e.message));
+                    update: { ...cleanRequest, branchId },
+                    create: { ...cleanRequest, branchId }
+                }).catch(e => logger.warn({ err: e.message }, 'Request sync skip'));
             }
         }
 
@@ -130,11 +140,12 @@ router.post('/push', branchAuth, async (req, res) => {
                         data: { isActive: false }
                     }).catch(() => {});
                 } else {
+                    const cleanUser = cleanEntity(user);
                     await prisma.user.upsert({
                         where: { id: user.id },
-                        update: { ...user, branchId },
-                        create: { ...user, branchId }
-                    }).catch(e => console.warn('User sync skip:', e.message));
+                        update: { ...cleanUser, branchId },
+                        create: { ...cleanUser, branchId }
+                    }).catch(e => logger.warn({ err: e.message }, 'User sync skip'));
                 }
             }
         }
@@ -142,22 +153,24 @@ router.post('/push', branchAuth, async (req, res) => {
         // Upsert Customers
         if (customers && Array.isArray(customers)) {
             for (const customer of customers) {
+                const cleanCustomer = cleanEntity(customer);
                 await prisma.customer.upsert({
                     where: { id: customer.id },
-                    update: { ...customer, branchId },
-                    create: { ...customer, branchId }
-                }).catch(e => console.warn('Customer sync skip:', e.message));
+                    update: { ...cleanCustomer, branchId },
+                    create: { ...cleanCustomer, branchId }
+                }).catch(e => logger.warn({ err: e.message }, 'Customer sync skip'));
             }
         }
 
         // Upsert POS Machines
         if (posMachines && Array.isArray(posMachines)) {
             for (const posMachine of posMachines) {
+                const cleanPOS = cleanEntity(posMachine);
                 await prisma.posMachine.upsert({
                     where: { id: posMachine.id },
-                    update: { ...posMachine, branchId },
-                    create: { ...posMachine, branchId }
-                }).catch(e => console.warn('POS Machine sync skip:', e.message));
+                    update: { ...cleanPOS, branchId },
+                    create: { ...cleanPOS, branchId }
+                }).catch(e => logger.warn({ err: e.message }, 'POS Machine sync skip'));
             }
         }
 
@@ -184,7 +197,7 @@ router.post('/push', branchAuth, async (req, res) => {
 });
 
 // Admin requests a specific branch to push its full historical data upwards
-router.post('/request-full-sync/:branchId', async (req, res) => {
+router.post('/request-full-sync/:branchId', adminAuth, async (req, res) => {
     try {
         const { branchId } = req.params;
         // Verify branch exists
@@ -205,7 +218,7 @@ router.post('/request-full-sync/:branchId', async (req, res) => {
 
 
 // HTTP fallback: get branch stock for a specific part (called by admin socket handler)
-router.get('/branch-stock/:branchId/:partId', async (req, res) => {
+router.get('/branch-stock/:branchId/:partId', adminAuth, async (req, res) => {
     try {
         const { branchId, partId } = req.params;
         res.json({ stock: [], branchId, partId, note: 'Branch stock queried via WebSocket' });
@@ -216,7 +229,7 @@ router.get('/branch-stock/:branchId/:partId', async (req, res) => {
 });
 
 // GET /sync/logs - Portal sync logs (paginated, filterable by branch)
-router.get('/logs', async (req, res) => {
+router.get('/logs', adminAuth, async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 50;
         const offset = parseInt(req.query.offset) || 0;
