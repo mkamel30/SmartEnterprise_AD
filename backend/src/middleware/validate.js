@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { error: apiError } = require('../utils/apiResponse');
+const { error: apiError } = require('../../utils/apiResponse');
 
 /**
  * Zod validation middleware

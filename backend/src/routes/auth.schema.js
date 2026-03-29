@@ -12,7 +12,7 @@ const preferencesSchema = z.object({
         theme: z.string().optional(),
         fontFamily: z.string().optional(),
         themeVariant: z.string().optional()
-    }).nonstrict() // Allow other preferences
+    }).passthrough() // Allow other preferences
 });
 
 const forgotPasswordSchema = z.object({
