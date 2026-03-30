@@ -152,12 +152,15 @@ module.exports = (io) => {
 
         // Handle user updates from branch (upward sync)
         socket.on('branch_user_update', async (data) => {
-            const { user } = data;
-            logger.info(`[Sync] Received user update from branch ${socket.branchCode}: ${user?.username}`);
+            const { user, branchCode } = data;
+            logger.info(`[Sync] Received user update from branch ${branchCode || socket.branchCode}: ${user?.username}`);
 
             try {
                 if (user) {
                     const { branch, ...cleanUser } = user;
+                    const targetBranchCode = branchCode || socket.branchCode;
+                    const targetBranch = await prisma.branch.findFirst({ where: { code: targetBranchCode } });
+
                     if (cleanUser._deleted) {
                         await prisma.user.update({
                             where: { id: cleanUser.id },
@@ -166,23 +169,50 @@ module.exports = (io) => {
                         logger.info(`[Sync] User '${user.username}' deactivated on portal`);
                     } else {
                         const existingUser = cleanUser.id ? await prisma.user.findUnique({ where: { id: cleanUser.id } }) 
-                                           : (cleanUser.username ? await prisma.user.findUnique({ where: { username: cleanUser.username } }) : null);
+                                           : (cleanUser.username ? await prisma.user.findFirst({ where: { username: cleanUser.username, branchId: targetBranch?.id } }) : null);
 
                         if (existingUser) {
                             await prisma.user.update({
                                 where: { id: existingUser.id },
-                                data: { ...cleanUser, branchId: socket.branchId }
+                                data: { ...cleanUser, branchId: targetBranch?.id }
                             });
+                            logger.info(`[Sync] User '${user.username}' updated from branch ${targetBranchCode}`);
                         } else {
                             await prisma.user.create({
-                                data: { ...cleanUser, branchId: socket.branchId }
+                                data: { ...cleanUser, branchId: targetBranch?.id }
                             });
+                            logger.info(`[Sync] User '${user.username}' created from branch ${targetBranchCode}`);
                         }
-                        logger.info(`[Sync] User '${user.username}' synced from branch ${socket.branchCode}`);
                     }
+
+                    // Log to UserSyncLog
+                    await prisma.userSyncLog.create({
+                        data: {
+                            branchCode: targetBranchCode,
+                            userId: cleanUser.id,
+                            username: user.username,
+                            email: user.email,
+                            action: cleanUser._deleted ? 'DELETED' : (existingUser ? 'SYNCED' : 'CREATED'),
+                            source: 'BRANCH',
+                            status: 'SUCCESS'
+                        }
+                    });
                 }
             } catch (error) {
                 logger.error('[Sync] Error upserting user from branch:', error.message);
+                
+                // Log failure
+                await prisma.userSyncLog.create({
+                    data: {
+                        branchCode: branchCode || socket.branchCode,
+                        userId: user?.id,
+                        username: user?.username,
+                        action: 'SYNCED',
+                        source: 'BRANCH',
+                        status: 'FAILED',
+                        errorMessage: error.message
+                    }
+                }).catch(() => {});
             }
         });
 
