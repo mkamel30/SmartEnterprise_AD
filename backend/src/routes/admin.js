@@ -330,6 +330,9 @@ router.post('/users/:id/reset-password', async (req, res) => {
             }
         });
 
+        // Also clear any lockout
+        await prisma.accountLockout.deleteMany({ where: { userId: id } }).catch(() => {});
+
         await logAuditAction({
             userId: req.admin.id,
             userName: req.admin.username,
@@ -349,6 +352,37 @@ router.post('/users/:id/reset-password', async (req, res) => {
     } catch (error) {
         console.error('Failed to reset password:', error);
         res.status(500).json({ error: 'Failed to reset password' });
+    }
+});
+
+// Unlock user account
+router.post('/users/:id/unlock', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if user exists
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Clear lockout
+        await prisma.accountLockout.deleteMany({ where: { userId: id } });
+
+        await logAuditAction({
+            userId: req.admin.id,
+            userName: req.admin.username,
+            entityType: 'USER',
+            entityId: id,
+            action: 'UNLOCK',
+            details: `Unlocked account for user: ${user.username}`,
+            req
+        });
+
+        res.json({ success: true, message: 'Account unlocked successfully' });
+    } catch (error) {
+        console.error('Failed to unlock account:', error);
+        res.status(500).json({ error: 'Failed to unlock account' });
     }
 });
 

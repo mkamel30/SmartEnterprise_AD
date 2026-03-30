@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
 import { 
   Users as UsersIcon, UserPlus, Pencil, Trash2, 
-  Search, RefreshCw, Save, Building, ShieldCheck, Key
+  Search, RefreshCw, Save, Building, ShieldCheck, Key, Unlock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
@@ -250,6 +250,22 @@ export default function Users() {
                                                     title="إعادة تعيين كلمة المرور"
                                                 >
                                                     <Key size={15} />
+                                                </button>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (!confirm('هل أنت متأكد من فتح حساب هذا المستخدم؟')) return;
+                                                        try {
+                                                            await adminClient.post(`/admin/users/${u.id}/unlock`);
+                                                            alert('تم فتح الحساب بنجاح');
+                                                            fetchUsers();
+                                                        } catch (err: any) {
+                                                            alert(err.response?.data?.error || 'فشل في فتح الحساب');
+                                                        }
+                                                    }}
+                                                    className="p-2 bg-white border border-border text-muted-foreground hover:text-green-600 hover:border-green-400/30 rounded-lg transition-all shadow-sm shrink-0"
+                                                    title="فتح الحساب"
+                                                >
+                                                    <Unlock size={15} />
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDelete(u.id)}
