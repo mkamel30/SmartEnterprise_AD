@@ -16,95 +16,80 @@ module.exports = (io) => {
         const apiKey = socket.handshake.auth.apiKey || socket.handshake.headers['x-api-key'];
         const token = socket.handshake.auth.token;
 
-        // If token provided, it's an admin user
+        // Check API key first (for branch connections) - API key doesn't expire
+        if (apiKey) {
+            const globalApiKey = process.env.PORTAL_API_KEY;
+            try {
+                // Check if this key belongs to an existing branch
+                let branch = await prisma.branch.findFirst({ where: { apiKey: apiKey } });
+
+                // Master key check: find branch by code from handshake query
+                if (!branch && apiKey === globalApiKey) {
+                    const branchCode = socket.handshake.query.branchCode;
+                    if (branchCode) {
+                        branch = await prisma.branch.findFirst({ where: { code: branchCode } });
+                    }
+                }
+
+                if (branch) {
+                    socket.branchId = branch.id;
+                    socket.branchCode = branch.code;
+                    socket.isAdmin = false;
+                    socket.isBranch = true;
+                    logger.info(`[Socket] Branch connected: ${branch.code}`);
+                    return next();
+                }
+            } catch (err) {
+                logger.error('[Socket] API key auth error:', err.message);
+            }
+        }
+
+        // If no API key or API key not found, check token (for admin users)
         if (token) {
             try {
                 const jwt = require('jsonwebtoken');
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 socket.adminUser = decoded;
                 socket.isAdmin = true;
+                socket.isBranch = false;
                 logger.info(`[Socket] Admin user connected: ${decoded.username}`);
                 return next();
             } catch (err) {
-                // Invalid token, try API key
+                logger.warn('[Socket] Token verification failed:', err.message);
             }
         }
 
-        // Otherwise, check if it's a branch API key
-        if (!apiKey) {
-            return next(new Error('Authentication error: Missing API Key or Token'));
-        }
-
-        const globalApiKey = process.env.PORTAL_API_KEY;
-        if (!globalApiKey) {
-            logger.warn('[Socket] Security Warning: PORTAL_API_KEY is not set in environment variables!');
-        }
-        try {
-            // Check if this key belongs to an existing branch
-            let branch = await prisma.branch.findFirst({ where: { apiKey: apiKey } });
-
-            // Master key check: find branch by code from handshake query, reject if not found
-            if (!branch && apiKey === globalApiKey) {
-                const branchCode = socket.handshake.query.branchCode;
-                if (!branchCode) {
-                    return next(new Error('Authentication error: Branch code required'));
-                }
-
-                // Look up branch by code — must be created on portal first
-                branch = await prisma.branch.findFirst({ where: { code: branchCode } });
-                if (branch) {
-                    // Update branch status, DO NOT overwrite branch's unique API key with the global master key
-                    branch = await prisma.branch.update({
-                        where: { id: branch.id },
-                        data: {
-                            status: 'ONLINE',
-                            lastSeen: new Date()
-                        }
-                    });
-                    logger.info(`[Socket] Branch ${branchCode} connected`);
-                } else {
-                    return next(new Error(`Authentication error: Branch '${branchCode}' not found on portal. Create it first.`));
-                }
-            }
-
-            if (!branch) {
-                return next(new Error('Authentication error: Invalid API Key'));
-            }
-
-            // Bind branch info to socket
-            socket.branchId = branch.id;
-            socket.branchCode = branch.code;
-            socket.branchName = branch.name;
-            
-            // Get branch URL from socket handshake query rather than misleading host header
-            const branchUrl = socket.handshake.query.branchUrl || null;
-            
-            // Mark as ONLINE and save URL
-            await prisma.branch.update({
-                where: { id: branch.id },
-                data: { 
-                    status: 'ONLINE', 
-                    lastSeen: new Date(),
-                    url: branchUrl  // Save the URL so portal can push updates
-                }
-            });
-
-            // Log connection
-            logPortalSync(branch.id, branch.code, branch.name, 'CONNECT', 'SUCCESS', `${branch.code} (${branch.name}) اتصل عبر WebSocket`);
-
-            socket.join(`branch_${branch.id}`);
-            next();
-        } catch (err) {
-            logger.error('Socket auth error:', err);
-            next(new Error('Internal server error during auth'));
-        }
+        // No valid auth provided
+        return next(new Error('Authentication error: Invalid API Key or Token'));
     });
 
     io.on('connection', (socket) => {
-        logger.info(`[Socket] Branch Connected: ${socket.branchCode}`);
+        logger.info(`[Socket] ${socket.isAdmin ? 'Admin' : 'Branch'} Connected: ${socket.branchCode || socket.adminUser?.username}`);
 
-        // Push any pending updates to the branch that just connected
-        syncQueueService.pushPendingToBranch(socket.branchId);
+        // If this is a branch, update status and join room
+        if (socket.isBranch && socket.branchId) {
+            const branchUrl = socket.handshake.query.branchUrl || null;
+            
+            // Update branch status to ONLINE
+            prisma.branch.update({
+                where: { id: socket.branchId },
+                data: { 
+                    status: 'ONLINE', 
+                    lastSeen: new Date(),
+                    url: branchUrl
+                }
+            }).then(branch => {
+                if (branch) {
+                    logPortalSync(socket.branchId, socket.branchCode, branch.name, 'CONNECT', 'SUCCESS', `${socket.branchCode} (${branch.name}) اتصل عبر WebSocket`);
+                }
+            }).catch(() => {});
+
+            // Join branch room
+            socket.join(`branch_${socket.branchId}`);
+
+            // Push any pending updates to the branch that just connected
+            syncQueueService.pushPendingToBranch(socket.branchId);
+        }
 
         // Listen for acknowledgments of synced updates
         socket.on('ack_update', async (data) => {
@@ -142,7 +127,18 @@ module.exports = (io) => {
 
                 if (!entities || entities.includes('users')) {
                     result.users = await prisma.user.findMany({
-                        where: { isActive: true, branchId: socket.branchId }
+                        where: { isActive: true, branchId: socket.branchId },
+                        select: {
+                            id: true,
+                            uid: true,
+                            username: true,
+                            email: true,
+                            displayName: true,
+                            role: true,
+                            isActive: true,
+                            branchId: true,
+                            createdAt: true
+                        }
                     });
                 }
 

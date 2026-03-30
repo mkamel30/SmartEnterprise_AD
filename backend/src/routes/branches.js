@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require('../db');
 const crypto = require('crypto');
 const { adminAuth } = require('../middleware/auth');
+const ExcelJS = require('exceljs');
 
 // Generate branch code
 function generateBranchCode() {
@@ -351,6 +352,200 @@ router.get('/:id', async (req, res) => {
     } catch (error) {
         console.error('Failed to fetch branch:', error);
         res.status(500).json({ error: 'Failed to fetch branch' });
+    }
+});
+
+// Export all branch data to Excel
+router.get('/export/all', adminAuth, async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            orderBy: { name: 'asc' },
+            select: { id: true, code: true, name: true }
+        });
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Smart Enterprise Portal';
+        workbook.created = new Date();
+
+        const summaryData = [];
+
+        for (const branch of branches) {
+            const ws = workbook.addWorksheet(branch.name.substring(0, 31));
+
+            const headerStyle = {
+                font: { bold: true, color: { argb: 'FFFFFFFF' } },
+                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } }
+            };
+
+            let row = 1;
+
+            ws.columns = [
+                { header: 'Category', key: 'category', width: 20 },
+                { header: 'Item', key: 'item', width: 30 },
+                { header: 'Details', key: 'details', width: 40 }
+            ];
+
+            const warehouseMachines = await prisma.warehouseMachine.findMany({
+                where: { branchId: branch.id },
+                select: { serialNumber: true, model: true, manufacturer: true, status: true, importDate: true }
+            });
+
+            if (warehouseMachines.length > 0) {
+                ws.addRow({ category: 'WH MACHINES', item: 'إجمالي', details: warehouseMachines.length });
+                warehouseMachines.forEach(m => {
+                    ws.addRow({
+                        category: 'WH Machine',
+                        item: m.serialNumber,
+                        details: `${m.manufacturer || ''} ${m.model || ''} - ${m.status || ''}`
+                    });
+                });
+                summaryData.push({ branch: branch.name, type: 'WH Machines', count: warehouseMachines.length });
+            }
+
+            const cashSales = await prisma.machineSale.findMany({
+                where: { branchId: branch.id, type: 'CASH' },
+                include: {
+                    customer: { select: { client_name: true, bkcode: true } },
+                    payments: { select: { receiptNumber: true, amount: true } }
+                }
+            });
+
+            if (cashSales.length > 0) {
+                ws.addRow({ category: 'SALES CASH', item: 'إجمالي', details: cashSales.length });
+                cashSales.forEach(s => {
+                    const payment = s.payments[0];
+                    ws.addRow({
+                        category: 'Sold (Cash)',
+                        item: s.serialNumber,
+                        details: `${s.customer?.client_name || ''} - ${payment?.receiptNumber || ''} - ${s.totalPrice || 0}`
+                    });
+                });
+                summaryData.push({ branch: branch.name, type: 'Sales (Cash)', count: cashSales.length });
+            }
+
+            const installmentSales = await prisma.machineSale.findMany({
+                where: { branchId: branch.id, type: 'INSTALLMENT' },
+                include: {
+                    customer: { select: { client_name: true, bkcode: true } },
+                    installments: { select: { dueDate: true, amount: true, isPaid: true, receiptNumber: true } }
+                }
+            });
+
+            if (installmentSales.length > 0) {
+                ws.addRow({ category: 'SALES INSTALLMENT', item: 'إجمالي', details: installmentSales.length });
+                installmentSales.forEach(s => {
+                    const pending = s.installments.filter(i => !i.isPaid).length;
+                    ws.addRow({
+                        category: 'Sold (Installment)',
+                        item: s.serialNumber,
+                        details: `${s.customer?.client_name || ''} - ${s.installments.length} أقساط - ${pending} متأخر`
+                    });
+                });
+                summaryData.push({ branch: branch.name, type: 'Sales (Installment)', count: installmentSales.length });
+            }
+
+            const warehouseSims = await prisma.warehouseSim.findMany({
+                where: { branchId: branch.id },
+                select: { serialNumber: true, type: true, networkType: true, status: true }
+            });
+
+            if (warehouseSims.length > 0) {
+                ws.addRow({ category: 'WH SIMS', item: 'إجمالي', details: warehouseSims.length });
+                warehouseSims.forEach(s => {
+                    ws.addRow({
+                        category: 'WH SIM',
+                        item: s.serialNumber,
+                        details: `${s.type || ''} - ${s.networkType || ''} - ${s.status || ''}`
+                    });
+                });
+                summaryData.push({ branch: branch.name, type: 'WH SIMs', count: warehouseSims.length });
+            }
+
+            const soldSims = await prisma.simCard.findMany({
+                where: { branchId: branch.id },
+                include: {
+                    customer: { select: { client_name: true, bkcode: true } }
+                }
+            });
+
+            if (soldSims.length > 0) {
+                ws.addRow({ category: 'SOLD SIMS', item: 'إجمالي', details: soldSims.length });
+                soldSims.forEach(s => {
+                    ws.addRow({
+                        category: 'Sold SIM',
+                        item: s.serialNumber,
+                        details: `${s.customer?.client_name || ''} - ${s.type || ''} - ${s.networkType || ''}`
+                    });
+                });
+                summaryData.push({ branch: branch.name, type: 'Sold SIMs', count: soldSims.length });
+            }
+
+            const stockMovements = await prisma.stockMovement.findMany({
+                where: { branchId: branch.id }
+            });
+
+            if (stockMovements.length > 0) {
+                ws.addRow({ category: 'STOCK MOVEMENTS', item: 'إجمالي', details: stockMovements.length });
+                stockMovements.forEach(m => {
+                    ws.addRow({
+                        category: 'Stock Movement',
+                        item: m.type,
+                        details: `qty: ${m.quantity} - ${m.reason || ''} - ${m.isPaid ? 'PAID' : 'FREE'}`
+                    });
+                });
+                summaryData.push({ branch: branch.name, type: 'Stock Movements', count: stockMovements.length });
+            }
+        }
+
+        const summarySheet = workbook.addWorksheet('Summary');
+        summarySheet.columns = [
+            { header: 'Branch', key: 'branch', width: 25 },
+            { header: 'Type', key: 'type', width: 20 },
+            { header: 'Count', key: 'count', width: 10 }
+        ];
+        summaryData.forEach(item => {
+            summarySheet.addRow(item);
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=branches_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error('Export failed:', error);
+        res.status(500).json({ error: 'Export failed: ' + error.message });
+    }
+});
+
+// Trigger full sync for a branch
+router.post('/:id/trigger-sync', adminAuth, async (req, res) => {
+    try {
+        const branch = await prisma.branch.findUnique({
+            where: { id: req.params.id }
+        });
+
+        if (!branch) {
+            return res.status(404).json({ error: 'Branch not found' });
+        }
+
+        if (!branch.apiKey) {
+            return res.status(400).json({ error: 'Branch has no API key' });
+        }
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`branch_${branch.id}`).emit('portal_directive', {
+                type: 'SYSTEM_DIRECTIVE',
+                action: 'REQUEST_FULL_SYNC',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        res.json({ success: true, message: `Sync requested for branch ${branch.code}` });
+    } catch (error) {
+        console.error('Trigger sync failed:', error);
+        res.status(500).json({ error: 'Failed to trigger sync' });
     }
 });
 

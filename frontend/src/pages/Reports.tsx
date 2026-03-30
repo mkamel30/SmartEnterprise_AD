@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
 import { 
   TrendingUp, DollarSign, Download, RefreshCw, 
-  Calendar, Building, ArrowUpRight, ArrowDownRight
+  Calendar, Building, ArrowUpRight, ArrowDownRight,
+  FileSpreadsheet
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -13,6 +14,7 @@ import toast from 'react-hot-toast';
 export default function Reports() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [exporting, setExporting] = useState(false);
 
     const fetchReports = async () => {
         try {
@@ -23,6 +25,27 @@ export default function Reports() {
             toast.error('فشل في تحميل التقارير المالية');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            setExporting(true);
+            const response = await adminClient.get('/branches/export/all', {
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `branches_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('تم تصدير البيانات بنجاح');
+        } catch (error) {
+            toast.error('فشل في تصدير البيانات');
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -47,9 +70,13 @@ export default function Reports() {
                      <button onClick={fetchReports} className="p-2.5 bg-white text-muted-foreground rounded-lg border-2 border-primary/10 hover:text-primary transition-all active:scale-95 shadow-sm">
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                     </button>
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-black uppercase tracking-widest text-[10px] hover:shadow-md transition-all">
-                        <Download size={16} />
-                        تصدير الدفتر
+                    <button 
+                        onClick={handleExport} 
+                        disabled={exporting}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-black uppercase tracking-widest text-[10px] hover:shadow-md transition-all disabled:opacity-50"
+                    >
+                        <FileSpreadsheet size={16} className={exporting ? 'animate-pulse' : ''} />
+                        {exporting ? 'جاري التصدير...' : 'تصدير كل الفروع'}
                     </button>
                 </div>
             </div>

@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Building2, Users, Layers,
     RefreshCw, Settings2, LogOut, RotateCcw,
     UserCircle, Menu, ChevronDown, ZoomIn, ZoomOut,
-    ShieldCheck
+    ShieldCheck, TrendingUp
 } from 'lucide-react';
 
 interface NavItem {
@@ -21,6 +21,7 @@ const allNavItems: NavItem[] = [
     { id: 'branches', name: 'شبكة الفروع', href: '/branches', icon: Building2 },
     { id: 'users', name: 'إدارة المستخدمين', href: '/users', icon: Users },
     { id: 'warehouse', name: 'مخازن الأجهزة والعهد', href: '/warehouse', icon: Layers },
+    { id: 'reports', name: 'التقارير والتصدير', href: '/reports', icon: TrendingUp },
     { id: 'sync-status', name: 'مراقب المزامنة', href: '/sync-status', icon: RefreshCw },
     { id: 'version-logs', name: 'سجلات الإصدارات', href: '/version-logs', icon: RotateCcw },
     { id: 'settings', name: 'الإعدادات والتكوين', href: '/settings', icon: Settings2 },

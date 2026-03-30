@@ -6,6 +6,7 @@ import UsersPage from './pages/Users';
 import Warehouse from './pages/Warehouse';
 import SyncStatus from './pages/SyncStatus';
 import VersionLogs from './pages/VersionLogs';
+import Reports from './pages/Reports';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import AdminLayout from './components/AdminLayout';
@@ -53,6 +54,7 @@ function AuthWrapper() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/warehouse" element={<Warehouse />} />
           <Route path="/sync-status" element={<SyncStatus />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/version-logs" element={<VersionLogs />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
