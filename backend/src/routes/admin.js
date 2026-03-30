@@ -163,4 +163,171 @@ router.post('/sync/users', async (req, res) => {
     }
 });
 
+// --- Branch Management ---
+router.get('/branches', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                _count: {
+                    select: { users: true }
+                }
+            }
+        });
+        res.json(branches);
+    } catch (error) {
+        console.error('Failed to fetch branches:', error);
+        res.status(500).json({ error: 'Failed to fetch branches' });
+    }
+});
+
+router.get('/branches/:id/users', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const users = await prisma.user.findMany({
+            where: { branchId: id },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                displayName: true,
+                role: true,
+                isActive: true,
+                createdAt: true,
+                lastLoginAt: true
+            }
+        });
+        res.json(users);
+    } catch (error) {
+        console.error('Failed to fetch branch users:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+router.delete('/branches/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if branch exists
+        const branch = await prisma.branch.findUnique({ where: { id } });
+        if (!branch) {
+            return res.status(404).json({ error: 'Branch not found' });
+        }
+
+        // Delete branch (cascade will handle related records)
+        await prisma.branch.delete({ where: { id } });
+
+        await logAuditAction({
+            userId: req.admin.id,
+            userName: req.admin.username,
+            entityType: 'BRANCH',
+            entityId: id,
+            action: 'DELETE',
+            details: `Deleted branch: ${branch.name} (${branch.code})`,
+            req
+        });
+
+        res.json({ success: true, message: 'Branch deleted' });
+    } catch (error) {
+        console.error('Failed to delete branch:', error);
+        res.status(500).json({ error: 'Failed to delete branch' });
+    }
+});
+
+// --- User Management (All Branches) ---
+router.get('/users', async (req, res) => {
+    try {
+        const { page = 1, limit = 50, branchId, search } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+
+        const where = {};
+        if (branchId) where.branchId = branchId;
+        if (search) {
+            where.OR = [
+                { username: { contains: search } },
+                { email: { contains: search } },
+                { displayName: { contains: search } }
+            ];
+        }
+
+        const [users, total] = await Promise.all([
+            prisma.user.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: Number(limit),
+                include: {
+                    branch: {
+                        select: { code: true, name: true }
+                    }
+                }
+            }),
+            prisma.user.count({ where })
+        ]);
+
+        res.json({ users, total, pages: Math.ceil(total / limit) });
+    } catch (error) {
+        console.error('Failed to fetch users:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+router.delete('/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if user exists
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Delete user
+        await prisma.user.delete({ where: { id } });
+
+        await logAuditAction({
+            userId: req.admin.id,
+            userName: req.admin.username,
+            entityType: 'USER',
+            entityId: id,
+            action: 'DELETE',
+            details: `Deleted user: ${user.username} (was in branch ${user.branchId})`,
+            req
+        });
+
+        res.json({ success: true, message: 'User deleted' });
+    } catch (error) {
+        console.error('Failed to delete user:', error);
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
+});
+
+// --- User Sync Logs ---
+router.get('/user-sync-logs', async (req, res) => {
+    try {
+        const { page = 1, limit = 50, branchCode, status } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+
+        const where = {};
+        if (branchCode) where.branchCode = branchCode;
+        if (status) where.status = status;
+
+        const [logs, total] = await Promise.all([
+            prisma.userSyncLog.findMany({
+                where,
+                orderBy: { syncedAt: 'desc' },
+                skip,
+                take: Number(limit)
+            }),
+            prisma.userSyncLog.count({ where })
+        ]);
+
+        res.json({ logs, total, pages: Math.ceil(total / limit) });
+    } catch (error) {
+        console.error('Failed to fetch sync logs:', error);
+        res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+});
+
 module.exports = router;

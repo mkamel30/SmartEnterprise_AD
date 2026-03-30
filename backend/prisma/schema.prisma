@@ -753,3 +753,21 @@ model LicenseAudit {
   @@index([licenseKey])
   @@index([createdAt])
 }
+
+// --- USER SYNC LOG ---
+
+model UserSyncLog {
+  id           String    @id @default(cuid())
+  branchCode   String?
+  userId       String?
+  username     String
+  email        String?
+  action       String    // CREATED, UPDATED, DELETED, SYNCED, FETCHED
+  source       String    // PORTAL, BRANCH
+  status       String    // SUCCESS, FAILED
+  errorMessage String?
+  syncedAt     DateTime  @default(now())
+
+  @@index([branchCode])
+  @@index([syncedAt])
+}
