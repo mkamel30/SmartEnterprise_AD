@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
 import { 
-  TrendingUp, DollarSign, Download, RefreshCw, 
+  TrendingUp, DollarSign, RefreshCw, 
   Calendar, Building, ArrowUpRight, ArrowDownRight,
   FileSpreadsheet
 } from 'lucide-react';
