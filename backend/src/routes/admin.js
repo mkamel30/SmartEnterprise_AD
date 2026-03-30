@@ -303,6 +303,55 @@ router.delete('/users/:id', async (req, res) => {
     }
 });
 
+// Reset user password - generates temp password for admin to share
+router.post('/users/:id/reset-password', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const bcrypt = require('bcryptjs');
+        const crypto = require('crypto');
+        
+        // Check if user exists
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Generate temporary password
+        const tempPassword = crypto.randomBytes(4).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        // Update user with new password
+        await prisma.user.update({
+            where: { id },
+            data: {
+                password: hashedPassword,
+                mustChangePassword: true,
+                passwordChangedAt: new Date()
+            }
+        });
+
+        await logAuditAction({
+            userId: req.admin.id,
+            userName: req.admin.username,
+            entityType: 'USER',
+            entityId: id,
+            action: 'RESET_PASSWORD',
+            details: `Reset password for user: ${user.username} (branch ${user.branchId})`,
+            req
+        });
+
+        res.json({ 
+            success: true, 
+            message: 'Password reset successful',
+            tempPassword,
+            username: user.username
+        });
+    } catch (error) {
+        console.error('Failed to reset password:', error);
+        res.status(500).json({ error: 'Failed to reset password' });
+    }
+});
+
 // --- User Sync Logs ---
 router.get('/user-sync-logs', async (req, res) => {
     try {

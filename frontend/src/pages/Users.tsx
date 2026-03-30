@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
 import { 
   Users as UsersIcon, UserPlus, Pencil, Trash2, 
-  Search, RefreshCw, Save, Building, ShieldCheck 
+  Search, RefreshCw, Save, Building, ShieldCheck, Key
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
@@ -235,6 +235,21 @@ export default function Users() {
                                                     className="p-2 bg-white border border-border text-muted-foreground hover:text-primary hover:border-primary/30 rounded-lg transition-all shadow-sm shrink-0"
                                                 >
                                                     <Pencil size={15} />
+                                                </button>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (!confirm('هل أنت متأكد من إعادة تعيين كلمة المرور لهذا المستخدم؟')) return;
+                                                        try {
+                                                            const res = await adminClient.post(`/admin/users/${u.id}/reset-password`);
+                                                            alert(`تم إعادة تعيين كلمة المرور بنجاح!\nاسم المستخدم: ${res.data.username}\nكلمة المرور المؤقتة: ${res.data.tempPassword}\n\nيجب على المستخدم تغيير كلمة المرور عند تسجيل الدخول.`);
+                                                        } catch (err: any) {
+                                                            alert(err.response?.data?.error || 'فشل في إعادة تعيين كلمة المرور');
+                                                        }
+                                                    }}
+                                                    className="p-2 bg-white border border-border text-muted-foreground hover:text-yellow-600 hover:border-yellow-400/30 rounded-lg transition-all shadow-sm shrink-0"
+                                                    title="إعادة تعيين كلمة المرور"
+                                                >
+                                                    <Key size={15} />
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDelete(u.id)}
