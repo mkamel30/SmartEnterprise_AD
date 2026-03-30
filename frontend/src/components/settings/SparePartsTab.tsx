@@ -203,14 +203,24 @@ function PartDetailModal({ part, onClose }) {
         requestIdRef.current = `req_${Date.now()}`;
         try {
             const SOCKET_URL = (import.meta.env.VITE_API_URL || '').replace('/api', '') || window.location.origin;
-            const socket = socketIo(SOCKET_URL, { transports: ['websocket', 'polling'], reconnectionAttempts: 3, reconnectionDelay: 1000 });
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const socket = socketIo(SOCKET_URL, { 
+                auth: { token },
+                transports: ['websocket', 'polling'], 
+                reconnectionAttempts: 3, 
+                reconnectionDelay: 1000 
+            });
             socketRef.current = socket;
             socket.on('connect', () => { socket.emit('request_branch_stock', { partId: part.id, requestId: requestIdRef.current }); });
             socket.on('admin_branch_stock_response', (data) => {
                 if (data.requestId !== requestIdRef.current) return;
                 setBranchStock(prev => { const idx = prev.findIndex(b => b.branchId === data.branchId); if (idx >= 0) { const updated = [...prev]; updated[idx] = data; return updated; } return [...prev, data]; });
             });
-            socket.on('connect_error', () => { toast.error('فشل الاتصال للتحقق من مخزون الفروع'); setIsQuerying(false); });
+            socket.on('connect_error', (err) => { 
+                console.error('Socket connection error:', err.message);
+                toast.error('فشل الاتصال للتحقق من مخزون الفروع'); 
+                setIsQuerying(false); 
+            });
             setTimeout(() => { if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; } setIsQuerying(false); setQueriedAt(new Date()); }, 5000);
         } catch { toast.error('فشل التحقق من مخزون الفروع'); setIsQuerying(false); }
     }, [part.id]);

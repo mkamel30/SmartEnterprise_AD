@@ -14,8 +14,25 @@ async function logPortalSync(branchId, branchCode, branchName, type, status, mes
 module.exports = (io) => {
     io.use(async (socket, next) => {
         const apiKey = socket.handshake.auth.apiKey || socket.handshake.headers['x-api-key'];
+        const token = socket.handshake.auth.token;
+
+        // If token provided, it's an admin user
+        if (token) {
+            try {
+                const jwt = require('jsonwebtoken');
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                socket.adminUser = decoded;
+                socket.isAdmin = true;
+                logger.info(`[Socket] Admin user connected: ${decoded.username}`);
+                return next();
+            } catch (err) {
+                // Invalid token, try API key
+            }
+        }
+
+        // Otherwise, check if it's a branch API key
         if (!apiKey) {
-            return next(new Error('Authentication error: Missing API Key'));
+            return next(new Error('Authentication error: Missing API Key or Token'));
         }
 
         const globalApiKey = process.env.PORTAL_API_KEY;
@@ -272,9 +289,15 @@ module.exports = (io) => {
                 // Admin requests branch stock for a specific spare part
                 // Broadcasts to all connected branches; each branch responds with its stock
         socket.on('request_branch_stock', async (data) => {
+            // Only allow admin users to request stock
+            if (!socket.isAdmin) {
+                logger.warn('[Sync] Non-admin attempted to request branch stock');
+                return;
+            }
+            
             const { partId, requestId } = data;
             socket.adminRequestId = requestId;
-            logger.info(`[Sync] Admin requested stock for part ${partId} (requestId: ${requestId})`);
+            logger.info(`[Sync] Admin ${socket.adminUser?.username} requested stock for part ${partId} (requestId: ${requestId})`);
 
             io.emit('admin_request_branch_stock', {
                 partId,
