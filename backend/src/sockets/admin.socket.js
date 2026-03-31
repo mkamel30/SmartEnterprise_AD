@@ -13,7 +13,7 @@ async function logPortalSync(branchId, branchCode, branchName, type, status, mes
 
 module.exports = (io) => {
     io.use(async (socket, next) => {
-        const apiKey = socket.handshake.auth.apiKey || socket.handshake.headers['x-api-key'];
+        const apiKey = socket.handshake.auth.apiKey || socket.handshake.headers['x-api-key'] || socket.handshake.query.apiKey;
         const token = socket.handshake.auth.token;
 
         // Check API key first (for branch connections) - API key doesn't expire
@@ -346,7 +346,73 @@ module.exports = (io) => {
             }
         });
 
-socket.on('disconnect', async () => {
+        // Handle comprehensive reporting data push from branch
+        socket.on('branch_data_push', async (data) => {
+            const { entities, branchCode } = data;
+            if (!socket.isBranch || !socket.branchId) return;
+
+            logger.info(`[Sync] Received data push (${Object.keys(entities || {}).length} types) from branch ${branchCode || socket.branchCode}`);
+
+            try {
+                // We use individual updates to handle potential schema differences or missing fields gracefully
+                if (entities.machines) {
+                    for (const m of entities.machines) {
+                        await prisma.warehouseMachine.upsert({
+                            where: { serialNumber: m.serialNumber },
+                            update: { ...m, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...m, branchId: socket.branchId }
+                        });
+                    }
+                }
+
+                if (entities.sales) {
+                    for (const s of entities.sales) {
+                        await prisma.machineSale.upsert({
+                            where: { id: s.id },
+                            update: { ...s, branchId: socket.branchId },
+                            create: { ...s, branchId: socket.branchId }
+                        });
+                    }
+                }
+
+                if (entities.sims) {
+                    for (const sim of entities.sims) {
+                        await prisma.warehouseSim.upsert({
+                            where: { serialNumber: sim.serialNumber },
+                            update: { ...sim, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...sim, branchId: socket.branchId }
+                        });
+                    }
+                }
+
+                if (entities.movements) {
+                    for (const mov of entities.movements) {
+                        await prisma.stockMovement.upsert({
+                            where: { id: mov.id },
+                            update: { ...mov, branchId: socket.branchId },
+                            create: { ...mov, branchId: socket.branchId }
+                        });
+                    }
+                }
+
+                if (entities.payments) {
+                    for (const pay of entities.payments) {
+                        await prisma.payment.upsert({
+                            where: { id: pay.id },
+                            update: { ...pay, branchId: socket.branchId },
+                            create: { ...pay, branchId: socket.branchId }
+                        });
+                    }
+                }
+
+                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'SUCCESS', `تم تحديث بيانات التقارير (ماكينات، مبيعات، شرائح، حركات، مدفوعات)`);
+            } catch (error) {
+                logger.error('[Sync] Error processing data push:', error.message);
+                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'FAILED', `فشل تحديث بيانات التقارير: ${error.message}`);
+            }
+        });
+
+        socket.on('disconnect', async () => {
             logger.info(`[Socket] Branch Disconnected: ${socket.branchCode}`);
             logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) انقطع`);
             try {

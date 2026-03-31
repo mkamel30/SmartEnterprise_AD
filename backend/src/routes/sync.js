@@ -99,102 +99,219 @@ router.post('/request-sync', branchAuth, validate(requestSyncSchema), async (req
 
 // Branch data push endpoint (upward sync)
 router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
+    const branchId = req.branch.id;
+    const { 
+        customers, 
+        posMachines, 
+        users, 
+        payments, 
+        maintenanceRequests, 
+        spareParts, 
+        warehouseMachines, 
+        simCards 
+    } = req.body;
+
+    const stats = {
+        customers: 0,
+        posMachines: 0,
+        users: 0,
+        payments: 0,
+        maintenanceRequests: 0,
+        spareParts: 0,
+        warehouseMachines: 0,
+        simCards: 0
+    };
+
+    const errors = [];
+
+    const cleanEntity = (entity) => {
+        if (!entity) return {};
+        // Remove all relation fields and metadata that shouldn't be in a simple upsert
+        const { 
+            branch, customer, request, posMachine, payments, 
+            stockMovements, warehouseMachines, maintenanceApprovals, 
+            posMachines: pm, users: u, _deleted, ...cleanData 
+        } = entity;
+        return cleanData;
+    };
+
     try {
-        const { payments, maintenanceRequests, users, customers, posMachines } = req.body;
-        const branchId = req.branch.id;
-
-        const cleanEntity = (entity) => {
-            if (!entity) return {};
-            const { branch, customer, request, posMachine, payments, stockMovements, warehouseMachines, maintenanceApprovals, posMachines: pm, users: u, ...cleanData } = entity;
-            return cleanData;
-        };
-
-        // Upsert Payments
-        if (payments && Array.isArray(payments)) {
-            for (const payment of payments) {
-                const cleanPayment = cleanEntity(payment);
-                await prisma.payment.upsert({
-                    where: { id: payment.id },
-                    update: { ...cleanPayment, branchId },
-                    create: { ...cleanPayment, branchId }
-                }).catch(e => logger.warn({ err: e.message }, 'Payment sync skip'));
-            }
-        }
-
-        // Upsert Maintenance Requests
-        if (maintenanceRequests && Array.isArray(maintenanceRequests)) {
-            for (const request of maintenanceRequests) {
-                const cleanRequest = cleanEntity(request);
-                await prisma.maintenanceRequest.upsert({
-                    where: { id: request.id },
-                    update: { ...cleanRequest, branchId },
-                    create: { ...cleanRequest, branchId }
-                }).catch(e => logger.warn({ err: e.message }, 'Request sync skip'));
-            }
-        }
-
-        // Upsert Users
-        if (users && Array.isArray(users)) {
-            for (const user of users) {
-                if (user._deleted) {
-                    await prisma.user.update({
-                        where: { id: user.id },
-                        data: { isActive: false }
-                    }).catch(() => {});
-                } else {
-                    const cleanUser = cleanEntity(user);
-                    await prisma.user.upsert({
-                        where: { id: user.id },
-                        update: { ...cleanUser, branchId },
-                        create: { ...cleanUser, branchId }
-                    }).catch(e => logger.warn({ err: e.message }, 'User sync skip'));
+        // 1. Sync Customers (Highest dependency)
+        if (customers && Array.isArray(customers)) {
+            for (const customer of customers) {
+                try {
+                    const data = cleanEntity(customer);
+                    await prisma.customer.upsert({
+                        where: { id: customer.id },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.customers++;
+                } catch (e) {
+                    errors.push(`Customer ${customer.id}: ${e.message}`);
                 }
             }
         }
 
-        // Upsert Customers
-        if (customers && Array.isArray(customers)) {
-            for (const customer of customers) {
-                const cleanCustomer = cleanEntity(customer);
-                await prisma.customer.upsert({
-                    where: { id: customer.id },
-                    update: { ...cleanCustomer, branchId },
-                    create: { ...cleanCustomer, branchId }
-                }).catch(e => logger.warn({ err: e.message }, 'Customer sync skip'));
-            }
-        }
-
-        // Upsert POS Machines
+        // 2. Sync POS Machines (Depends on Customers)
         if (posMachines && Array.isArray(posMachines)) {
-            for (const posMachine of posMachines) {
-                const cleanPOS = cleanEntity(posMachine);
-                await prisma.posMachine.upsert({
-                    where: { id: posMachine.id },
-                    update: { ...cleanPOS, branchId },
-                    create: { ...cleanPOS, branchId }
-                }).catch(e => logger.warn({ err: e.message }, 'POS Machine sync skip'));
+            for (const machine of posMachines) {
+                try {
+                    const data = cleanEntity(machine);
+                    await prisma.posMachine.upsert({
+                        where: { id: machine.id },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.posMachines++;
+                } catch (e) {
+                    errors.push(`POS Machine ${machine.id}: ${e.message}`);
+                }
             }
         }
 
-        // Update branch sync log
+        // 3. Sync Users
+        if (users && Array.isArray(users)) {
+            for (const user of users) {
+                try {
+                    if (user._deleted) {
+                        await prisma.user.update({
+                            where: { id: user.id },
+                            data: { isActive: false }
+                        });
+                    } else {
+                        const data = cleanEntity(user);
+                        await prisma.user.upsert({
+                            where: { id: user.id },
+                            update: { ...data, branchId },
+                            create: { ...data, branchId }
+                        });
+                    }
+                    stats.users++;
+                } catch (e) {
+                    errors.push(`User ${user.id}: ${e.message}`);
+                }
+            }
+        }
+
+        // 4. Sync Payments (Depends on Customers)
+        if (payments && Array.isArray(payments)) {
+            for (const payment of payments) {
+                try {
+                    const data = cleanEntity(payment);
+                    await prisma.payment.upsert({
+                        where: { id: payment.id },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.payments++;
+                } catch (e) {
+                    errors.push(`Payment ${payment.id}: ${e.message}`);
+                }
+            }
+        }
+
+        // 5. Sync Maintenance Requests (Depends on Customers, POS, Users)
+        if (maintenanceRequests && Array.isArray(maintenanceRequests)) {
+            for (const request of maintenanceRequests) {
+                try {
+                    const data = cleanEntity(request);
+                    await prisma.maintenanceRequest.upsert({
+                        where: { id: request.id },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.maintenanceRequests++;
+                } catch (e) {
+                    errors.push(`Request ${request.id}: ${e.message}`);
+                }
+            }
+        }
+
+        // 6. Sync Spare Parts (Inventory)
+        if (spareParts && Array.isArray(spareParts)) {
+            for (const item of spareParts) {
+                try {
+                    await prisma.branchSparePart.upsert({
+                        where: { branchId_partId: { branchId, partId: item.partId } },
+                        update: { quantity: item.quantity, lastUpdated: new Date() },
+                        create: { branchId, partId: item.partId, quantity: item.quantity }
+                    });
+                    stats.spareParts++;
+                } catch (e) {
+                    errors.push(`SparePart ${item.partId}: ${e.message}`);
+                }
+            }
+        }
+
+        // 7. Sync Warehouse Machines
+        if (warehouseMachines && Array.isArray(warehouseMachines)) {
+            for (const machine of warehouseMachines) {
+                try {
+                    const data = cleanEntity(machine);
+                    await prisma.warehouseMachine.upsert({
+                        where: { serialNumber: machine.serialNumber },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.warehouseMachines++;
+                } catch (e) {
+                    errors.push(`Warehouse Machine ${machine.serialNumber}: ${e.message}`);
+                }
+            }
+        }
+
+        // 8. Sync SIM Cards
+        if (simCards && Array.isArray(simCards)) {
+            for (const sim of simCards) {
+                try {
+                    const data = cleanEntity(sim);
+                    await prisma.simCard.upsert({
+                        where: { serialNumber: sim.serialNumber },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.simCards++;
+                } catch (e) {
+                    errors.push(`SIM Card ${sim.serialNumber}: ${e.message}`);
+                }
+            }
+        }
+
+        // Log final results
+        const totalItems = Object.values(stats).reduce((a, b) => a + b, 0);
+        
         await prisma.centralLog.create({
             data: {
-                level: 'INFO',
-                message: 'Branch Data Sync Completed',
+                level: errors.length > 0 ? 'WARNING' : 'INFO',
+                message: `Branch Data Push: ${totalItems} synced successfully, ${errors.length} failed`,
                 source: req.branch.code,
-                context: `Pushed ${payments?.length || 0} payments, ${maintenanceRequests?.length || 0} requests`
+                context: JSON.stringify({ stats, errorCount: errors.length })
             }
         });
 
-        // Log the push
-        const pushTotal = (payments?.length || 0) + (maintenanceRequests?.length || 0) + (users?.length || 0) + (customers?.length || 0) + (posMachines?.length || 0);
-        await logPortalSync(req.branch.id, req.branch.code, req.branch.name, 'PUSH', 'SUCCESS', `${req.branch.code} أرسل ${pushTotal} عنصر`, pushTotal);
+        await logPortalSync(
+            req.branch.id, 
+            req.branch.code, 
+            req.branch.name, 
+            'PUSH', 
+            errors.length === totalItems ? 'FAILED' : 'SUCCESS', 
+            `${req.branch.code} أرسل ${totalItems} عنصر بنجاح (${errors.length} خطأ)`, 
+            totalItems,
+            errors.length > 0 ? errors.join('\n').substring(0, 1000) : null
+        );
 
-        res.json({ message: 'Sync successful' });
+        res.json({ 
+            message: 'Sync process completed', 
+            stats, 
+            success: errors.length === 0,
+            errorCount: errors.length
+        });
+
     } catch (error) {
-        console.error('Push sync failed:', error);
-        await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PUSH', 'FAILED', 'فشل الإرسال: ' + error.message);
-        res.status(500).json({ error: 'Push sync failed' });
+        console.error('Fatal Push sync failure:', error);
+        await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PUSH', 'FAILED', 'فشل الإرسال القاتل: ' + error.message);
+        res.status(500).json({ error: 'Push sync failed: ' + error.message });
     }
 });
 

@@ -12,7 +12,10 @@ const pushSchema = z.object({
         maintenanceRequests: z.array(z.any()).optional(),
         users: z.array(z.any()).optional(),
         customers: z.array(z.any()).optional(),
-        posMachines: z.array(z.any()).optional()
+        posMachines: z.array(z.any()).optional(),
+        spareParts: z.array(z.any()).optional(),
+        warehouseMachines: z.array(z.any()).optional(),
+        simCards: z.array(z.any()).optional()
     })
 });
 

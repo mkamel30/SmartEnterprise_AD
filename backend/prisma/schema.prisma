@@ -7,24 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- PORTAL SPECIFIC MODELS ---
-
 model AdminUser {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  name         String?
-  role                 String   @default("SUPER_ADMIN")
-  recoveryKey          String?  // Master recovery key generated on setup
+  id                   String    @id @default(cuid())
+  username             String    @unique
+  passwordHash         String
+  name                 String?
+  role                 String    @default("SUPER_ADMIN")
+  recoveryKey          String?
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
-  mfaEnabled           Boolean  @default(false)
-  mfaSetupPending      Boolean  @default(false)
+  mfaEnabled           Boolean   @default(false)
+  mfaSetupPending      Boolean   @default(false)
   mfaTempSecret        String?
   mfaRecoveryCodes     String?
-  preferences          Json?    // User preferences: theme, fontFamily, themeVariant, etc.
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  preferences          Json?
 }
 
 model GlobalParameter {
@@ -39,11 +37,11 @@ model GlobalParameter {
 model BranchBackup {
   id        String   @id @default(cuid())
   branchId  String
-  branch    Branch   @relation(fields: [branchId], references: [id])
   filename  String
   size      Int
   url       String
   createdAt DateTime @default(now())
+  branch    Branch   @relation(fields: [branchId], references: [id])
 }
 
 model Release {
@@ -66,76 +64,76 @@ model CentralLog {
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String?
-  userName    String?
-  entityType  String
-  entityId    String?
-  action      String
-  details     String?  // JSON stringified details
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String?
+  userName   String?
+  entityType String
+  entityId   String?
+  action     String
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 }
 
 model AdminItemType {
-  id               String   @id @default(cuid())
-  code             String   @unique
-  name             String
-  category         String?
-  requiresSerial   Boolean  @default(true)
-  description      String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  assets           AdminAsset[]
-  stocks           AdminStock[]
+  id             String       @id @default(cuid())
+  code           String       @unique
+  name           String
+  category       String?
+  requiresSerial Boolean      @default(true)
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  assets         AdminAsset[]
+  stocks         AdminStock[]
 }
 
 model AdminAsset {
-  id               String   @id @default(cuid())
-  serialNumber     String   @unique
-  itemTypeCode     String
-  itemType         AdminItemType @relation(fields: [itemTypeCode], references: [code])
-  status           String   @default("AVAILABLE") // AVAILABLE, TRANSFERRED, LOST, MAINTENANCE
-  cartonId         String?
-  carton           AdminCarton? @relation(fields: [cartonId], references: [id])
-  currentBranchId  String?  // If transferred to a branch
-  lastAction       String?
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  history          AdminAssetHistory[]
+  id              String              @id @default(cuid())
+  serialNumber    String              @unique
+  itemTypeCode    String
+  status          String              @default("AVAILABLE")
+  cartonId        String?
+  currentBranchId String?
+  lastAction      String?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  carton          AdminCarton?        @relation(fields: [cartonId], references: [id])
+  itemType        AdminItemType       @relation(fields: [itemTypeCode], references: [code])
+  history         AdminAssetHistory[]
 }
 
 model AdminCarton {
-  id               String   @id @default(cuid())
-  cartonCode       String   @unique
-  description      String?
-  status           String   @default("AVAILABLE")
-  assets           AdminAsset[]
-  createdAt        DateTime @default(now())
+  id          String       @id @default(cuid())
+  cartonCode  String       @unique
+  description String?
+  status      String       @default("AVAILABLE")
+  createdAt   DateTime     @default(now())
+  assets      AdminAsset[]
 }
 
 model AdminAssetHistory {
-  id               String   @id @default(cuid())
-  assetId          String
-  asset            AdminAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  action           String
-  fromBranchId     String?
-  toBranchId       String?
-  performedBy      String?
-  details          String?
-  createdAt        DateTime @default(now())
+  id           String     @id @default(cuid())
+  assetId      String
+  action       String
+  fromBranchId String?
+  toBranchId   String?
+  performedBy  String?
+  details      String?
+  createdAt    DateTime   @default(now())
+  asset        AdminAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 }
 
 model AdminStock {
-  id               String   @id @default(cuid())
-  itemTypeCode     String
-  itemType         AdminItemType @relation(fields: [itemTypeCode], references: [code])
-  branchId         String
-  quantity         Int      @default(0)
-  lastUpdated      DateTime @updatedAt
-  
+  id           String        @id @default(cuid())
+  itemTypeCode String
+  branchId     String
+  quantity     Int           @default(0)
+  lastUpdated  DateTime      @updatedAt
+  itemType     AdminItemType @relation(fields: [itemTypeCode], references: [code])
+
   @@unique([itemTypeCode, branchId])
 }
 
@@ -150,14 +148,13 @@ model SystemSetting {
 model SyncQueue {
   id         String   @id @default(cuid())
   branchId   String
-  entityType String   // e.g., "USER", "SPARE_PART", "PARAMETER"
-  action     String   // e.g., "CREATE", "UPDATE", "DELETE"
-  payload    String   // JSON stringified payload
-  status     String   @default("PENDING") // PENDING, SYNCED, ERROR
+  entityType String
+  action     String
+  payload    String
+  status     String   @default("PENDING")
   error      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  
   branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 }
 
@@ -169,203 +166,197 @@ model MachineParameter {
 }
 
 model MasterSparePart {
-  id               String   @id @default(cuid())
-  partNumber       String?  @unique
+  id               String              @id @default(cuid())
+  partNumber       String?             @unique
   name             String
   description      String?
   compatibleModels String?
-  defaultCost      Float    @default(0)
-  isConsumable     Boolean  @default(false)
-  allowsMultiple   Boolean  @default(false)  // يمكن استخدام أكثر من قطعة في نفس الصيانة
-  maxQuantity      Int      @default(1)     // الحد الأقصى للقطع في المرة الواحدة
+  defaultCost      Float               @default(0)
+  isConsumable     Boolean             @default(false)
   category         String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  priceLogs        SparePartPriceLog[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  allowsMultiple   Boolean             @default(false)
+  maxQuantity      Int                 @default(1)
   branchStocks     BranchSparePart[]
+  priceLogs        SparePartPriceLog[]
   stockMovements   StockMovement[]
 }
 
 model SparePartPriceLog {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   partId    String
-  part      MasterSparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
   oldCost   Float
   newCost   Float
   changedBy String?
-  changedAt DateTime @default(now())
+  changedAt DateTime        @default(now())
+  part      MasterSparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
 }
 
 model BranchSparePart {
-  id           String          @id @default(cuid())
-  branchId     String
-  partId       String
-  quantity     Int             @default(0)
-  lastUpdated  DateTime        @updatedAt
-  branch       Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  part         MasterSparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
+  id          String          @id @default(cuid())
+  branchId    String
+  partId      String
+  quantity    Int             @default(0)
+  lastUpdated DateTime        @updatedAt
+  branch      Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  part        MasterSparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
 
   @@unique([branchId, partId])
 }
 
-// --- ENTERPRISE MODELS (Mirroring main system) ---
-
 model User {
-  id                 String            @id @default(cuid())
-  uid                String?           @unique
-  username           String?           @unique
-  email              String?           @unique
-  displayName        String?
-  role               String?           @default("CS_AGENT")
-  password           String?
-  theme              String?           @default("light")
-  fontFamily         String?           @default("sans-serif")
-  fontSize           String?           @default("medium")
-  highlightEffect    Boolean           @default(true)
-  notificationSound  Boolean           @default(true)
-  mobilePush         Boolean           @default(false)
-  createdAt          DateTime          @default(now())
-  branchId           String?
-  passwordChangedAt  DateTime          @default(now())
-  mustChangePassword Boolean           @default(false)
-  lastLoginAt        DateTime?
-  loginCount         Int               @default(0)
-  mfaEnabled         Boolean           @default(false)
-  mfaSecret          String?
-  mfaRecoveryCodes   String?
-  mfaSetupPending    Boolean           @default(false)
-  mfaTempSecret      String?
-  isActive              Boolean           @default(true)
-  resetPasswordToken    String?
-  resetPasswordExpires  DateTime?
-  accountLockout        AccountLockout?
-  passwordHistory    PasswordHistory[]
-  refreshTokens      RefreshToken[]
-  branch             Branch?           @relation(fields: [branchId], references: [id])
+  id                   String            @id @default(cuid())
+  uid                  String?           @unique
+  username             String?           @unique
+  email                String?           @unique
+  displayName          String?
+  role                 String?           @default("CS_AGENT")
+  password             String?
+  theme                String?           @default("light")
+  fontFamily           String?           @default("sans-serif")
+  fontSize             String?           @default("medium")
+  highlightEffect      Boolean           @default(true)
+  notificationSound    Boolean           @default(true)
+  mobilePush           Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  branchId             String?
+  passwordChangedAt    DateTime          @default(now())
+  mustChangePassword   Boolean           @default(false)
+  lastLoginAt          DateTime?
+  loginCount           Int               @default(0)
+  mfaEnabled           Boolean           @default(false)
+  mfaSecret            String?
+  mfaRecoveryCodes     String?
+  mfaSetupPending      Boolean           @default(false)
+  mfaTempSecret        String?
+  isActive             Boolean           @default(true)
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  accountLockout       AccountLockout?
+  passwordHistory      PasswordHistory[]
+  refreshTokens        RefreshToken[]
+  branch               Branch?           @relation(fields: [branchId], references: [id])
 }
 
 model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Branch {
-  id                                              String                @id @default(cuid())
-  code                                            String                @unique
-  name                                            String
-  address                                         String?
-  type                                            String                @default("BRANCH")
-  isActive                                        Boolean               @default(true)
-  phone                                           String?
-  authorizedHWID                                  String?
-  parentBranchId                                  String?
-  createdAt                                       DateTime              @default(now())
-  parentBranch                                    Branch?               @relation("BranchHierarchy", fields: [parentBranchId], references: [id])
-  childBranches                                   Branch[]              @relation("BranchHierarchy")
-  customers                                       Customer[]
-  installments                                    Installment[]
-  machineMovementLogs                             MachineMovementLog[]
-  machineSales                                    MachineSale[]
-  requests                                        MaintenanceRequest[]
-  notifications                                   Notification[]
-  payments                                        Payment[]
-  posMachines                                     PosMachine[]
-  simCards                                        SimCard[]
-  simMovementLogs                                 SimMovementLog[]
-  stockMovements                                  StockMovement[]
-  systemLogs                                      SystemLog[]
-  sentTransfers                                   TransferOrder[]       @relation("SentTransfers")
-  receivedTransfers                               TransferOrder[]       @relation("ReceivedTransfers")
-  usedPartLogs                                    UsedPartLog[]
-  users                                           User[]
-  maintenanceApprovals                            MaintenanceApproval[]
-  warehouseMachines                               WarehouseMachine[]
-  warehouseSims                                   WarehouseSim[]
-  
-  // Portal specific additions
-  url                                             String?
-  apiKey                                          String?               @unique
-  status                                          String                @default("OFFLINE")
-  lastSeen                                        DateTime?
-  version                                         String?
-  backups                                         BranchBackup[]
-  syncQueues                                      SyncQueue[]
-  syncLogs                                        PortalSyncLog[]
-  spareParts                                      BranchSparePart[]
-
-  // Extended branch info
-  managerEmail                                    String?
-  maintenanceCenterId                             String?
+  id                   String                @id @default(cuid())
+  code                 String                @unique
+  name                 String
+  address              String?
+  type                 String                @default("BRANCH")
+  isActive             Boolean               @default(true)
+  phone                String?
+  authorizedHWID       String?
+  parentBranchId       String?
+  createdAt            DateTime              @default(now())
+  url                  String?
+  apiKey               String?               @unique
+  status               String                @default("OFFLINE")
+  lastSeen             DateTime?
+  version              String?
+  managerEmail         String?
+  maintenanceCenterId  String?
+  parentBranch         Branch?               @relation("BranchHierarchy", fields: [parentBranchId], references: [id])
+  childBranches        Branch[]              @relation("BranchHierarchy")
+  backups              BranchBackup[]
+  spareParts           BranchSparePart[]
+  customers            Customer[]
+  installments         Installment[]
+  machineMovementLogs  MachineMovementLog[]
+  machineSales         MachineSale[]
+  maintenanceApprovals MaintenanceApproval[]
+  requests             MaintenanceRequest[]
+  notifications        Notification[]
+  payments             Payment[]
+  syncLogs             PortalSyncLog[]
+  posMachines          PosMachine[]
+  simCards             SimCard[]
+  simMovementLogs      SimMovementLog[]
+  stockMovements       StockMovement[]
+  syncQueues           SyncQueue[]
+  systemLogs           SystemLog[]
+  sentTransfers        TransferOrder[]       @relation("SentTransfers")
+  receivedTransfers    TransferOrder[]       @relation("ReceivedTransfers")
+  usedPartLogs         UsedPartLog[]
+  users                User[]
+  warehouseMachines    WarehouseMachine[]
+  warehouseSims        WarehouseSim[]
 }
 
 model Customer {
-  id              String               @id @default(cuid())
-  bkcode          String               @unique
-  client_name     String
-  supply_office   String?
-  operating_date  DateTime?
-  address         String?
-  contact_person  String?
-  scanned_id_path String?
-  national_id     String?
-  dept            String?
-  telephone_1     String?
-  telephone_2     String?
-  has_gates       Boolean?             @default(false)
-  bk_type         String?
-  notes           String?
-  papers_date     DateTime?
-  isSpecial       Boolean?             @default(false)
-  clienttype      String?
-  status          String?              @default("Active")
-  branchId        String?
-  branch          Branch?              @relation(fields: [branchId], references: [id])
-  machineSales    MachineSale[]
-  requests        MaintenanceRequest[]
-  payments        Payment[]
-  machines        PosMachine[]
-  simCards        SimCard[]
+  id                String               @id @default(cuid())
+  bkcode            String               @unique
+  client_name       String
+  supply_office     String?
+  operating_date    DateTime?
+  address           String?
+  contact_person    String?
+  scanned_id_path   String?
+  national_id       String?
+  dept              String?
+  telephone_1       String?
+  telephone_2       String?
+  has_gates         Boolean?             @default(false)
+  bk_type           String?
+  notes             String?
+  papers_date       DateTime?
+  isSpecial         Boolean?             @default(false)
+  clienttype        String?
+  status            String?              @default("Active")
+  branchId          String?
+  branch            Branch?              @relation(fields: [branchId], references: [id])
+  machineSales      MachineSale[]
+  requests          MaintenanceRequest[]
+  payments          Payment[]
+  machines          PosMachine[]
+  simCards          SimCard[]
   warehouseMachines WarehouseMachine[]
 }
 
 model MaintenanceRequest {
-  id                  String               @id @default(cuid())
-  customerId          String
-  posMachineId        String?
-  customerName        String?
-  customerBkcode      String?
-  machineModel        String?
-  machineManufacturer String?
-  serialNumber        String?
-  status              String               @default("Open")
-  branchId            String?
-  servicedByBranchId  String?
-  technicianId        String?
-  technician          String?
-  type                String?
-  description         String?
-  createdBy           String?
-  notes               String?
-  complaint           String?
-  actionTaken         String?
-  createdAt           DateTime             @default(now())
-  closingUserId       String?
-  closingUserName     String?
-  closingTimestamp    DateTime?
-  usedParts           String?
-  receiptNumber       String?
-  totalCost           Float?               @default(0)
-  branch              Branch?              @relation(fields: [branchId], references: [id])
-  customer            Customer             @relation(fields: [customerId], references: [id])
-  posMachine          PosMachine?          @relation(fields: [posMachineId], references: [id])
-  payments            Payment[]
-  stockMovements      StockMovement[]
-  warehouseMachines   WarehouseMachine[]
+  id                   String                @id @default(cuid())
+  customerId           String
+  posMachineId         String?
+  customerName         String?
+  customerBkcode       String?
+  machineModel         String?
+  machineManufacturer  String?
+  serialNumber         String?
+  status               String                @default("Open")
+  branchId             String?
+  servicedByBranchId   String?
+  technicianId         String?
+  technician           String?
+  type                 String?
+  description          String?
+  createdBy            String?
+  notes                String?
+  complaint            String?
+  actionTaken          String?
+  createdAt            DateTime              @default(now())
+  closingUserId        String?
+  closingUserName      String?
+  closingTimestamp     DateTime?
+  usedParts            String?
+  receiptNumber        String?
+  totalCost            Float?                @default(0)
   maintenanceApprovals MaintenanceApproval[]
+  branch               Branch?               @relation(fields: [branchId], references: [id])
+  customer             Customer              @relation(fields: [customerId], references: [id])
+  posMachine           PosMachine?           @relation(fields: [posMachineId], references: [id])
+  payments             Payment[]
+  stockMovements       StockMovement[]
+  warehouseMachines    WarehouseMachine[]
 }
 
 model TransferOrder {
@@ -425,25 +416,25 @@ model UsedPartLog {
 }
 
 model StockMovement {
-  id          String   @id @default(cuid())
-  partId      String
-  type        String
-  quantity    Int
-  reason      String?
-  requestId   String?
-  userId      String?
-  performedBy String?
+  id            String              @id @default(cuid())
+  partId        String
+  type          String
+  quantity      Int
+  reason        String?
+  requestId     String?
+  userId        String?
+  performedBy   String?
   branchId      String?
-  isPaid        Boolean? @default(false)
+  isPaid        Boolean?            @default(false)
   receiptNumber String?
-  createdAt     DateTime @default(now())
-  branch        Branch?            @relation(fields: [branchId], references: [id])
+  createdAt     DateTime            @default(now())
+  branch        Branch?             @relation(fields: [branchId], references: [id])
+  part          MasterSparePart     @relation(fields: [partId], references: [id])
   request       MaintenanceRequest? @relation(fields: [requestId], references: [id])
-  part          MasterSparePart?    @relation(fields: [partId], references: [id])
 }
 
 model Payment {
-  id            String    @id @default(cuid())
+  id            String              @id @default(cuid())
   customerId    String?
   customerName  String?
   requestId     String?
@@ -606,26 +597,26 @@ model SimMovementLog {
 }
 
 model WarehouseMachine {
-  id                    String              @id @default(cuid())
-  serialNumber          String              @unique
-  model                 String?
-  manufacturer          String?
-  status                String              @default("NEW")
-  resolution            String?
-  notes                 String?
-  complaint             String?
-  importDate            DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt @default(now())
-  originalOwnerId       String?
-  branchId              String?
-  requestId             String?
-  customerId            String?
-  customerName          String?
-  customerBkcode        String?
-  readyForPickup        Boolean             @default(false)
-  branch                Branch?             @relation(fields: [branchId], references: [id])
-  customer              Customer?           @relation(fields: [customerId], references: [id])
-  maintenanceRequest    MaintenanceRequest? @relation(fields: [requestId], references: [id])
+  id                 String              @id @default(cuid())
+  serialNumber       String              @unique
+  model              String?
+  manufacturer       String?
+  status             String              @default("NEW")
+  resolution         String?
+  notes              String?
+  complaint          String?
+  importDate         DateTime            @default(now())
+  updatedAt          DateTime            @default(now()) @updatedAt
+  originalOwnerId    String?
+  branchId           String?
+  requestId          String?
+  customerId         String?
+  customerName       String?
+  customerBkcode     String?
+  readyForPickup     Boolean             @default(false)
+  branch             Branch?             @relation(fields: [branchId], references: [id])
+  customer           Customer?           @relation(fields: [customerId], references: [id])
+  maintenanceRequest MaintenanceRequest? @relation(fields: [requestId], references: [id])
 }
 
 model WarehouseSim {
@@ -636,26 +627,25 @@ model WarehouseSim {
   status       String   @default("NEW")
   notes        String?
   importDate   DateTime @default(now())
-  updatedAt    DateTime            @updatedAt @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
   branchId     String?
   branch       Branch?  @relation(fields: [branchId], references: [id])
 }
 
 model MaintenanceApproval {
-  id              String             @id @default(cuid())
-  requestId       String
-  cost            Float
-  parts           String?            // JSON string
-  notes           String?
-  status          String             @default("PENDING") // PENDING, APPROVED, REJECTED
-  branchId        String?
-  respondedAt     DateTime?
-  respondedBy     String?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  
-  branch          Branch?            @relation(fields: [branchId], references: [id])
-  request         MaintenanceRequest @relation(fields: [requestId], references: [id])
+  id          String             @id @default(cuid())
+  requestId   String
+  cost        Float
+  parts       String?
+  notes       String?
+  status      String             @default("PENDING")
+  branchId    String?
+  respondedAt DateTime?
+  respondedBy String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  branch      Branch?            @relation(fields: [branchId], references: [id])
+  request     MaintenanceRequest @relation(fields: [requestId], references: [id])
 }
 
 model ClientType {
@@ -667,84 +657,76 @@ model ClientType {
   updatedAt   DateTime @updatedAt
 }
 
-// --- PORTAL SYNC LOG ---
-
 model PortalSyncLog {
-  id          String    @id @default(cuid())
-  branchId    String?
-  branch      Branch?   @relation(fields: [branchId], references: [id])
-  branchCode  String?
-  branchName  String?
-  type        String    // CONNECT, DISCONNECT, PULL, PUSH, UPDATE
-  status      String    // SUCCESS, FAILED
-  message     String
-  details     String?
-  itemCount   Int       @default(0)
-  createdAt   DateTime  @default(now())
+  id         String   @id @default(cuid())
+  branchId   String?
+  branchCode String?
+  branchName String?
+  type       String
+  status     String
+  message    String
+  details    String?
+  itemCount  Int      @default(0)
+  createdAt  DateTime @default(now())
+  branch     Branch?  @relation(fields: [branchId], references: [id])
 }
 
-// --- VERSION MANAGEMENT ---
-
 model BranchVersion {
-  id            String    @id @default(cuid())
-  branchCode    String    @unique
-  appVersion    String    @default("1.0.0")
-  lastChecked   DateTime  @default(now())
-  lastUpdated   DateTime?
-  updateStatus  String    @default("up_to_date") // up_to_date, update_available, updating, failed
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  branchCode   String    @unique
+  appVersion   String    @default("1.0.0")
+  lastChecked  DateTime  @default(now())
+  lastUpdated  DateTime?
+  updateStatus String    @default("up_to_date")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model VersionLog {
-  id                String    @id @default(cuid())
-  branchCode        String
-  action            String    // check, download, apply, force_push, rollback, verify_backup
-  fromVersion       String?
-  toVersion         String?
-  status            String    // success, failed, in_progress, downloading, installing, verifying_backup
-  errorMessage      String?
-  initiatedBy       String?   // admin username or "system"
-  downloadProgress  Int?      @default(0) // 0-100
-  installProgress   Int?      @default(0) // 0-100
-  createdAt         DateTime  @default(now())
+  id               String   @id @default(cuid())
+  branchCode       String
+  action           String
+  fromVersion      String?
+  toVersion        String?
+  status           String
+  errorMessage     String?
+  initiatedBy      String?
+  downloadProgress Int?     @default(0)
+  installProgress  Int?     @default(0)
+  createdAt        DateTime @default(now())
 
   @@index([branchCode])
   @@index([createdAt])
   @@index([status])
 }
 
-// --- GITHUB SETTINGS ---
-
 model GitHubSettings {
-  id            String    @id @default(cuid())
-  patToken      String    // Personal Access Token for GitHub
-  repoOwner     String    @default("mkamel30")
-  repoName      String    @default("SmartEnterprise_BR")
-  autoCheck     Boolean   @default(true)
-  checkInterval  Int       @default(3600) // seconds (default 1 hour)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id            String   @id @default(cuid())
+  patToken      String
+  repoOwner     String   @default("mkamel30")
+  repoName      String   @default("SmartEnterprise_BR")
+  autoCheck     Boolean  @default(true)
+  checkInterval Int      @default(3600)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
-// --- LICENSE MANAGEMENT ---
-
 model License {
-  id                String    @id @default(cuid())
-  licenseKey        String    @unique
-  branchCode        String?   // null for trial/unlimited
-  branchName        String?
-  hwid              String?   // Hardware ID bound to this license
-  machineId         String?   // Unique machine identifier
-  type              String    @default("BRANCH") // BRANCH, TRIAL, UNLIMITED
-  status            String    @default("ACTIVE") // ACTIVE, SUSPENDED, REVOKED, EXPIRED
-  activationDate    DateTime?
-  expirationDate    DateTime?
-  maxActivations    Int       @default(1)
-  activationCount   Int       @default(0)
-  lastVerifiedAt    DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  licenseKey      String    @unique
+  branchCode      String?
+  branchName      String?
+  hwid            String?
+  machineId       String?
+  type            String    @default("BRANCH")
+  status          String    @default("ACTIVE")
+  activationDate  DateTime?
+  expirationDate  DateTime?
+  maxActivations  Int       @default(1)
+  activationCount Int       @default(0)
+  lastVerifiedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([licenseKey])
   @@index([branchCode])
@@ -753,36 +735,34 @@ model License {
 }
 
 model LicenseAudit {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   licenseId   String?
   licenseKey  String
-  action      String    // ACTIVATED, VERIFIED, SUSPENDED, REVOKED, EXPIRED, HWID_MISMATCH
+  action      String
   branchCode  String?
   hwid        String?
   ipAddress   String?
   userAgent   String?
-  details     String?   // JSON stringified additional details
-  performedBy String?   // admin username or "system"
-  createdAt   DateTime  @default(now())
+  details     String?
+  performedBy String?
+  createdAt   DateTime @default(now())
 
   @@index([licenseId])
   @@index([licenseKey])
   @@index([createdAt])
 }
 
-// --- USER SYNC LOG ---
-
 model UserSyncLog {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   branchCode   String?
   userId       String?
   username     String
   email        String?
-  action       String    // CREATED, UPDATED, DELETED, SYNCED, FETCHED
-  source       String    // PORTAL, BRANCH
-  status       String    // SUCCESS, FAILED
+  action       String
+  source       String
+  status       String
   errorMessage String?
-  syncedAt     DateTime  @default(now())
+  syncedAt     DateTime @default(now())
 
   @@index([branchCode])
   @@index([syncedAt])

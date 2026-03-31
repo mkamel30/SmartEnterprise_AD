@@ -13,6 +13,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    cssMinify: false
+  },
   server: {
     port: 5175,
     host: true

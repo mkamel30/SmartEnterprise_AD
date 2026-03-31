@@ -23,6 +23,13 @@
 
 :root {
   /* --- SMART ENTERPRISE SUITE BRAND COLORS --- */
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
   /* Primary Navy Blue (from logo) #0A2472 */
   --primary: 225 86% 25%;
   --primary-foreground: 0 0% 100%;
@@ -37,12 +44,17 @@
 
   --accent: 225 86% 25%;
   --accent-foreground: 0 0% 100%;
+  --accent-bg: 225 86% 96%;
+  --accent-border: 225 86% 85%;
+  --text-h: 222 47% 11%;
+  --social-bg: 210 40% 96%;
 
   --border: 214 32% 91%;
   --input: 214 32% 91%;
   --ring: 225 86% 25%;
 
   /* --- ATOMIC TOKENS: LAYOUT --- */
+  --radius: 0.5rem;
   --radius-xs: 0.25rem;
   /* 4px */
   --radius-sm: 0.5rem;
@@ -126,21 +138,6 @@ html {
 /* Responsive Padding */
 .page-container {
   @apply p-4 sm:p-6 lg:p-8 transition-all duration-300;
-}
-
-/* Modal Responsive Padding Adjustments */
-@media (max-width: 640px) {
-  .modal-content-padding {
-    @apply p-4;
-  }
-
-  .modal-header-padding {
-    @apply p-4 pb-2;
-  }
-
-  .modal-footer-padding {
-    @apply p-4 pt-2;
-  }
 }
 
 /* Atomic Component Overrides */

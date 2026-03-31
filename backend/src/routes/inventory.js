@@ -13,19 +13,19 @@ router.get('/', async (req, res) => {
             return res.status(400).json({ error: 'branchId is required' });
         }
 
-        // Fetch AdminStock for the branch, which tracks quantities of AdminItemTypes
-        const stocks = await prisma.adminStock.findMany({
+        // Fetch Spare Parts for the branch
+        const stocks = await prisma.branchSparePart.findMany({
             where: { branchId },
             include: {
-                itemType: true
+                part: true
             }
         });
 
         // Format to match what BranchInventoryModal expects (name, quantity)
         const formatted = stocks.map(s => ({
             id: s.id,
-            name: s.itemType.name,
-            partNumber: s.itemType.code,
+            name: s.part?.name || 'Unknown Part',
+            partNumber: s.part?.partNumber || 'N/A',
             quantity: s.quantity
         }));
 
