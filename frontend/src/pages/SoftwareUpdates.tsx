@@ -273,14 +273,3 @@ export default function SoftwareUpdates() {
     );
 }
 
-function StatCard({ title, value, icon, color }: any) {
-    return (
-        <div className="bg-card p-5 rounded-2xl border-2 border-primary/5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-                <div className={`p-2 rounded-xl bg-opacity-10 ${color.replace('text-', 'bg-')}`}>{icon}</div>
-                <span className={`text-2xl font-black ${color}`}>{value}</span>
-            </div>
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{title}</p>
-        </div>
-    );
-}

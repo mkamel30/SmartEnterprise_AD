@@ -4,15 +4,12 @@ import {
     Package, 
     Plus, 
     ArrowRightLeft, 
-    History, 
-    LayoutGrid, 
     Search,
     Filter,
     MoreHorizontal,
     Box,
     Building
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 import adminClient from '../api/adminClient';
 
 const API_BASE = '/admin-store';
@@ -31,7 +28,7 @@ export default function AdminStore() {
     });
 
     // Fetch Stocks by Branch
-    const { data: stocks, isLoading: stocksLoading } = useQuery({
+    useQuery({
         queryKey: ['admin-stocks'],
         queryFn: async () => {
             const res = await adminClient.get(`${API_BASE}/stocks`);
