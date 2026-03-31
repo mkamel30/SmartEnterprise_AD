@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { Trash2, Plus, RefreshCw, Database, ChevronDown, HardDrive, Download, Upload, AlertTriangle, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { api } from '../api/client';
 
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5005/api`;
+const API_URL = '/api';
 
 interface Table {
     name: string;

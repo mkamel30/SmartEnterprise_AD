@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Building2, Users, Layers,
     RefreshCw, Settings2, LogOut, RotateCcw,
     UserCircle, Menu, ChevronDown, ZoomIn, ZoomOut,
-    ShieldCheck, TrendingUp
+    ShieldCheck, TrendingUp, Github, Key
 } from 'lucide-react';
 
 interface NavItem {
@@ -20,7 +20,11 @@ const allNavItems: NavItem[] = [
     { id: 'dashboard', name: 'لوحة التحكم المركزية', href: '/', icon: LayoutDashboard },
     { id: 'branches', name: 'شبكة الفروع', href: '/branches', icon: Building2 },
     { id: 'users', name: 'إدارة المستخدمين', href: '/users', icon: Users },
-    { id: 'warehouse', name: 'مخازن الأجهزة والعهد', href: '/warehouse', icon: Layers },
+    { id: 'customers', name: 'إدارة العملاء', href: '/customers', icon: UserCircle },
+    { id: 'admin-store', name: 'المخازن الإدارية', href: '/admin-store', icon: Layers },
+    { id: 'warehouse', name: 'مخازن الفروع', href: '/warehouse', icon: Layers },
+    { id: 'software-updates', name: 'تحديثات النظام', href: '/software-updates', icon: Github },
+    { id: 'license-manager', name: 'تراخيص الفروع', href: '/license-manager', icon: Key },
     { id: 'reports', name: 'التقارير والتصدير', href: '/reports', icon: TrendingUp },
     { id: 'sync-status', name: 'مراقب المزامنة', href: '/sync-status', icon: RefreshCw },
     { id: 'version-logs', name: 'سجلات الإصدارات', href: '/version-logs', icon: RotateCcw },
