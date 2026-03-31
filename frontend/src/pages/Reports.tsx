@@ -116,22 +116,24 @@ export default function Reports() {
                         </div>
                     </div>
                     <div className="h-72 w-full" dir="ltr">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data?.branchBreakdown || []}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
-                                <Tooltip 
-                                    cursor={{ fill: '#f8fafc' }}
-                                    contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)', padding: '1rem', textAlign: 'right' }}
-                                />
-                                <Bar dataKey="revenue" radius={[10, 10, 0, 0]} barSize={50}>
-                                    {(data?.branchBreakdown || []).map((_entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <div style={{ width: '100%', height: 300 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={data?.branchBreakdown || []}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
+                                    <Tooltip 
+                                        cursor={{ fill: '#f8fafc' }}
+                                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)', padding: '1rem', textAlign: 'right' }}
+                                    />
+                                    <Bar dataKey="revenue" radius={[10, 10, 0, 0]} barSize={50}>
+                                        {(data?.branchBreakdown || []).map((_entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </div>
 

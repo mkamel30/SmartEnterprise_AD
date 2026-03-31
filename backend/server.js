@@ -49,6 +49,8 @@ const branchSetupRoutes = require('./src/routes/branch-setup');
 const githubRoutes = require('./src/routes/github');
 const versionRoutes = require('./src/routes/versions');
 const licenseRoutes = require('./src/routes/licenses');
+const inventoryRoutes = require('./src/routes/inventory');
+const simcardRoutes = require('./src/routes/simcards');
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -79,6 +81,8 @@ app.use('/api/mfa', mfaRoutes);
 app.use('/api/bootstrap', bootstrapRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api/versions', versionRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/simcards', simcardRoutes);
 app.use('/api', miscRoutes);
 
 // Basic Health Check

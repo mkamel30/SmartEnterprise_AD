@@ -216,7 +216,7 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (re
     try {
         const branchUrl = branch.url || process.env.BRANCH_API_URL;
         if (!branchUrl) {
-            return res.status(400).json({ error: 'Branch URL not configured. Set BRANCH_API_URL in .env or configure branch URL in database.' });
+            return res.json({ success: false, error: 'Branch URL not configured. Set BRANCH_API_URL in .env or configure branch URL in database.' });
         }
         const response = await axios.post(
             `${branchUrl}/api/system/update/trigger`,
