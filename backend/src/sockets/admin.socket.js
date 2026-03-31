@@ -181,21 +181,22 @@ module.exports = (io) => {
                         });
                         logger.info(`[Sync] User '${user.username}' deactivated on portal`);
                     } else {
-                        const existingUser = cleanUser.id ? await prisma.user.findUnique({ where: { id: cleanUser.id } }) 
-                                           : (cleanUser.username ? await prisma.user.findFirst({ where: { username: cleanUser.username, branchId: targetBranch?.id } }) : null);
-
-                        if (existingUser) {
-                            await prisma.user.update({
-                                where: { id: existingUser.id },
-                                data: { ...cleanUser, branchId: targetBranch?.id }
-                            });
-                            logger.info(`[Sync] User '${user.username}' updated from branch ${targetBranchCode}`);
-                        } else {
-                            await prisma.user.create({
-                                data: { ...cleanUser, branchId: targetBranch?.id }
-                            });
-                            logger.info(`[Sync] User '${user.username}' created from branch ${targetBranchCode}`);
-                        }
+                             const { id, uid, username, email, displayName, role, isActive } = cleanUser;
+                             const existingUser = id ? await prisma.user.findUnique({ where: { id } }) 
+                                                : (username ? await prisma.user.findFirst({ where: { username, branchId: targetBranch?.id } }) : null);
+     
+                             if (existingUser) {
+                                 await prisma.user.update({
+                                     where: { id: existingUser.id },
+                                     data: { uid, email, displayName, role, isActive, branchId: targetBranch?.id }
+                                 });
+                                 logger.info(`[Sync] User '${username}' updated from branch ${targetBranchCode}`);
+                             } else {
+                                 await prisma.user.create({
+                                     data: { id, uid, username, email, displayName, role, isActive, branchId: targetBranch?.id }
+                                 });
+                                 logger.info(`[Sync] User '${username}' created from branch ${targetBranchCode}`);
+                             }
                     }
 
                     // Log to UserSyncLog
@@ -244,19 +245,20 @@ module.exports = (io) => {
                                 where: { id: cleanUser.id },
                                 data: { isActive: false }
                             }).catch(() => {});
-                        } else {
-                            const existingUser = cleanUser.id ? await prisma.user.findUnique({ where: { id: cleanUser.id } }) : null;
-                            if (existingUser) {
-                                await prisma.user.update({
-                                    where: { id: cleanUser.id },
-                                    data: { ...cleanUser, branchId: socket.branchId }
-                                });
-                            } else {
-                                await prisma.user.create({
-                                    data: { ...cleanUser, branchId: socket.branchId }
-                                });
-                            }
-                        }
+                         } else {
+                             const { id, uid, username, email, displayName, role, isActive } = cleanUser;
+                             const existingUser = id ? await prisma.user.findUnique({ where: { id } }) : null;
+                             if (existingUser) {
+                                 await prisma.user.update({
+                                     where: { id },
+                                     data: { uid, username, email, displayName, role, isActive, branchId: socket.branchId }
+                                 });
+                             } else {
+                                 await prisma.user.create({
+                                     data: { id, uid, username, email, displayName, role, isActive, branchId: socket.branchId }
+                                 });
+                             }
+                         }
                     }
                 }
 

@@ -54,7 +54,7 @@ router.get('/releases', authenticateToken, requireSuperAdmin, async (req, res) =
         const settings = await getGitHubSettings();
         
         if (!settings.patToken) {
-            return res.status(400).json({ error: 'GitHub PAT token not configured. Please configure in settings.' });
+            return res.json({ success: false, hasToken: false, releases: [], count: 0, error: 'GitHub PAT token not configured. Please configure in settings.' });
         }
 
         const releases = await githubRequest(`/repos/${settings.repoOwner}/${settings.repoName}/releases`, settings);
@@ -90,7 +90,7 @@ router.get('/releases/latest', authenticateToken, requireSuperAdmin, async (req,
         const settings = await getGitHubSettings();
         
         if (!settings.patToken) {
-            return res.status(400).json({ error: 'GitHub PAT token not configured.' });
+            return res.json({ success: false, hasToken: false, error: 'GitHub PAT token not configured.' });
         }
 
         const release = await githubRequest(`/repos/${settings.repoOwner}/${settings.repoName}/releases/latest`, settings);
@@ -125,7 +125,7 @@ router.get('/download/:version', authenticateToken, requireSuperAdmin, async (re
         const settings = await getGitHubSettings();
         
         if (!settings.patToken) {
-            return res.status(400).json({ error: 'GitHub PAT token not configured.' });
+            return res.json({ success: false, hasToken: false, error: 'GitHub PAT token not configured.' });
         }
 
         const release = await githubRequest(`/repos/${settings.repoOwner}/${settings.repoName}/releases/tags/${version}`, settings);
@@ -188,7 +188,7 @@ router.get('/test', authenticateToken, requireSuperAdmin, async (req, res) => {
         const settings = await getGitHubSettings();
         
         if (!settings.patToken) {
-            return res.status(400).json({ connected: false, error: 'GitHub PAT token not configured.' });
+            return res.json({ connected: false, hasToken: false, error: 'GitHub PAT token not configured.' });
         }
 
         const repo = await githubRequest(`/repos/${settings.repoOwner}/${settings.repoName}`, settings, { timeout: 10000 });

@@ -370,130 +370,135 @@ router.get('/export/all', adminAuth, async (req, res) => {
         const summaryData = [];
 
         for (const branch of branches) {
-            const ws = workbook.addWorksheet(branch.name.substring(0, 31));
+            try {
+                const ws = workbook.addWorksheet(branch.name.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, ''));
 
-            const headerStyle = {
-                font: { bold: true, color: { argb: 'FFFFFFFF' } },
-                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } }
-            };
+                const headerStyle = {
+                    font: { bold: true, color: { argb: 'FFFFFFFF' } },
+                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } }
+                };
 
-            let row = 1;
+                let row = 1;
 
-            ws.columns = [
-                { header: 'Category', key: 'category', width: 20 },
-                { header: 'Item', key: 'item', width: 30 },
-                { header: 'Details', key: 'details', width: 40 }
-            ];
+                ws.columns = [
+                    { header: 'Category', key: 'category', width: 20 },
+                    { header: 'Item', key: 'item', width: 30 },
+                    { header: 'Details', key: 'details', width: 40 }
+                ];
 
-            const warehouseMachines = await prisma.warehouseMachine.findMany({
-                where: { branchId: branch.id },
-                select: { serialNumber: true, model: true, manufacturer: true, status: true, importDate: true }
-            });
-
-            if (warehouseMachines.length > 0) {
-                ws.addRow({ category: 'WH MACHINES', item: 'إجمالي', details: warehouseMachines.length });
-                warehouseMachines.forEach(m => {
-                    ws.addRow({
-                        category: 'WH Machine',
-                        item: m.serialNumber,
-                        details: `${m.manufacturer || ''} ${m.model || ''} - ${m.status || ''}`
-                    });
+                const warehouseMachines = await prisma.warehouseMachine.findMany({
+                    where: { branchId: branch.id },
+                    select: { serialNumber: true, model: true, manufacturer: true, status: true, importDate: true }
                 });
-                summaryData.push({ branch: branch.name, type: 'WH Machines', count: warehouseMachines.length });
-            }
 
-            const cashSales = await prisma.machineSale.findMany({
-                where: { branchId: branch.id, type: 'CASH' },
-                include: {
-                    customer: { select: { client_name: true, bkcode: true } },
-                    payments: { select: { receiptNumber: true, amount: true } }
+                if (warehouseMachines.length > 0) {
+                    ws.addRow({ category: 'WH MACHINES', item: 'إجمالي', details: warehouseMachines.length });
+                    warehouseMachines.forEach(m => {
+                        ws.addRow({
+                            category: 'WH Machine',
+                            item: m.serialNumber,
+                            details: `${m.manufacturer || ''} ${m.model || ''} - ${m.status || ''}`
+                        });
+                    });
+                    summaryData.push({ branch: branch.name, type: 'WH Machines', count: warehouseMachines.length });
                 }
-            });
 
-            if (cashSales.length > 0) {
-                ws.addRow({ category: 'SALES CASH', item: 'إجمالي', details: cashSales.length });
-                cashSales.forEach(s => {
-                    const payment = s.payments[0];
-                    ws.addRow({
-                        category: 'Sold (Cash)',
-                        item: s.serialNumber,
-                        details: `${s.customer?.client_name || ''} - ${payment?.receiptNumber || ''} - ${s.totalPrice || 0}`
-                    });
+                const cashSales = await prisma.machineSale.findMany({
+                    where: { branchId: branch.id, type: 'CASH' },
+                    include: {
+                        customer: { select: { client_name: true, bkcode: true } },
+                        payments: { select: { receiptNumber: true, amount: true } }
+                    }
                 });
-                summaryData.push({ branch: branch.name, type: 'Sales (Cash)', count: cashSales.length });
-            }
 
-            const installmentSales = await prisma.machineSale.findMany({
-                where: { branchId: branch.id, type: 'INSTALLMENT' },
-                include: {
-                    customer: { select: { client_name: true, bkcode: true } },
-                    installments: { select: { dueDate: true, amount: true, isPaid: true, receiptNumber: true } }
+                if (cashSales.length > 0) {
+                    ws.addRow({ category: 'SALES CASH', item: 'إجمالي', details: cashSales.length });
+                    cashSales.forEach(s => {
+                        const payment = s.payments?.[0];
+                        ws.addRow({
+                            category: 'Sold (Cash)',
+                            item: s.serialNumber,
+                            details: `${s.customer?.client_name || 'N/A'} - ${payment?.receiptNumber || 'N/A'} - ${s.totalPrice || 0}`
+                        });
+                    });
+                    summaryData.push({ branch: branch.name, type: 'Sales (Cash)', count: cashSales.length });
                 }
-            });
 
-            if (installmentSales.length > 0) {
-                ws.addRow({ category: 'SALES INSTALLMENT', item: 'إجمالي', details: installmentSales.length });
-                installmentSales.forEach(s => {
-                    const pending = s.installments.filter(i => !i.isPaid).length;
-                    ws.addRow({
-                        category: 'Sold (Installment)',
-                        item: s.serialNumber,
-                        details: `${s.customer?.client_name || ''} - ${s.installments.length} أقساط - ${pending} متأخر`
-                    });
+                const installmentSales = await prisma.machineSale.findMany({
+                    where: { branchId: branch.id, type: 'INSTALLMENT' },
+                    include: {
+                        customer: { select: { client_name: true, bkcode: true } },
+                        installments: { select: { dueDate: true, amount: true, isPaid: true, receiptNumber: true } }
+                    }
                 });
-                summaryData.push({ branch: branch.name, type: 'Sales (Installment)', count: installmentSales.length });
-            }
 
-            const warehouseSims = await prisma.warehouseSim.findMany({
-                where: { branchId: branch.id },
-                select: { serialNumber: true, type: true, networkType: true, status: true }
-            });
-
-            if (warehouseSims.length > 0) {
-                ws.addRow({ category: 'WH SIMS', item: 'إجمالي', details: warehouseSims.length });
-                warehouseSims.forEach(s => {
-                    ws.addRow({
-                        category: 'WH SIM',
-                        item: s.serialNumber,
-                        details: `${s.type || ''} - ${s.networkType || ''} - ${s.status || ''}`
+                if (installmentSales.length > 0) {
+                    ws.addRow({ category: 'SALES INSTALLMENT', item: 'إجمالي', details: installmentSales.length });
+                    installmentSales.forEach(s => {
+                        const pending = s.installments?.filter(i => !i.isPaid).length || 0;
+                        ws.addRow({
+                            category: 'Sold (Installment)',
+                            item: s.serialNumber,
+                            details: `${s.customer?.client_name || 'N/A'} - ${s.installments?.length || 0} أقساط - ${pending} متأخر`
+                        });
                     });
-                });
-                summaryData.push({ branch: branch.name, type: 'WH SIMs', count: warehouseSims.length });
-            }
-
-            const soldSims = await prisma.simCard.findMany({
-                where: { branchId: branch.id },
-                include: {
-                    customer: { select: { client_name: true, bkcode: true } }
+                    summaryData.push({ branch: branch.name, type: 'Sales (Installment)', count: installmentSales.length });
                 }
-            });
 
-            if (soldSims.length > 0) {
-                ws.addRow({ category: 'SOLD SIMS', item: 'إجمالي', details: soldSims.length });
-                soldSims.forEach(s => {
-                    ws.addRow({
-                        category: 'Sold SIM',
-                        item: s.serialNumber,
-                        details: `${s.customer?.client_name || ''} - ${s.type || ''} - ${s.networkType || ''}`
-                    });
+                const warehouseSims = await prisma.warehouseSim.findMany({
+                    where: { branchId: branch.id },
+                    select: { serialNumber: true, type: true, networkType: true, status: true }
                 });
-                summaryData.push({ branch: branch.name, type: 'Sold SIMs', count: soldSims.length });
-            }
 
-            const stockMovements = await prisma.stockMovement.findMany({
-                where: { branchId: branch.id }
-            });
-
-            if (stockMovements.length > 0) {
-                ws.addRow({ category: 'STOCK MOVEMENTS', item: 'إجمالي', details: stockMovements.length });
-                stockMovements.forEach(m => {
-                    ws.addRow({
-                        category: 'Stock Movement',
-                        item: m.type,
-                        details: `qty: ${m.quantity} - ${m.reason || ''} - ${m.isPaid ? 'PAID' : 'FREE'}`
+                if (warehouseSims.length > 0) {
+                    ws.addRow({ category: 'WH SIMS', item: 'إجمالي', details: warehouseSims.length });
+                    warehouseSims.forEach(s => {
+                        ws.addRow({
+                            category: 'WH SIM',
+                            item: s.serialNumber,
+                            details: `${s.type || ''} - ${s.networkType || ''} - ${s.status || ''}`
+                        });
                     });
+                    summaryData.push({ branch: branch.name, type: 'WH SIMs', count: warehouseSims.length });
+                }
+
+                const soldSims = await prisma.simCard.findMany({
+                    where: { branchId: branch.id },
+                    include: {
+                        customer: { select: { client_name: true, bkcode: true } }
+                    }
                 });
-                summaryData.push({ branch: branch.name, type: 'Stock Movements', count: stockMovements.length });
+
+                if (soldSims.length > 0) {
+                    ws.addRow({ category: 'SOLD SIMS', item: 'إجمالي', details: soldSims.length });
+                    soldSims.forEach(s => {
+                        ws.addRow({
+                            category: 'Sold SIM',
+                            item: s.serialNumber,
+                            details: `${s.customer?.client_name || 'N/A'} - ${s.type || ''} - ${s.networkType || ''}`
+                        });
+                    });
+                    summaryData.push({ branch: branch.name, type: 'Sold SIMs', count: soldSims.length });
+                }
+
+                const stockMovements = await prisma.stockMovement.findMany({
+                    where: { branchId: branch.id }
+                });
+
+                if (stockMovements.length > 0) {
+                    ws.addRow({ category: 'STOCK MOVEMENTS', item: 'إجمالي', details: stockMovements.length });
+                    stockMovements.forEach(m => {
+                        ws.addRow({
+                            category: 'Stock Movement',
+                            item: m.type || 'N/A',
+                            details: `qty: ${m.quantity || 0} - ${m.reason || ''} - ${m.isPaid ? 'PAID' : 'FREE'}`
+                        });
+                    });
+                    summaryData.push({ branch: branch.name, type: 'Stock Movements', count: stockMovements.length });
+                }
+            } catch (branchError) {
+                console.error(`Export failed for branch ${branch.name}:`, branchError);
+                summaryData.push({ branch: branch.name, type: 'ERROR', count: 0 });
             }
         }
 

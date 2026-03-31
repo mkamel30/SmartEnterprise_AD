@@ -142,7 +142,7 @@ export default function Reports() {
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">تدقيق تقاطع العقد البرمجية</p>
                     </div>
                     <div className="space-y-4">
-                        {data?.branchBreakdown?.sort((a: any, b: any) => b.revenue - a.revenue).map((b: any, idx: number) => (
+                        {[...(data?.branchBreakdown || [])].sort((a: any, b: any) => b.revenue - a.revenue).map((b: any, idx: number) => (
                             <div key={b.branchId} className="flex items-center justify-between group cursor-default flex-row-reverse">
                                 <div className="flex items-center gap-3 flex-row-reverse">
                                     <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center font-black text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all shrink-0">

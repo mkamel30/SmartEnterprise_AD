@@ -124,16 +124,7 @@ router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, async (r
     const settings = await getGitHubSettings();
     
     if (!settings.patToken) {
-        await db.versionLog.create({
-            data: {
-                branchCode,
-                action: 'check',
-                status: 'failed',
-                errorMessage: 'GitHub PAT not configured',
-                initiatedBy
-            }
-        });
-        return res.status(400).json({ error: 'GitHub PAT token not configured.' });
+        return res.json({ success: false, hasToken: false, error: 'GitHub PAT token not configured.' });
     }
 
     try {
@@ -203,16 +194,7 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (re
     }
 
     if (!branch.apiKey) {
-        await db.versionLog.create({
-            data: {
-                branchCode,
-                action: 'force_push',
-                status: 'failed',
-                errorMessage: 'Branch has no API key configured',
-                initiatedBy
-            }
-        });
-        return res.status(400).json({ error: 'Branch has no API key configured. Please configure the branch first.' });
+        return res.json({ success: false, error: 'Branch has no API key configured. Please configure the branch first.' });
     }
 
     await db.branchVersion.upsert({
