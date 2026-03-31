@@ -90,9 +90,9 @@ router.get('/rankings', async (req, res) => {
 // Inventory Valuation (Across all branches)
 router.get('/inventory-valuation', async (req, res) => {
     try {
-        const inventory = await prisma.inventoryItem.findMany({
+        const inventory = await prisma.branchSparePart.findMany({
             include: {
-                part: { select: { defaultCost: true } },
+                part: { select: { name: true, defaultCost: true } },
                 branch: { select: { name: true } }
             }
         });
@@ -101,7 +101,8 @@ router.get('/inventory-valuation', async (req, res) => {
         const branchValuation = {};
 
         inventory.forEach(item => {
-            const val = (item.quantity || 0) * (item.part?.defaultCost || 0);
+            const cost = item.part?.defaultCost || 0;
+            const val = (item.quantity || 0) * cost;
             totalValuation += val;
             
             const bName = item.branch?.name || 'Unknown';
@@ -110,11 +111,12 @@ router.get('/inventory-valuation', async (req, res) => {
 
         res.json({
             totalValuation,
-            branchValuation
+            branchValuation,
+            itemCount: inventory.length
         });
     } catch (error) {
         console.error('Inventory valuation failed:', error);
-        res.status(500).json({ error: 'Failed' });
+        res.status(500).json({ error: 'Failed to calculate valuation' });
     }
 });
 

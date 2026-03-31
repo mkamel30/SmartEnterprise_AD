@@ -482,7 +482,8 @@ router.get('/export/all', adminAuth, async (req, res) => {
                 }
 
                 const stockMovements = await prisma.stockMovement.findMany({
-                    where: { branchId: branch.id }
+                    where: { branchId: branch.id },
+                    include: { part: { select: { name: true } } }
                 });
 
                 if (stockMovements.length > 0) {
@@ -490,8 +491,8 @@ router.get('/export/all', adminAuth, async (req, res) => {
                     stockMovements.forEach(m => {
                         ws.addRow({
                             category: 'Stock Movement',
-                            item: m.type || 'N/A',
-                            details: `qty: ${m.quantity || 0} - ${m.reason || ''} - ${m.isPaid ? 'PAID' : 'FREE'}`
+                            item: m.part?.name || m.type || 'N/A',
+                            details: `qty: ${m.quantity || 0} (${m.type}) - ${m.reason || ''} - ${m.isPaid ? 'PAID' : 'FREE'}`
                         });
                     });
                     summaryData.push({ branch: branch.name, type: 'Stock Movements', count: stockMovements.length });
@@ -534,10 +535,6 @@ router.post('/:id/trigger-sync', adminAuth, async (req, res) => {
             return res.status(404).json({ error: 'Branch not found' });
         }
 
-        if (!branch.apiKey) {
-            return res.status(400).json({ error: 'Branch has no API key' });
-        }
-
         const io = req.app.get('io');
         if (io) {
             io.to(`branch_${branch.id}`).emit('portal_directive', {
@@ -551,6 +548,45 @@ router.post('/:id/trigger-sync', adminAuth, async (req, res) => {
     } catch (error) {
         console.error('Trigger sync failed:', error);
         res.status(500).json({ error: 'Failed to trigger sync' });
+    }
+});
+
+// Pull inventory from branch
+router.post('/:id/pull-inventory', adminAuth, async (req, res) => {
+    try {
+        const branch = await prisma.branch.findUnique({
+            where: { id: req.params.id }
+        });
+
+        if (!branch) {
+            return res.status(404).json({ error: 'Branch not found' });
+        }
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`branch_${branch.id}`).emit('portal_directive', {
+                type: 'SYSTEM_DIRECTIVE',
+                action: 'PUSH_FULL_INVENTORY',
+                timestamp: new Date().toISOString()
+            });
+            
+            // Log the request
+            await prisma.portalSyncLog.create({
+                data: {
+                    branchId: branch.id,
+                    branchCode: branch.code,
+                    branchName: branch.name,
+                    type: 'PULL',
+                    status: 'PENDING',
+                    message: 'تم طلب سحب المخزون يدوياً من الأدمن'
+                }
+            });
+        }
+
+        res.json({ success: true, message: `Inventory pull requested for branch ${branch.code}` });
+    } catch (error) {
+        console.error('Pull inventory failed:', error);
+        res.status(500).json({ error: 'Failed to request inventory pull' });
     }
 });
 

@@ -182,6 +182,8 @@ model MasterSparePart {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   priceLogs        SparePartPriceLog[]
+  branchStocks     BranchSparePart[]
+  stockMovements   StockMovement[]
 }
 
 model SparePartPriceLog {
@@ -192,6 +194,18 @@ model SparePartPriceLog {
   newCost   Float
   changedBy String?
   changedAt DateTime @default(now())
+}
+
+model BranchSparePart {
+  id           String          @id @default(cuid())
+  branchId     String
+  partId       String
+  quantity     Int             @default(0)
+  lastUpdated  DateTime        @updatedAt
+  branch       Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  part         MasterSparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, partId])
 }
 
 // --- ENTERPRISE MODELS (Mirroring main system) ---
@@ -281,6 +295,7 @@ model Branch {
   backups                                         BranchBackup[]
   syncQueues                                      SyncQueue[]
   syncLogs                                        PortalSyncLog[]
+  spareParts                                      BranchSparePart[]
 
   // Extended branch info
   managerEmail                                    String?
@@ -424,6 +439,7 @@ model StockMovement {
   createdAt     DateTime @default(now())
   branch        Branch?            @relation(fields: [branchId], references: [id])
   request       MaintenanceRequest? @relation(fields: [requestId], references: [id])
+  part          MasterSparePart?    @relation(fields: [partId], references: [id])
 }
 
 model Payment {

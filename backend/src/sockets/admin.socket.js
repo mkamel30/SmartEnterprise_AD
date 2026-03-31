@@ -311,6 +311,41 @@ module.exports = (io) => {
             }
         });
 
+        // Handle full inventory push from branch
+        socket.on('branch_inventory_push', async (data) => {
+            const { inventory, branchCode } = data;
+            if (!socket.isBranch || !socket.branchId) return;
+            
+            logger.info(`[Sync] Received inventory push (${inventory?.length || 0} items) from branch ${branchCode || socket.branchCode}`);
+
+            try {
+                if (inventory && Array.isArray(inventory)) {
+                    // Use a transaction to ensure atomic updates
+                    await prisma.$transaction(
+                        inventory.map(item => prisma.branchSparePart.upsert({
+                            where: {
+                                branchId_partId: {
+                                    branchId: socket.branchId,
+                                    partId: item.partId
+                                }
+                            },
+                            update: { quantity: item.quantity, lastUpdated: new Date() },
+                            create: {
+                                branchId: socket.branchId,
+                                partId: item.partId,
+                                quantity: item.quantity
+                            }
+                        }))
+                    );
+                    
+                    logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'SUCCESS', `تم تحديث مخزون ${inventory.length} قطعة غيار`, inventory.length);
+                }
+            } catch (error) {
+                logger.error('[Sync] Error processing inventory push:', error.message);
+                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'FAILED', `فشل تحديث المخزون: ${error.message}`);
+            }
+        });
+
 socket.on('disconnect', async () => {
             logger.info(`[Socket] Branch Disconnected: ${socket.branchCode}`);
             logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) انقطع`);
