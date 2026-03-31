@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@config "../tailwind.config.js";
 @import "./styles/modal-system.css";
+@config "../tailwind.config.js";
 
 @theme {
   /* Smart Enterprise Suite Brand Colors */
