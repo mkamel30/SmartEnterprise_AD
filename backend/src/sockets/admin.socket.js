@@ -386,7 +386,15 @@ module.exports = (io) => {
                 }
 
                 if (entities.movements) {
+                    // Pre-fetch existing MasterSparePart IDs to validate FK references
+                    const existingPartIds = new Set(
+                        (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
+                    );
                     for (const mov of entities.movements) {
+                        if (mov.partId && !existingPartIds.has(mov.partId)) {
+                            logger.warn(`[Sync] Skipping StockMovement ${mov.id}: MasterSparePart ${mov.partId} not found`);
+                            continue;
+                        }
                         await prisma.stockMovement.upsert({
                             where: { id: mov.id },
                             update: { ...mov, branchId: socket.branchId },
@@ -451,7 +459,15 @@ module.exports = (io) => {
 
                 // 3. Stock Movements
                 if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
+                    // Pre-fetch existing MasterSparePart IDs to validate FK references
+                    const existingPartIds = new Set(
+                        (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
+                    );
                     for (const m of entities.stockMovements) {
+                        if (m.partId && !existingPartIds.has(m.partId)) {
+                            logger.warn(`[Sync] Skipping StockMovement ${m.id}: MasterSparePart ${m.partId} not found`);
+                            continue;
+                        }
                         await prisma.stockMovement.upsert({
                             where: { id: m.id },
                             update: { ...m, branchId: socket.branchId },
