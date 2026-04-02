@@ -427,6 +427,11 @@ model StockMovement {
   branchId      String?
   isPaid        Boolean?            @default(false)
   receiptNumber String?
+  customerId    String?
+  customerName  String?
+  machineSerial String?
+  machineModel  String?
+  paymentPlace  String?
   createdAt     DateTime            @default(now())
   branch        Branch?             @relation(fields: [branchId], references: [id])
   part          MasterSparePart     @relation(fields: [partId], references: [id])

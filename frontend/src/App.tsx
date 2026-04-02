@@ -14,10 +14,14 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
-import Customers from './pages/Customers';
 import AdminStore from './pages/AdminStore';
 import SoftwareUpdates from './pages/SoftwareUpdates';
 import LicenseManager from './pages/LicenseManager';
+import StockMovements from './pages/StockMovements';
+import MaintenanceRequests from './pages/MaintenanceRequests';
+import Payments from './pages/Payments';
+import InventoryOverview from './pages/InventoryOverview';
+import PriceHistory from './pages/PriceHistory';
 
 const queryClient = new QueryClient();
 
@@ -56,11 +60,15 @@ function AuthWrapper() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/branches" element={<Branches />} />
           <Route path="/users" element={<UsersPage />} />
-          <Route path="/customers" element={<Customers />} />
           <Route path="/admin-store" element={<AdminStore />} />
           <Route path="/warehouse" element={<Warehouse />} />
           <Route path="/sync-status" element={<SyncStatus />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/reports/movements" element={<StockMovements />} />
+          <Route path="/reports/requests" element={<MaintenanceRequests />} />
+          <Route path="/reports/payments" element={<Payments />} />
+          <Route path="/reports/inventory" element={<InventoryOverview />} />
+          <Route path="/reports/price-history" element={<PriceHistory />} />
           <Route path="/version-logs" element={<VersionLogs />} />
           <Route path="/software-updates" element={<SoftwareUpdates />} />
           <Route path="/license-manager" element={<LicenseManager />} />

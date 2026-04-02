@@ -1,0 +1,123 @@
+name: Docs Validation
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'backend/src/routes/**'
+      - 'backend/prisma/schema.prisma'
+      - 'frontend/src/api/**'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check documentation exists
+        run: |
+          required_files=(
+            "docs/API_REFERENCE.md"
+            "docs/ARCHITECTURE.md"
+            "docs/DATABASE_SCHEMA.md"
+            "docs/SOCKET_EVENTS.md"
+            "docs/DEVELOPER_GUIDE.md"
+            "docs/FRONTEND_COMPONENTS.md"
+            "docs/SECURITY_AUTH.md"
+            "docs/SYNC_ENGINE.md"
+            "docs/DEPLOYMENT.md"
+          )
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "ERROR: Missing required documentation: $file"
+              exit 1
+            fi
+          done
+          echo "All required documentation files exist."
+
+      - name: Validate markdown links
+        run: |
+          # Check for broken internal markdown links
+          cd docs
+          for file in *.md; do
+            # Extract markdown links [text](path)
+            grep -oP '\[([^\]]+)\]\(([^)]+)\)' "$file" | while read -r match; do
+              link=$(echo "$match" | grep -oP '\(([^)]+)\)' | tr -d '()')
+              # Skip external links and anchors
+              if [[ "$link" == http* ]] || [[ "$link" == "#"* ]]; then
+                continue
+              fi
+              # Check if file exists
+              if [ ! -f "$link" ]; then
+                echo "WARNING: Broken link in $file -> $link"
+              fi
+            done
+          done
+          echo "Markdown link validation complete."
+
+      - name: Check for exposed secrets in docs
+        run: |
+          # Scan documentation for potential secrets
+          secret_patterns=(
+            "sk_[a-f0-9]\{64\}"
+            "eyJ[a-zA-Z0-9_-]*\.eyJ"
+            "postgres://[a-zA-Z0-9_]+:[a-zA-Z0-9_]+@"
+            "ghp_[a-zA-Z0-9]\{36\}"
+          )
+          found_secrets=false
+          for pattern in "${secret_patterns[@]}"; do
+            if grep -rP "$pattern" docs/ 2>/dev/null; then
+              echo "ERROR: Potential secret found in documentation!"
+              found_secrets=true
+            fi
+          done
+          if [ "$found_secrets" = true ]; then
+            exit 1
+          fi
+          echo "No secrets found in documentation."
+
+      - name: Validate Mermaid diagrams
+        run: |
+          # Basic check for Mermaid code blocks
+          for file in docs/*.md; do
+            open_blocks=$(grep -c '```mermaid' "$file" || true)
+            close_blocks=$(grep -c '```' "$file" || true)
+            # Each mermaid block needs opening and closing backticks
+            if [ $((close_blocks % 2)) -ne 0 ]; then
+              echo "WARNING: Unclosed code block in $file"
+            fi
+          done
+          echo "Mermaid diagram validation complete."
+
+  api-docs-sync:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate-docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for API changes
+        id: api-changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q 'backend/src/routes/'; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "API route files have changed. Consider updating API_REFERENCE.md"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR if API changed without docs update
+        if: steps.api-changes.outputs.changes == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ API route files have changed. Please update `docs/API_REFERENCE.md` to reflect the changes.'
+            })

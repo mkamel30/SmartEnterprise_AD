@@ -16,8 +16,9 @@ const validate = (schema) => async (req, res, next) => {
         return next();
     } catch (error) {
         if (error instanceof z.ZodError) {
-            const validationErrors = error.errors.map(err => ({
-                field: err.path.join('.'),
+            const issues = error.issues || error.errors || [];
+            const validationErrors = issues.map(err => ({
+                field: err.path ? err.path.join('.') : 'unknown',
                 message: err.message,
             }));
 

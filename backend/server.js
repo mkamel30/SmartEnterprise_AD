@@ -51,6 +51,9 @@ const versionRoutes = require('./src/routes/versions');
 const licenseRoutes = require('./src/routes/licenses');
 const inventoryRoutes = require('./src/routes/inventory');
 const simcardRoutes = require('./src/routes/simcards');
+const stockMovementsRoutes = require('./src/routes/stockMovements');
+const maintenanceRequestsRoutes = require('./src/routes/maintenanceRequests');
+const paymentsRoutes = require('./src/routes/payments');
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -82,6 +85,9 @@ app.use('/api/bootstrap', bootstrapRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api/versions', versionRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/stock-movements', stockMovementsRoutes);
+app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
+app.use('/api/payments', paymentsRoutes);
 app.use('/api/simcards', simcardRoutes);
 app.use('/api', miscRoutes);
 
