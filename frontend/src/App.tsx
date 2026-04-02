@@ -17,11 +17,6 @@ import { Toaster } from 'react-hot-toast';
 import AdminStore from './pages/AdminStore';
 import SoftwareUpdates from './pages/SoftwareUpdates';
 import LicenseManager from './pages/LicenseManager';
-import StockMovements from './pages/StockMovements';
-import MaintenanceRequests from './pages/MaintenanceRequests';
-import Payments from './pages/Payments';
-import InventoryOverview from './pages/InventoryOverview';
-import PriceHistory from './pages/PriceHistory';
 
 const queryClient = new QueryClient();
 
@@ -64,11 +59,12 @@ function AuthWrapper() {
           <Route path="/warehouse" element={<Warehouse />} />
           <Route path="/sync-status" element={<SyncStatus />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/reports/movements" element={<StockMovements />} />
-          <Route path="/reports/requests" element={<MaintenanceRequests />} />
-          <Route path="/reports/payments" element={<Payments />} />
-          <Route path="/reports/inventory" element={<InventoryOverview />} />
-          <Route path="/reports/price-history" element={<PriceHistory />} />
+          <Route path="/reports/financial" element={<Reports />} />
+          <Route path="/reports/movements" element={<Reports />} />
+          <Route path="/reports/requests" element={<Reports />} />
+          <Route path="/reports/payments" element={<Reports />} />
+          <Route path="/reports/inventory" element={<Reports />} />
+          <Route path="/reports/price-history" element={<Reports />} />
           <Route path="/version-logs" element={<VersionLogs />} />
           <Route path="/software-updates" element={<SoftwareUpdates />} />
           <Route path="/license-manager" element={<LicenseManager />} />

@@ -38,8 +38,7 @@ router.get('/', async (req, res) => {
             include: {
                 branch: { select: { id: true, name: true } },
                 customer: { select: { id: true, client_name: true, bkcode: true } },
-                posMachine: { select: { serialNumber: true, model: true } },
-                technician: { select: { displayName: true } }
+                posMachine: { select: { serialNumber: true, model: true } }
             },
             orderBy: { createdAt: 'desc' },
             take: 500
@@ -58,7 +57,7 @@ router.get('/', async (req, res) => {
             machineModel: r.model || r.posMachine?.model || '-',
             status: r.status,
             actionTaken: r.actionTaken || '-',
-            technicianName: r.technician?.displayName || '-',
+            technicianName: r.technician || '-',
             receiptNumber: r.receiptNumber,
             totalCost: r.totalCost || 0,
             notes: r.notes
@@ -107,8 +106,7 @@ router.get('/export', async (req, res) => {
             include: {
                 branch: { select: { name: true } },
                 customer: { select: { client_name: true, bkcode: true } },
-                posMachine: { select: { serialNumber: true, model: true } },
-                technician: { select: { displayName: true } }
+                posMachine: { select: { serialNumber: true, model: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -133,7 +131,7 @@ router.get('/export', async (req, res) => {
             'الحالة': statusMap[r.status] || r.status,
             'الاجمالي': r.totalCost || 0,
             'رقم الايصال': r.receiptNumber || '-',
-            'الفني': r.technician?.displayName || '-',
+            'الفني': r.technician || '-',
             'الاجراء المتخذ': r.actionTaken || '-',
             'ملاحظات': r.notes || '-'
         }));
