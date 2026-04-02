@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
-import { Plus, RefreshCw, Building2, Key, Edit2, Trash2, Check, Copy, Shield, Store, Briefcase, MapPin, Hash, Search, Filter, Users, Package, Download, AlertCircle, CheckCircle, Clock, RefreshCw as SyncIcon } from 'lucide-react';
+import { Plus, RefreshCw, Building2, Key, Edit2, Trash2, Check, Copy, Shield, Store, Briefcase, MapPin, Hash, Search, Filter, Users, Package, Download, AlertCircle, CheckCircle, Clock, RefreshCw as SyncIcon, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 import { BranchInventoryModal } from '../components/BranchInventoryModal';
@@ -25,6 +25,7 @@ export default function Branches() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [inventoryBranch, setInventoryBranch] = useState<any>(null);
+  const [pullingReports, setPullingReports] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -152,6 +153,18 @@ export default function Branches() {
     }
   };
 
+  const handlePullReports = async (id: string) => {
+    setPullingReports(id);
+    try {
+      await adminClient.post(`/branches/${id}/pull-reports`);
+      toast.success('تم طلب سحب جميع بيانات التقارير من الفرع');
+    } catch {
+      toast.error('فشل في سحب بيانات التقارير');
+    } finally {
+      setPullingReports(null);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('تم نسخ مفتاح API');
@@ -235,6 +248,7 @@ export default function Branches() {
                       </div>
                       <div className="flex gap-1">
                         <button onClick={() => setInventoryBranch(branch)} className="p-2 text-slate-400 hover:text-primary transition-colors" title="جرد"><Package size={14} /></button>
+                        <button onClick={() => handlePullReports(branch.id)} disabled={pullingReports === branch.id} className="p-2 text-slate-400 hover:text-amber-500 disabled:opacity-50 transition-colors" title="سحب التقارير"><TrendingUp size={14} className={pullingReports === branch.id ? 'animate-spin' : ''} /></button>
                         <button onClick={() => handleRequestSync(branch.id)} className="p-2 text-slate-400 hover:text-success transition-colors" title="مزامنة"><RefreshCw size={14} /></button>
                         <button onClick={() => handleOpenModal(branch)} className="p-2 text-slate-400 hover:text-brand-primary transition-colors" title="تعديل"><Edit2 size={14} /></button>
                         <button onClick={() => handleDelete(branch.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors" title="حذف"><Trash2 size={14} /></button>
@@ -356,6 +370,7 @@ export default function Branches() {
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => setInventoryBranch(branch)} className="p-2 text-slate-400 hover:text-primary rounded-lg transition-all" title="جرد"><Package size={14} /></button>
+                          <button onClick={() => handlePullReports(branch.id)} disabled={pullingReports === branch.id} className="p-2 text-slate-400 hover:text-amber-500 disabled:opacity-50 rounded-lg transition-all" title="سحب التقارير"><TrendingUp size={14} className={pullingReports === branch.id ? 'animate-spin' : ''} /></button>
                           <button onClick={() => handleRequestSync(branch.id)} className="p-2 text-slate-400 hover:text-success rounded-lg transition-all" title="مزامنة"><RefreshCw size={14} /></button>
                           <button onClick={() => handleOpenModal(branch)} className="p-2 text-slate-400 hover:text-brand-primary rounded-lg transition-all" title="تعديل"><Edit2 size={14} /></button>
                           <button onClick={() => handleDelete(branch.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-all" title="حذف"><Trash2 size={14} /></button>
