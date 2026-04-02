@@ -551,6 +551,44 @@ router.post('/:id/trigger-sync', adminAuth, async (req, res) => {
     }
 });
 
+// Pull ALL report data from branch (full report sync)
+router.post('/:id/pull-reports', adminAuth, async (req, res) => {
+    try {
+        const branch = await prisma.branch.findUnique({
+            where: { id: req.params.id }
+        });
+
+        if (!branch) {
+            return res.status(404).json({ error: 'Branch not found' });
+        }
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`branch_${branch.id}`).emit('portal_directive', {
+                type: 'SYSTEM_DIRECTIVE',
+                action: 'REQUEST_REPORT_DATA',
+                timestamp: new Date().toISOString()
+            });
+            
+            await prisma.portalSyncLog.create({
+                data: {
+                    branchId: branch.id,
+                    branchCode: branch.code,
+                    branchName: branch.name,
+                    type: 'PULL',
+                    status: 'PENDING',
+                    message: 'تم طلب سحب جميع بيانات التقارير يدوياً من الأدمن'
+                }
+            });
+        }
+
+        res.json({ success: true, message: `Report data pull requested from branch ${branch.code}` });
+    } catch (error) {
+        console.error('Pull reports failed:', error);
+        res.status(500).json({ error: 'Failed to pull reports' });
+    }
+});
+
 // Pull inventory from branch
 router.post('/:id/pull-inventory', adminAuth, async (req, res) => {
     try {

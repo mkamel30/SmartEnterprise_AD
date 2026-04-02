@@ -54,6 +54,8 @@ const simcardRoutes = require('./src/routes/simcards');
 const stockMovementsRoutes = require('./src/routes/stockMovements');
 const maintenanceRequestsRoutes = require('./src/routes/maintenanceRequests');
 const paymentsRoutes = require('./src/routes/payments');
+const salesRoutes = require('./src/routes/sales');
+const simcardsReportsRoutes = require('./src/routes/simcards-reports');
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -88,6 +90,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/stock-movements', stockMovementsRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/sales', salesRoutes);
+app.use('/api/simcards', simcardsReportsRoutes);
 app.use('/api/simcards', simcardRoutes);
 app.use('/api', miscRoutes);
 

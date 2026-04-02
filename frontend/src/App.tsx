@@ -63,7 +63,10 @@ function AuthWrapper() {
           <Route path="/reports/movements" element={<Reports />} />
           <Route path="/reports/requests" element={<Reports />} />
           <Route path="/reports/payments" element={<Reports />} />
+          <Route path="/reports/sales" element={<Reports />} />
+          <Route path="/reports/installments" element={<Reports />} />
           <Route path="/reports/inventory" element={<Reports />} />
+          <Route path="/reports/simcards" element={<Reports />} />
           <Route path="/reports/price-history" element={<Reports />} />
           <Route path="/version-logs" element={<VersionLogs />} />
           <Route path="/software-updates" element={<SoftwareUpdates />} />

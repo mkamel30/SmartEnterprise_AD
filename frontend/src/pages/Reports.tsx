@@ -19,7 +19,10 @@ const reportTabs = [
   { id: 'movements', label: 'حركات المخزون', icon: RefreshCw },
   { id: 'requests', label: 'طلبات الصيانة', icon: Wrench },
   { id: 'payments', label: 'المدفوعات', icon: CreditCard },
+  { id: 'sales', label: 'المبيعات', icon: DollarSign },
+  { id: 'installments', label: 'الأقساط المتأخرة', icon: Calendar },
   { id: 'inventory', label: 'جرد المخزون', icon: Warehouse },
+  { id: 'simcards', label: 'الشرائح', icon: Package },
   { id: 'price-history', label: 'سعر القطع', icon: Package },
 ];
 
@@ -125,6 +128,51 @@ export default function Reports() {
         queryKey: ['price-logs', selectedPartId],
         queryFn: () => adminClient.get(`/spare-parts/${selectedPartId}/price-logs`).then(r => r.data),
         enabled: activeTab === 'price-history' && !!selectedPartId
+    });
+
+    const { data: sales } = useQuery({
+        queryKey: ['sales', filters.branchId, filters.type],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters.branchId) params.append('branchId', filters.branchId);
+            if (filters.type !== 'ALL') params.append('type', filters.type);
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+            return adminClient.get(`/sales?${params}`).then(r => r.data);
+        },
+        enabled: activeTab === 'sales'
+    });
+
+    const { data: overdueInstallments } = useQuery({
+        queryKey: ['overdue-installments', filters.branchId],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters.branchId) params.append('branchId', filters.branchId);
+            return adminClient.get(`/sales/overdue-installments?${params}`).then(r => r.data);
+        },
+        enabled: activeTab === 'installments'
+    });
+
+    const { data: simCards } = useQuery({
+        queryKey: ['simcards', filters.branchId],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters.branchId) params.append('branchId', filters.branchId);
+            return adminClient.get(`/simcards?${params}`).then(r => r.data);
+        },
+        enabled: activeTab === 'simcards'
+    });
+
+    const { data: simMovements } = useQuery({
+        queryKey: ['sim-movements', filters.branchId],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters.branchId) params.append('branchId', filters.branchId);
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+            return adminClient.get(`/simcards/movements?${params}`).then(r => r.data);
+        },
+        enabled: activeTab === 'simcards'
     });
 
     const fetchReports = async () => {
@@ -490,12 +538,205 @@ export default function Reports() {
         </div>
     );
 
+    const salesData = sales?.data || [];
+    const overdueData = overdueInstallments?.data || [];
+    const simData = simCards?.data || [];
+    const simMovData = simMovements?.data || [];
+    const totalOverdue = overdueInstallments?.totalOverdue || 0;
+    const totalSalesAmount = salesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
+    const totalCashSales = salesData.filter((s: any) => s.type === 'CASH');
+    const totalInstallmentSales = salesData.filter((s: any) => s.type === 'INSTALLMENT');
+
+    const renderSales = () => (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
+                    <div className="flex items-center justify-between"><div><p className="text-white/60 font-bold text-sm">إجمالي المبيعات</p><p className="text-3xl font-black mt-1">{totalSalesAmount.toLocaleString()} ج.م</p></div><DollarSign size={48} className="text-white/30" /></div>
+                </div>
+                <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">مبيعات كاش</p>
+                    <p className="text-2xl font-black text-green-600">{totalCashSales.length}</p>
+                    <p className="text-sm text-slate-500">{totalCashSales.reduce((sum: number, s: any) => sum + s.totalPrice, 0).toLocaleString()} ج.م</p>
+                </div>
+                <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">مبيعات تقسيط</p>
+                    <p className="text-2xl font-black text-amber-600">{totalInstallmentSales.length}</p>
+                    <p className="text-sm text-slate-500">{totalInstallmentSales.reduce((sum: number, s: any) => sum + s.totalPrice, 0).toLocaleString()} ج.م</p>
+                </div>
+            </div>
+            {renderFilters()}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">سيريال</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">النوع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الإجمالي</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">المدفوع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">المتبقي</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {salesData.length === 0 ? (
+                                <tr><td colSpan={8} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                            ) : (
+                                salesData.map((s: any) => (
+                                    <tr key={s.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold">{new Date(s.saleDate).toLocaleDateString('ar-EG')}</td>
+                                        <td className="p-3 text-sm font-bold text-primary">{s.branchName}</td>
+                                        <td className="p-3 text-sm"><div className="font-bold">{s.customerName}</div><div className="text-[10px] text-slate-400">{s.customerCode}</div></td>
+                                        <td className="p-3 text-sm font-mono">{s.serialNumber}</td>
+                                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full font-black text-[10px] border ${s.type === 'CASH' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{s.type === 'CASH' ? 'كاش' : 'تقسيط'}</span></td>
+                                        <td className="p-3 text-lg font-black">{s.totalPrice?.toLocaleString()}</td>
+                                        <td className="p-3 text-sm font-bold text-green-600">{s.paidAmount?.toLocaleString()}</td>
+                                        <td className="p-3 text-sm font-bold text-red-600">{s.remaining?.toLocaleString()}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderInstallments = () => (
+        <div className="space-y-6">
+            <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between"><div><p className="text-white/60 font-bold text-sm">إجمالي الأقساط المتأخرة</p><p className="text-3xl font-black mt-1">{totalOverdue.toLocaleString()} ج.م</p></div><Calendar size={48} className="text-white/30" /></div>
+            </div>
+            <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <select className="smart-select" value={filters.branchId} onChange={(e) => setFilters(f => ({ ...f, branchId: e.target.value }))}>
+                        <option value="">كل الفروع</option>
+                        {branches?.map((b: any) => (<option key={b.id} value={b.id}>{b.name}</option>))}
+                    </select>
+                </div>
+            </div>
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">سيريال</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">تاريخ الاستحقاق</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">المبلغ</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">أيام التأخير</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم الإيصال</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {overdueData.length === 0 ? (
+                                <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">لا توجد أقساط متأخرة</td></tr>
+                            ) : (
+                                overdueData.map((i: any) => (
+                                    <tr key={i.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold text-primary">{i.branchName}</td>
+                                        <td className="p-3 text-sm"><div className="font-bold">{i.customerName}</div><div className="text-[10px] text-slate-400">{i.customerCode}</div></td>
+                                        <td className="p-3 text-sm font-mono">{i.serialNumber}</td>
+                                        <td className="p-3 text-sm font-bold">{new Date(i.dueDate).toLocaleDateString('ar-EG')}</td>
+                                        <td className="p-3 text-lg font-black text-red-600">{i.amount?.toLocaleString()}</td>
+                                        <td className="p-3"><span className="inline-flex px-2 py-1 rounded-full bg-red-50 text-red-700 font-black text-[10px] border border-red-200">{i.daysOverdue} يوم</span></td>
+                                        <td className="p-3 text-sm font-mono text-slate-400">{i.receiptNumber}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderSimCards = () => (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
+                    <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الشرائح</p>
+                    <p className="text-2xl font-black text-primary">{simData.length}</p>
+                </div>
+            </div>
+            {renderFilters()}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden mb-6">
+                <div className="p-4 border-b border-slate-200"><h3 className="font-black text-primary">الشرائح</h3></div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السيريال</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">النوع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الشبكة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {simData.length === 0 ? (
+                                <tr><td colSpan={5} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                            ) : (
+                                simData.map((s: any) => (
+                                    <tr key={s.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold text-primary">{s.branchName}</td>
+                                        <td className="p-3 text-sm font-mono">{s.serialNumber}</td>
+                                        <td className="p-3 text-sm">{s.type}</td>
+                                        <td className="p-3 text-sm">{s.networkType}</td>
+                                        <td className="p-3 text-sm">{s.customerName || '-'}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-200"><h3 className="font-black text-primary">سجل حركة الشرائح</h3></div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السيريال</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الإجراء</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">بواسطة</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {simMovData.length === 0 ? (
+                                <tr><td colSpan={5} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                            ) : (
+                                simMovData.map((m: any) => (
+                                    <tr key={m.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold">{new Date(m.date).toLocaleDateString('ar-EG')}</td>
+                                        <td className="p-3 text-sm font-bold text-primary">{m.branchName}</td>
+                                        <td className="p-3 text-sm font-mono">{m.serialNumber}</td>
+                                        <td className="p-3 text-sm font-bold">{m.action}</td>
+                                        <td className="p-3 text-sm text-slate-500">{m.performedBy}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderContent = () => {
         switch (activeTab) {
             case 'movements': return renderMovements();
             case 'requests': return renderRequests();
             case 'payments': return renderPayments();
+            case 'sales': return renderSales();
+            case 'installments': return renderInstallments();
             case 'inventory': return renderInventory();
+            case 'simcards': return renderSimCards();
             case 'price-history': return renderPriceHistory();
             default: return renderFinancial();
         }

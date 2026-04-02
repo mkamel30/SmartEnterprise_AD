@@ -412,6 +412,168 @@ module.exports = (io) => {
             }
         });
 
+        // Handle comprehensive report data push from branch (new full report sync)
+        socket.on('branch_report_push', async (data) => {
+            const { branchCode, branchId: reportedBranchId, entities, timestamp } = data;
+            if (!socket.isBranch || !socket.branchId) return;
+
+            logger.info(`[Sync] Received REPORT push (${Object.keys(entities || {}).length} types) from branch ${branchCode || socket.branchCode}`);
+
+            try {
+                let totalSynced = 0;
+                const results = {};
+
+                // 1. Maintenance Requests
+                if (entities.maintenanceRequests && Array.isArray(entities.maintenanceRequests)) {
+                    for (const r of entities.maintenanceRequests) {
+                        await prisma.maintenanceRequest.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        });
+                    }
+                    results.maintenanceRequests = entities.maintenanceRequests.length;
+                    totalSynced += entities.maintenanceRequests.length;
+                }
+
+                // 2. Payments
+                if (entities.payments && Array.isArray(entities.payments)) {
+                    for (const p of entities.payments) {
+                        await prisma.payment.upsert({
+                            where: { id: p.id },
+                            update: { ...p, branchId: socket.branchId },
+                            create: { ...p, branchId: socket.branchId }
+                        });
+                    }
+                    results.payments = entities.payments.length;
+                    totalSynced += entities.payments.length;
+                }
+
+                // 3. Stock Movements
+                if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
+                    for (const m of entities.stockMovements) {
+                        await prisma.stockMovement.upsert({
+                            where: { id: m.id },
+                            update: { ...m, branchId: socket.branchId },
+                            create: { ...m, branchId: socket.branchId }
+                        });
+                    }
+                    results.stockMovements = entities.stockMovements.length;
+                    totalSynced += entities.stockMovements.length;
+                }
+
+                // 4. Machine Sales
+                if (entities.machineSales && Array.isArray(entities.machineSales)) {
+                    for (const s of entities.machineSales) {
+                        await prisma.machineSale.upsert({
+                            where: { id: s.id },
+                            update: { ...s, branchId: socket.branchId },
+                            create: { ...s, branchId: socket.branchId }
+                        });
+                    }
+                    results.machineSales = entities.machineSales.length;
+                    totalSynced += entities.machineSales.length;
+                }
+
+                // 5. Installments
+                if (entities.installments && Array.isArray(entities.installments)) {
+                    for (const i of entities.installments) {
+                        await prisma.installment.upsert({
+                            where: { id: i.id },
+                            update: { ...i, branchId: socket.branchId },
+                            create: { ...i, branchId: socket.branchId }
+                        });
+                    }
+                    results.installments = entities.installments.length;
+                    totalSynced += entities.installments.length;
+                }
+
+                // 6. SIM Cards
+                if (entities.simCards && Array.isArray(entities.simCards)) {
+                    for (const sim of entities.simCards) {
+                        await prisma.simCard.upsert({
+                            where: { id: sim.id },
+                            update: { ...sim, branchId: socket.branchId },
+                            create: { ...sim, branchId: socket.branchId }
+                        });
+                    }
+                    results.simCards = entities.simCards.length;
+                    totalSynced += entities.simCards.length;
+                }
+
+                // 7. SIM Movements
+                if (entities.simMovements && Array.isArray(entities.simMovements)) {
+                    for (const m of entities.simMovements) {
+                        await prisma.simMovementLog.upsert({
+                            where: { id: m.id },
+                            update: { ...m, branchId: socket.branchId },
+                            create: { ...m, branchId: socket.branchId }
+                        });
+                    }
+                    results.simMovements = entities.simMovements.length;
+                    totalSynced += entities.simMovements.length;
+                }
+
+                // 8. Warehouse Machines
+                if (entities.warehouseMachines && Array.isArray(entities.warehouseMachines)) {
+                    for (const m of entities.warehouseMachines) {
+                        await prisma.warehouseMachine.upsert({
+                            where: { serialNumber: m.serialNumber },
+                            update: { ...m, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...m, branchId: socket.branchId }
+                        });
+                    }
+                    results.warehouseMachines = entities.warehouseMachines.length;
+                    totalSynced += entities.warehouseMachines.length;
+                }
+
+                // 9. Warehouse SIMs
+                if (entities.warehouseSims && Array.isArray(entities.warehouseSims)) {
+                    for (const s of entities.warehouseSims) {
+                        await prisma.warehouseSim.upsert({
+                            where: { serialNumber: s.serialNumber },
+                            update: { ...s, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...s, branchId: socket.branchId }
+                        });
+                    }
+                    results.warehouseSims = entities.warehouseSims.length;
+                    totalSynced += entities.warehouseSims.length;
+                }
+
+                // 10. POS Machines
+                if (entities.posMachines && Array.isArray(entities.posMachines)) {
+                    for (const p of entities.posMachines) {
+                        await prisma.posMachine.upsert({
+                            where: { id: p.id },
+                            update: { ...p, branchId: socket.branchId },
+                            create: { ...p, branchId: socket.branchId }
+                        });
+                    }
+                    results.posMachines = entities.posMachines.length;
+                    totalSynced += entities.posMachines.length;
+                }
+
+                // 11. Customers
+                if (entities.customers && Array.isArray(entities.customers)) {
+                    for (const c of entities.customers) {
+                        await prisma.customer.upsert({
+                            where: { id: c.id },
+                            update: { ...c, branchId: socket.branchId },
+                            create: { ...c, branchId: socket.branchId }
+                        });
+                    }
+                    results.customers = entities.customers.length;
+                    totalSynced += entities.customers.length;
+                }
+
+                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'SUCCESS', `تم تحديث جميع بيانات التقارير (${totalSynced} عنصر)`, totalSynced);
+                logger.info(`[Sync] Report push completed for ${branchCode}: ${totalSynced} items synced`);
+            } catch (error) {
+                logger.error('[Sync] Error processing report push:', error.message);
+                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'FAILED', `فشل تحديث بيانات التقارير: ${error.message}`);
+            }
+        });
+
         socket.on('disconnect', async () => {
             logger.info(`[Socket] Branch Disconnected: ${socket.branchCode}`);
             logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) انقطع`);

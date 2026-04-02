@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Building2, Users, Layers,
     RefreshCw, Settings2, LogOut, RotateCcw,
     Menu, ChevronDown, ZoomIn, ZoomOut,
-    TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package
+    TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package, Calendar
 } from 'lucide-react';
 
 interface NavItem {
@@ -45,7 +45,10 @@ const reportGroup: NavGroup = {
         { id: 'movements', name: 'حركات المخزون', href: '/reports/movements', icon: RefreshCw },
         { id: 'requests', name: 'طلبات الصيانة', href: '/reports/requests', icon: Wrench },
         { id: 'payments', name: 'المدفوعات', href: '/reports/payments', icon: DollarSign },
+        { id: 'sales', name: 'المبيعات', href: '/reports/sales', icon: DollarSign },
+        { id: 'installments', name: 'الأقساط المتأخرة', href: '/reports/installments', icon: Calendar },
         { id: 'inventory', name: 'جرد المخزون', href: '/reports/inventory', icon: Warehouse },
+        { id: 'simcards', name: 'الشرائح', href: '/reports/simcards', icon: Package },
         { id: 'price-history', name: 'سعر القطع', href: '/reports/price-history', icon: Package },
     ]
 };
