@@ -53,7 +53,7 @@ const reportGroup: NavGroup = {
     ]
 };
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();

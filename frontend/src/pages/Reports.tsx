@@ -6,7 +6,7 @@ import {
   TrendingUp, DollarSign, RefreshCw, 
   Calendar, Building, ArrowUpRight, ArrowDownRight,
   FileSpreadsheet, Wrench, Package, Warehouse,
-  ArrowDownCircle, ArrowUpCircle, Search, Download, CreditCard
+  ArrowDownCircle, ArrowUpCircle, Download, CreditCard
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -49,7 +49,6 @@ export default function Reports() {
     const navigate = useNavigate();
     const location = useLocation();
     const [data, setData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(false);
     const [filters, setFilters] = useState({
         branchId: '',
@@ -177,13 +176,10 @@ export default function Reports() {
 
     const fetchReports = async () => {
         try {
-            setLoading(true);
             const res = await adminClient.get('/reports/financial-summary');
             setData(res.data);
         } catch (error) {
             toast.error('فشل في تحميل التقارير المالية');
-        } finally {
-            setLoading(false);
         }
     };
 
