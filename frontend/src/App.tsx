@@ -44,7 +44,11 @@ function AuthWrapper() {
     if (location.pathname === '/forgot-password') {
       return <ForgotPassword />;
     }
-    return <Login />;
+    return (
+      <Routes location={location}>
+        <Route path="*" element={<Login />} />
+      </Routes>
+    );
   }
 
   return (
