@@ -10,8 +10,9 @@ function generateLicenseKey() {
     const segments = [];
     for (let s = 0; s < 4; s++) {
         let segment = '';
+        const bytes = crypto.randomBytes(5);
         for (let i = 0; i < 5; i++) {
-            segment += chars.charAt(Math.floor(Math.random() * chars.length));
+            segment += chars.charAt(bytes[i] % chars.length);
         }
         segments.push(segment);
     }

@@ -68,8 +68,8 @@ router.post('/verify-setup', adminAuth, asyncHandler(async (req, res) => {
     }
 
     const recoveryCodes = Array.from({ length: 8 }, () =>
-        Math.random().toString(36).substring(2, 6).toUpperCase() + '-' +
-        Math.random().toString(36).substring(2, 6).toUpperCase()
+        crypto.randomBytes(2).toString('hex').toUpperCase() + '-' +
+        crypto.randomBytes(2).toString('hex').toUpperCase()
     );
 
     await prisma.adminUser.update({
@@ -166,8 +166,8 @@ router.post('/recovery-codes', adminAuth, asyncHandler(async (req, res) => {
     }
 
     const recoveryCodes = Array.from({ length: 8 }, () =>
-        Math.random().toString(36).substring(2, 6).toUpperCase() + '-' +
-        Math.random().toString(36).substring(2, 6).toUpperCase()
+        crypto.randomBytes(2).toString('hex').toUpperCase() + '-' +
+        crypto.randomBytes(2).toString('hex').toUpperCase()
     );
 
     await prisma.adminUser.update({

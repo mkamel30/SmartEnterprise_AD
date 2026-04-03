@@ -1,17 +1,17 @@
 const express = require('express');
-const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
+const logger = require('../../utils/logger');
 
 router.use(adminAuth);
 
-// Consolidated Financial Overview
 router.get('/financial-summary', async (req, res) => {
     try {
         const branches = await prisma.branch.findMany({
-            include: {
-                payments: true,
+            select: {
+                id: true,
+                name: true,
                 _count: {
                     select: {
                         requests: true,
@@ -24,34 +24,31 @@ router.get('/financial-summary', async (req, res) => {
             }
         });
 
-        const summary = branches.map(b => {
-             const totalRevenue = b.payments.reduce((sum, p) => sum + p.amount, 0);
-             return {
-                 branchId: b.id,
-                 branchName: b.name,
-                 revenue: totalRevenue,
-                 requestCount: b._count.requests,
-                 userCount: b._count.users,
-                 customerCount: b._count.customers,
-                  machineCount: b._count.posMachines,
-                  stockCount: b._count.warehouseMachines
-             };
+        const paymentAgg = await prisma.payment.groupBy({
+            by: ['branchId'],
+            _sum: { amount: true },
+            _count: true
         });
+        const paymentMap = {};
+        paymentAgg.forEach(p => { paymentMap[p.branchId] = { total: p._sum.amount || 0, count: p._count }; });
 
-        // Group by Date for enterprise-wide revenue chart (Last 30 days)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const summary = branches.map(b => ({
+            branchId: b.id,
+            branchName: b.name,
+            revenue: paymentMap[b.id]?.total || 0,
+            paymentCount: paymentMap[b.id]?.count || 0,
+            requestCount: b._count.requests,
+            userCount: b._count.users,
+            customerCount: b._count.customers,
+            machineCount: b._count.posMachines,
+            stockCount: b._count.warehouseMachines
+        }));
 
         const dailyRevenue = await prisma.payment.groupBy({
             by: ['createdAt'],
-            _sum: {
-                amount: true
-            },
-            where: {
-                createdAt: {
-                    gte: thirtyDaysAgo
-                }
-            }
+            _sum: { amount: true },
+            where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+            orderBy: { createdAt: 'asc' }
         });
 
         res.json({
@@ -60,35 +57,42 @@ router.get('/financial-summary', async (req, res) => {
             totalEnterpriseRevenue: summary.reduce((sum, b) => sum + b.revenue, 0)
         });
     } catch (error) {
-        logger.error('Financial summary failed:', error);
-        res.status(500).json({ error: 'Failed' });
+        logger.error({ err: error.message }, 'Financial summary failed');
+        res.status(500).json({ error: 'فشل في تحميل الملخص المالي' });
     }
 });
 
-// Branch Performance Rankings
 router.get('/rankings', async (req, res) => {
     try {
         const branches = await prisma.branch.findMany({
-            include: {
-                _count: { select: { requests: true, payments: true } },
-                payments: { select: { amount: true } }
+            select: {
+                id: true,
+                name: true,
+                _count: { select: { requests: true } }
             }
         });
+
+        const paymentAgg = await prisma.payment.groupBy({
+            by: ['branchId'],
+            _sum: { amount: true }
+        });
+        const paymentMap = {};
+        paymentAgg.forEach(p => { paymentMap[p.branchId] = p._sum.amount || 0; });
 
         const rankings = branches.map(b => ({
             id: b.id,
             name: b.name,
-            totalRevenue: b.payments.reduce((sum, p) => sum + p.amount, 0),
+            totalRevenue: paymentMap[b.id] || 0,
             requestCount: b._count.requests
         })).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
         res.json(rankings);
     } catch (error) {
-        res.status(500).json({ error: 'Failed' });
+        logger.error({ err: error.message }, 'Rankings failed');
+        res.status(500).json({ error: 'فشل في تحميل الترتيب' });
     }
 });
 
-// Inventory Valuation (Across all branches)
 router.get('/inventory-valuation', async (req, res) => {
     try {
         const inventory = await prisma.branchSparePart.findMany({
@@ -116,8 +120,8 @@ router.get('/inventory-valuation', async (req, res) => {
             itemCount: inventory.length
         });
     } catch (error) {
-        logger.error('Inventory valuation failed:', error);
-        res.status(500).json({ error: 'Failed to calculate valuation' });
+        logger.error({ err: error.message }, 'Inventory valuation failed');
+        res.status(500).json({ error: 'فشل في تقييم المخزون' });
     }
 });
 

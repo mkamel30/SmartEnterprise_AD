@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { api } from '../api/client';
+import adminClient from '../api/adminClient';
 
 interface User {
     id: string;
@@ -33,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [activeBranchId, setActiveBranchIdState] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Wrapper to persist active branch selection
     const setActiveBranchId = (branchId: string | null) => {
         setActiveBranchIdState(branchId);
         if (branchId) {
@@ -44,20 +43,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     useEffect(() => {
-        // Load from localStorage on mount
         const storedToken = localStorage.getItem('portal_token');
         const storedUser = localStorage.getItem('portal_user');
         const storedActiveBranch = localStorage.getItem('activeBranchId');
 
         if (storedToken && storedUser) {
-            api.setToken(storedToken);
-
-            // Verify token with a valid Admin endpoint
-            api.get('/branches') 
+            adminClient.defaults.headers.common.Authorization = `Bearer ${storedToken}`;
+            adminClient.get('/branches')
                 .then(() => {
                     setToken(storedToken);
-                    const parsedUser = JSON.parse(storedUser);
-                    setUser(parsedUser);
+                    try {
+                        setUser(JSON.parse(storedUser));
+                    } catch {
+                        localStorage.removeItem('portal_user');
+                    }
                     if (storedActiveBranch) {
                         setActiveBranchIdState(storedActiveBranch);
                     }
@@ -65,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .catch(() => {
                     localStorage.removeItem('portal_token');
                     localStorage.removeItem('portal_user');
-                    api.setToken(null);
+                    delete adminClient.defaults.headers.common.Authorization;
                 })
                 .finally(() => {
                     setIsLoading(false);
@@ -79,13 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(newToken);
         setUser(newUser);
         setActiveBranchIdState(newUser.branchId);
-
         localStorage.setItem('portal_token', newToken);
         localStorage.setItem('portal_user', JSON.stringify(newUser));
         if (newUser.branchId) {
             localStorage.setItem('activeBranchId', newUser.branchId);
         }
-        api.setToken(newToken);
+        adminClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
     };
 
     const logout = () => {
@@ -95,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('portal_token');
         localStorage.removeItem('portal_user');
         localStorage.removeItem('activeBranchId');
-        api.setToken(null);
+        delete adminClient.defaults.headers.common.Authorization;
     };
 
     return (

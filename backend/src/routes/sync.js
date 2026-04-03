@@ -89,7 +89,7 @@ router.post('/request-sync', branchAuth, validate(requestSyncSchema), async (req
     } catch (error) {
         logger.error('Branch sync request failed:', error);
         await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PULL', 'FAILED', 'فشل المزامنة: ' + error.message);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ success: false, error: 'فشل في المزامنة' });
     }
 });
 

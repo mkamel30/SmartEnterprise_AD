@@ -18,7 +18,38 @@ import SoftwareUpdates from './pages/SoftwareUpdates';
 import LicenseManager from './pages/LicenseManager';
 import Analytics from './pages/Analytics';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
+
+const SUPER_ADMIN_ROUTES = [
+  '/', '/branches', '/users', '/analytics', '/sync-status',
+  '/reports', '/reports/financial', '/reports/movements', '/reports/requests',
+  '/reports/payments', '/reports/sales', '/reports/installments',
+  '/reports/inventory', '/reports/simcards', '/reports/price-history',
+  '/version-logs', '/software-updates', '/license-manager', '/settings'
+];
+
+const BRANCH_ADMIN_ROUTES = [
+  '/', '/analytics', '/sync-status',
+  '/reports', '/reports/financial', '/reports/movements', '/reports/requests',
+  '/reports/payments', '/reports/sales', '/reports/installments',
+  '/reports/inventory', '/reports/simcards', '/reports/price-history',
+  '/settings'
+];
+
+function canAccessRoute(role: string | undefined, path: string): boolean {
+  if (!role) return false;
+  if (role === 'SUPER_ADMIN') return SUPER_ADMIN_ROUTES.some(r => path === r || path.startsWith(r + '/'));
+  if (role === 'BRANCH_ADMIN') return BRANCH_ADMIN_ROUTES.some(r => path === r || path.startsWith(r + '/'));
+  return path === '/' || path === '/settings' || path.startsWith('/reports');
+}
 
 function App() {
   return (
@@ -41,7 +72,14 @@ function AppRoutes() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
-  if (isLoading) return <div className="flex h-screen items-center justify-center font-black">جاري التحقق من الجلسة...</div>;
+  if (isLoading) return (
+    <div className="flex h-screen items-center justify-center bg-slate-900">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-white font-black text-sm">جاري التحقق من الجلسة...</p>
+      </div>
+    </div>
+  );
 
   if (!user) {
     return (
@@ -53,31 +91,36 @@ function AppRoutes() {
     );
   }
 
+  const accessibleRoutes = [
+    { path: '/', element: <Dashboard /> },
+    { path: '/branches', element: <Branches /> },
+    { path: '/users', element: <UsersPage /> },
+    { path: '/analytics', element: <Analytics /> },
+    { path: '/sync-status', element: <SyncStatus /> },
+    { path: '/reports', element: <Reports /> },
+    { path: '/reports/financial', element: <Reports /> },
+    { path: '/reports/movements', element: <Reports /> },
+    { path: '/reports/requests', element: <Reports /> },
+    { path: '/reports/payments', element: <Reports /> },
+    { path: '/reports/sales', element: <Reports /> },
+    { path: '/reports/installments', element: <Reports /> },
+    { path: '/reports/inventory', element: <Reports /> },
+    { path: '/reports/simcards', element: <Reports /> },
+    { path: '/reports/price-history', element: <Reports /> },
+    { path: '/version-logs', element: <VersionLogs /> },
+    { path: '/software-updates', element: <SoftwareUpdates /> },
+    { path: '/license-manager', element: <LicenseManager /> },
+    { path: '/settings', element: <Settings /> },
+  ].filter(r => canAccessRoute(user?.role, r.path));
+
   return (
     <AdminLayout>
-      <div className="p-4 lg:p-8">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/branches" element={<Branches />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/sync-status" element={<SyncStatus />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/reports/financial" element={<Reports />} />
-          <Route path="/reports/movements" element={<Reports />} />
-          <Route path="/reports/requests" element={<Reports />} />
-          <Route path="/reports/payments" element={<Reports />} />
-          <Route path="/reports/sales" element={<Reports />} />
-          <Route path="/reports/installments" element={<Reports />} />
-          <Route path="/reports/inventory" element={<Reports />} />
-          <Route path="/reports/simcards" element={<Reports />} />
-          <Route path="/reports/price-history" element={<Reports />} />
-          <Route path="/version-logs" element={<VersionLogs />} />
-          <Route path="/software-updates" element={<SoftwareUpdates />} />
-          <Route path="/license-manager" element={<LicenseManager />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </div>
+      <Routes>
+        {accessibleRoutes.map(r => (
+          <Route key={r.path} path={r.path} element={r.element} />
+        ))}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </AdminLayout>
   );
 }

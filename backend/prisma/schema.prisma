@@ -425,7 +425,11 @@ model UsedPartLog {
   parts          String
   receiptNumber  String?
   branchId       String?
-  branch         Branch?  @relation(fields: [branchId], references: [id])
+  branch     Branch?  @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
+  @@index([simId])
+  @@index([createdAt])
 }
 
 model StockMovement {
@@ -544,6 +548,11 @@ model Installment {
   branchId      String?
   branch        Branch?     @relation(fields: [branchId], references: [id])
   sale          MachineSale @relation(fields: [saleId], references: [id])
+
+  @@index([branchId])
+  @@index([saleId])
+  @@index([dueDate])
+  @@index([isPaid])
 }
 
 model MachineSale {
@@ -560,6 +569,12 @@ model MachineSale {
   installments Installment[]
   branch       Branch?       @relation(fields: [branchId], references: [id])
   customer     Customer      @relation(fields: [customerId], references: [id])
+
+  @@index([branchId])
+  @@index([customerId])
+  @@index([saleDate])
+  @@index([type])
+  @@index([status])
 }
 
 model Notification {
@@ -618,6 +633,7 @@ model SimCard {
 
   @@index([branchId])
   @@index([customerId])
+  @@index([type])
 }
 
 model SimMovementLog {
@@ -671,6 +687,10 @@ model WarehouseSim {
   updatedAt    DateTime @default(now()) @updatedAt
   branchId     String?
   branch       Branch?  @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
+  @@index([status])
+  @@index([type])
 }
 
 model MaintenanceApproval {

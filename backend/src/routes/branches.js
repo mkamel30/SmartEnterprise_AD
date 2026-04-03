@@ -189,9 +189,10 @@ router.post('/register-manual', adminAuth, async (req, res) => {
         });
     } catch (error) {
         logger.error('Failed to create branch:', error);
-        res.status(500).json({ error: 'Failed to create branch: ' + error.message });
+        res.status(500).json({ error: 'فشل في إنشاء الفرع' });
     }
-});
+
+}
 
 router.use(adminAuth);
 
@@ -524,7 +525,7 @@ router.get('/export/all', adminAuth, async (req, res) => {
         res.end();
     } catch (error) {
         logger.error('Export failed:', error);
-        res.status(500).json({ error: 'Export failed: ' + error.message });
+        res.status(500).json({ error: 'فشل في التصدير' });
     }
 });
 
