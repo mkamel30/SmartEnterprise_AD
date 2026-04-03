@@ -52,6 +52,7 @@ export default function Reports() {
     const queryClient = useQueryClient();
     const [data, setData] = useState<any>(null);
     const [exporting, setExporting] = useState(false);
+    const [chartReady, setChartReady] = useState(false);
     const [filters, setFilters] = useState({
         branchId: '',
         type: 'ALL',
@@ -64,6 +65,11 @@ export default function Reports() {
         if (t.id === 'financial') return location.pathname === '/reports' || location.pathname === '/reports/financial';
         return location.pathname === `/reports/${t.id}`;
     })?.id || 'financial';
+
+    useEffect(() => {
+        const timer = setTimeout(() => setChartReady(true), 100);
+        return () => clearTimeout(timer);
+    }, []);
 
     const { data: branches } = useQuery({
         queryKey: ['branches-list'],
@@ -171,7 +177,7 @@ export default function Reports() {
             if (filters.branchId) params.append('branchId', filters.branchId);
             if (filters.startDate) params.append('startDate', filters.startDate);
             if (filters.endDate) params.append('endDate', filters.endDate);
-            return adminClient.get(`/simcards/movements?${params}`).then(r => r.data);
+            return adminClient.get(`/simcard-reports/movements?${params}`).then(r => r.data);
         },
         enabled: activeTab === 'simcards'
     });
@@ -754,6 +760,7 @@ export default function Reports() {
                     </div>
                     <div className="h-72 w-full" dir="ltr">
                         <div style={{ width: '100%', height: 300 }}>
+                            {chartReady ? (
                             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <BarChart data={data?.branchBreakdown || []}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -765,6 +772,9 @@ export default function Reports() {
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-slate-400 font-bold">جاري التحميل...</div>
+                            )}
                         </div>
                     </div>
                 </div>

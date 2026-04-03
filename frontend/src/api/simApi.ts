@@ -53,7 +53,7 @@ export const simApi = {
         request('/warehouse-sims/return', { method: 'POST', body: JSON.stringify(data) }),
     getSimMovements: (serialNumber?: string): Promise<any[]> => {
         const query = serialNumber ? `?serialNumber=${serialNumber}` : '';
-        return request(`/warehouse-sims/movements${query}`);
+        return request(`/simcard-reports/movements${query}`);
     },
 
     // Warehouse Template & Import/Export

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
     Users, Monitor, Smartphone, Wrench, 
@@ -12,6 +12,12 @@ import adminClient from '../api/adminClient';
 
 export default function AnalyticsDashboard() {
     const [filters, setFilters] = useState({ branchId: '' });
+    const [chartReady, setChartReady] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setChartReady(true), 100);
+        return () => clearTimeout(timer);
+    }, []);
 
     const { data: branches } = useQuery({
         queryKey: ['branches-list'],
@@ -127,7 +133,7 @@ export default function AnalyticsDashboard() {
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">الإيرادات حسب الفرع</h3>
                     <div className="h-64 w-full" dir="ltr">
-                        {branchBreakdown.length > 0 ? (
+                        {chartReady && branchBreakdown.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <BarChart data={branchBreakdown}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -148,7 +154,7 @@ export default function AnalyticsDashboard() {
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">حالات الصيانة</h3>
                     <div className="h-64 w-full">
-                        {maintenanceStatusData.length > 0 ? (
+                        {chartReady && maintenanceStatusData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <PieChart>
                                     <Pie data={maintenanceStatusData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, value }: any) => `${name}: ${value}`}>
