@@ -41,7 +41,7 @@ model BranchBackup {
   size      Int
   url       String
   createdAt DateTime @default(now())
-  branch    Branch   @relation(fields: [branchId], references: [id])
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 }
 
 model Release {
@@ -203,6 +203,8 @@ model BranchSparePart {
   part        MasterSparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
 
   @@unique([branchId, partId])
+  @@index([branchId])
+  @@index([partId])
 }
 
 model User {
@@ -237,6 +239,9 @@ model User {
   passwordHistory      PasswordHistory[]
   refreshTokens        RefreshToken[]
   branch               Branch?           @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
+  @@index([isActive])
 }
 
 model RefreshToken {
@@ -321,6 +326,9 @@ model Customer {
   machines          PosMachine[]
   simCards          SimCard[]
   warehouseMachines WarehouseMachine[]
+
+  @@index([branchId])
+  @@index([status])
 }
 
 model MaintenanceRequest {
@@ -357,6 +365,11 @@ model MaintenanceRequest {
   payments             Payment[]
   stockMovements       StockMovement[]
   warehouseMachines    WarehouseMachine[]
+
+  @@index([branchId])
+  @@index([status])
+  @@index([customerId])
+  @@index([createdAt])
 }
 
 model TransferOrder {
@@ -436,6 +449,11 @@ model StockMovement {
   branch        Branch?             @relation(fields: [branchId], references: [id])
   part          MasterSparePart     @relation(fields: [partId], references: [id])
   request       MaintenanceRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([branchId])
+  @@index([partId])
+  @@index([requestId])
+  @@index([createdAt])
 }
 
 model Payment {
@@ -457,6 +475,11 @@ model Payment {
   branch        Branch?             @relation(fields: [branchId], references: [id])
   customer      Customer?           @relation(fields: [customerId], references: [id])
   request       MaintenanceRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([branchId])
+  @@index([customerId])
+  @@index([requestId])
+  @@index([createdAt])
 }
 
 model MachineMovementLog {
@@ -468,7 +491,7 @@ model MachineMovementLog {
   performedBy  String?
   branchId     String?
   createdAt    DateTime @default(now())
-  Branch       Branch?  @relation(fields: [branchId], references: [id])
+  branch     Branch?  @relation(fields: [branchId], references: [id])
 }
 
 model SystemLog {
@@ -551,6 +574,11 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   branch    Branch?  @relation(fields: [branchId], references: [id])
+
+  @@index([userId])
+  @@index([branchId])
+  @@index([isRead])
+  @@index([createdAt])
 }
 
 model PosMachine {
@@ -587,6 +615,9 @@ model SimCard {
   branchId     String?
   branch       Branch?   @relation(fields: [branchId], references: [id])
   customer     Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([branchId])
+  @@index([customerId])
 }
 
 model SimMovementLog {
@@ -598,7 +629,7 @@ model SimMovementLog {
   performedBy  String?
   branchId     String?
   createdAt    DateTime @default(now())
-  Branch       Branch?  @relation(fields: [branchId], references: [id])
+  branch     Branch?  @relation(fields: [branchId], references: [id])
 }
 
 model WarehouseMachine {
@@ -622,6 +653,11 @@ model WarehouseMachine {
   branch             Branch?             @relation(fields: [branchId], references: [id])
   customer           Customer?           @relation(fields: [customerId], references: [id])
   maintenanceRequest MaintenanceRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([branchId])
+  @@index([customerId])
+  @@index([requestId])
+  @@index([status])
 }
 
 model WarehouseSim {

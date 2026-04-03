@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const axios = require('axios');
 const db = require('../db');
@@ -44,7 +45,7 @@ async function githubRequest(endpoint, settings, options = {}) {
         });
         return response.data;
     } catch (err) {
-        console.error('GitHub API Error:', err.response?.data || err.message);
+        logger.error('GitHub API Error:', err.response?.data || err.message);
         throw err;
     }
 }

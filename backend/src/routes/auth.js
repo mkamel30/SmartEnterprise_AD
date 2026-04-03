@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const bcrypt = require('bcryptjs');
@@ -39,7 +40,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Login failed:', error);
+        logger.error('Login failed:', error);
         return apiError(res, 'Login failed', 500);
     }
 });
@@ -149,7 +150,7 @@ router.put('/preferences', adminAuth, validate(preferencesSchema), async (req, r
 
         return success(res, { success: true, preferences: updatedPreferences });
     } catch (error) {
-        console.error('Failed to update preferences:', error);
+        logger.error('Failed to update preferences:', error);
         return apiError(res, 'Failed to update preferences', 500);
     }
 });

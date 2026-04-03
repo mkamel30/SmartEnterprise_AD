@@ -188,7 +188,7 @@ router.post('/register-manual', adminAuth, async (req, res) => {
             message: 'Branch created successfully'
         });
     } catch (error) {
-        console.error('Failed to create branch:', error);
+        logger.error('Failed to create branch:', error);
         res.status(500).json({ error: 'Failed to create branch: ' + error.message });
     }
 });
@@ -208,7 +208,7 @@ router.get('/', async (req, res) => {
         });
         res.json(branches);
     } catch (error) {
-        console.error('Failed to fetch branches:', error);
+        logger.error('Failed to fetch branches:', error);
         res.status(500).json({ error: 'Failed to fetch branches' });
     }
 });
@@ -290,7 +290,7 @@ router.post('/', async (req, res) => {
 
         res.status(201).json(branch);
     } catch (error) {
-        console.error('Failed to register branch:', error);
+        logger.error('Failed to register branch:', error);
         res.status(500).json({ error: 'Failed to register branch' });
     }
 });
@@ -317,7 +317,7 @@ router.put('/:id', async (req, res) => {
         
         res.json(branch);
     } catch (error) {
-        console.error('Failed to update branch:', error);
+        logger.error('Failed to update branch:', error);
         res.status(500).json({ error: 'Failed to update branch' });
     }
 });
@@ -330,7 +330,7 @@ router.delete('/:id', async (req, res) => {
         });
         res.json({ message: 'Branch deleted successfully' });
     } catch (error) {
-        console.error('Failed to delete branch:', error);
+        logger.error('Failed to delete branch:', error);
         res.status(500).json({ error: 'Failed to delete branch' });
     }
 });
@@ -354,7 +354,7 @@ router.get('/:id', async (req, res) => {
         
         res.json(branch);
     } catch (error) {
-        console.error('Failed to fetch branch:', error);
+        logger.error('Failed to fetch branch:', error);
         res.status(500).json({ error: 'Failed to fetch branch' });
     }
 });
@@ -502,7 +502,7 @@ router.get('/export/all', adminAuth, async (req, res) => {
                     summaryData.push({ branch: branch.name, type: 'Stock Movements', count: stockMovements.length });
                 }
             } catch (branchError) {
-                console.error(`Export failed for branch ${branch.name}:`, branchError);
+                logger.error(`Export failed for branch ${branch.name}:`, branchError);
                 summaryData.push({ branch: branch.name, type: 'ERROR', count: 0 });
             }
         }
@@ -523,7 +523,7 @@ router.get('/export/all', adminAuth, async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('Export failed:', error);
+        logger.error('Export failed:', error);
         res.status(500).json({ error: 'Export failed: ' + error.message });
     }
 });
@@ -550,7 +550,7 @@ router.post('/:id/trigger-sync', adminAuth, async (req, res) => {
 
         res.json({ success: true, message: `Sync requested for branch ${branch.code}` });
     } catch (error) {
-        console.error('Trigger sync failed:', error);
+        logger.error('Trigger sync failed:', error);
         res.status(500).json({ error: 'Failed to trigger sync' });
     }
 });
@@ -588,7 +588,7 @@ router.post('/:id/pull-reports', adminAuth, async (req, res) => {
 
         res.json({ success: true, message: `Report data pull requested from branch ${branch.code}` });
     } catch (error) {
-        console.error('Pull reports failed:', error);
+        logger.error('Pull reports failed:', error);
         res.status(500).json({ error: 'Failed to pull reports' });
     }
 });
@@ -627,7 +627,7 @@ router.post('/:id/pull-inventory', adminAuth, async (req, res) => {
 
         res.json({ success: true, message: `Inventory pull requested for branch ${branch.code}` });
     } catch (error) {
-        console.error('Pull inventory failed:', error);
+        logger.error('Pull inventory failed:', error);
         res.status(500).json({ error: 'Failed to request inventory pull' });
     }
 });

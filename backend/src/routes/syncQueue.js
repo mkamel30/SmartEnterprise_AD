@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db'); // Correct path for standalone
 const { adminAuth } = require('../middleware/auth'); // Correct path for standalone
@@ -47,7 +48,7 @@ router.get('/', async (req, res) => {
 
         res.json({ data: queues, summary });
     } catch (error) {
-        console.error('Failed to fetch sync queue:', error);
+        logger.error('Failed to fetch sync queue:', error);
         res.status(500).json({ error: 'Failed to fetch sync queue' });
     }
 });

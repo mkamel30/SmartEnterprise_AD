@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const bcrypt = require('bcryptjs');
@@ -62,7 +63,7 @@ router.post('/validate', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Branch setup validation failed:', error);
+        logger.error('Branch setup validation failed:', error);
         res.status(500).json({ error: 'خطأ في السيرفر' });
     }
 });
@@ -93,7 +94,7 @@ router.post('/check-branch', async (req, res) => {
             branchStatus: branch.status
         });
     } catch (error) {
-        console.error('Check branch failed:', error);
+        logger.error('Check branch failed:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -132,7 +133,7 @@ router.post('/validate-api-key', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Validate API key failed:', error);
+        logger.error('Validate API key failed:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -144,7 +145,7 @@ router.post('/sync-user', async (req, res) => {
         const apiKey = req.headers['x-api-key'];
         const { branchCode, user } = req.body;
 
-        console.log('[sync-user] Received request:', { branchCode, user: { ...user, password: '[REDACTED]' } });
+        logger.info('[sync-user] Received request:', { branchCode, user: { ...user, password: '[REDACTED]' } });
 
         if (!apiKey || !branchCode || !user) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -155,7 +156,7 @@ router.post('/sync-user', async (req, res) => {
             where: { code: branchCode, apiKey }
         });
 
-        console.log('[sync-user] Branch found:', branch?.code);
+        logger.info('[sync-user] Branch found:', branch?.code);
 
         if (!branch) {
             return res.status(401).json({ error: 'Invalid API key' });
@@ -188,7 +189,7 @@ router.post('/sync-user', async (req, res) => {
                 });
             } else {
                 // Create new user
-                console.log('[sync-user] Creating user with:', { username: user.username, branchId: branch.id });
+                logger.info('[sync-user] Creating user with:', { username: user.username, branchId: branch.id });
                 savedUser = await prisma.user.create({
                     data: {
                         id: user.id,
@@ -201,10 +202,10 @@ router.post('/sync-user', async (req, res) => {
                         isActive: true
                     }
                 });
-                console.log('[sync-user] User created:', savedUser.id);
+                logger.info('[sync-user] User created:', savedUser.id);
             }
         } catch (userErr) {
-            console.error('[sync-user] User creation error:', userErr.message, userErr.stack);
+            logger.error('[sync-user] User creation error:', userErr.message, userErr.stack);
             return res.status(500).json({ error: 'Failed to create user: ' + userErr.message });
         }
 
@@ -223,7 +224,7 @@ router.post('/sync-user', async (req, res) => {
 
         res.json({ success: true, userId: savedUser.id });
     } catch (error) {
-        console.error('Sync user failed:', error.message);
+        logger.error('Sync user failed:', error.message);
         
         // Log the failure
         if (req.body?.branchCode && req.body?.user?.username) {
@@ -278,7 +279,7 @@ router.get('/branch-users/:branchCode', async (req, res) => {
 
         res.json({ users });
     } catch (error) {
-        console.error('Get branch users failed:', error);
+        logger.error('Get branch users failed:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

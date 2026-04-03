@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -74,7 +75,7 @@ router.post('/assets/manual', async (req, res) => {
 
         res.json(asset);
     } catch (error) {
-        console.error('Manual intake error:', error);
+        logger.error('Manual intake error:', error);
         res.status(500).json({ error: 'Failed' });
     }
 });
@@ -95,7 +96,7 @@ router.post('/assets/import', async (req, res) => {
                 });
                 results.push(created);
             } catch (e) {
-                console.warn(`Import skip ${a.serialNumber}: ${e.message}`);
+                logger.warn(`Import skip ${a.serialNumber}: ${e.message}`);
             }
         }
         res.json({ success: true, count: results.length });
@@ -177,7 +178,7 @@ router.post('/transfers/asset', async (req, res) => {
 
         res.json({ success: true, asset });
     } catch (error) {
-        console.error('Transfer failed:', error);
+        logger.error('Transfer failed:', error);
         res.status(500).json({ error: 'Transfer failed' });
     }
 });

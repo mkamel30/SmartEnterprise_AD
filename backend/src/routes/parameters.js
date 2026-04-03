@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
         });
         res.json(parameters);
     } catch (error) {
-        console.error('Failed to fetch parameters:', error);
+        logger.error('Failed to fetch parameters:', error);
         res.status(500).json({ error: 'Failed to fetch parameters' });
     }
 });
@@ -27,7 +28,7 @@ router.post('/broadcast', async (req, res) => {
         await syncQueueService.enqueueUpdate('GLOBAL_PARAMETER', 'BROADCAST', parameters);
         res.json({ message: 'Broadcast initiated' });
     } catch (error) {
-        console.error('Broadcast failed:', error);
+        logger.error('Broadcast failed:', error);
         res.status(500).json({ error: 'Broadcast failed' });
     }
 });
@@ -52,7 +53,7 @@ router.post('/', async (req, res) => {
 
         res.json(parameter);
     } catch (error) {
-        console.error('Failed to save parameter:', error);
+        logger.error('Failed to save parameter:', error);
         res.status(500).json({ error: 'Failed to save parameter' });
     }
 });
@@ -77,7 +78,7 @@ router.put('/:id', async (req, res) => {
 
         res.json(parameter);
     } catch (error) {
-        console.error('Failed to update parameter:', error);
+        logger.error('Failed to update parameter:', error);
         res.status(500).json({ error: 'Failed to update parameter' });
     }
 });
@@ -94,7 +95,7 @@ router.delete('/:id', async (req, res) => {
 
         res.json({ message: 'Parameter deleted successfully' });
     } catch (error) {
-        console.error('Failed to delete parameter:', error);
+        logger.error('Failed to delete parameter:', error);
         res.status(500).json({ error: 'Failed to delete parameter' });
     }
 });

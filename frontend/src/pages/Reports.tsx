@@ -745,7 +745,7 @@ export default function Reports() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <SummaryCard title="إجمالي إيرادات المجموعة" value={`${data?.totalEnterpriseRevenue?.toLocaleString() || 0} ج.م`} trend="+15.4%" isUp={true} icon={<DollarSign />} />
                 <SummaryCard title="متوسط دخل الفرع" value={`${(data?.totalEnterpriseRevenue / (data?.branchBreakdown?.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 0}) || 0} ج.م`} trend="+5.2%" isUp={true} icon={<Building />} />
-                <SummaryCard title="مستحقات معلقة" value={`${(paymentsData?.typeBreakdown?.INSTALLMENT?.amount || 0).toLocaleString()} ج.م`} trend="-2.1%" isUp={false} icon={<Calendar />} />
+                <SummaryCard title="مستحقات معلقة" value={`${(paymentsData?.totalAmount || 0).toLocaleString()} ج.م`} trend="—" isUp={false} icon={<Calendar />} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-md">

@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -74,7 +75,7 @@ router.get('/', async (req, res) => {
 
         res.json({ success: true, data: filtered, total: filtered.length });
     } catch (error) {
-        console.error('Failed to fetch payments:', error);
+        logger.error('Failed to fetch payments:', error);
         res.status(500).json({ error: 'Failed to fetch payments' });
     }
 });
@@ -131,7 +132,7 @@ router.get('/export', async (req, res) => {
 
         res.json({ success: true, data, count: data.length });
     } catch (error) {
-        console.error('Failed to export payments:', error);
+        logger.error('Failed to export payments:', error);
         res.status(500).json({ error: 'Failed to export payments' });
     }
 });
@@ -192,7 +193,7 @@ router.get('/summary', async (req, res) => {
             typeBreakdown
         });
     } catch (error) {
-        console.error('Failed to fetch summary:', error);
+        logger.error('Failed to fetch summary:', error);
         res.status(500).json({ error: 'Failed to fetch summary' });
     }
 });

@@ -55,7 +55,7 @@ export default function AnalyticsDashboard() {
         queryFn: () => {
             const params = new URLSearchParams();
             if (filters.branchId) params.append('branchId', filters.branchId);
-            return adminClient.get(`/simcards/summary?${params}`).then(r => r.data);
+            return adminClient.get(`/simcard-reports?${params}`).then(r => r.data);
         }
     });
 

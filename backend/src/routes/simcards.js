@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
 
         res.json({ success: true, data: sims });
     } catch (error) {
-        console.error('Failed to fetch sim cards:', error);
+        logger.error('Failed to fetch sim cards:', error);
         res.status(500).json({ error: 'Failed to fetch sim cards' });
     }
 });

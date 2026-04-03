@@ -11,6 +11,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import AdminLayout from './components/AdminLayout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { SocketProvider } from './context/SocketContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import SoftwareUpdates from './pages/SoftwareUpdates';
@@ -24,10 +25,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <SettingsProvider>
-          <Router>
-            <AppRoutes />
-            <Toaster position="top-right" />
-          </Router>
+          <SocketProvider>
+            <Router>
+              <AppRoutes />
+              <Toaster position="top-right" />
+            </Router>
+          </SocketProvider>
         </SettingsProvider>
       </AuthProvider>
     </QueryClientProvider>

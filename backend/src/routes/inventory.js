@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -31,7 +32,7 @@ router.get('/', async (req, res) => {
 
         res.json({ success: true, data: formatted });
     } catch (error) {
-        console.error('Failed to fetch branch inventory:', error);
+        logger.error('Failed to fetch branch inventory:', error);
         res.status(500).json({ error: 'Failed to fetch branch inventory' });
     }
 });
@@ -68,7 +69,7 @@ router.get('/all', async (req, res) => {
 
         res.json({ success: true, data: formatted, total: formatted.length });
     } catch (error) {
-        console.error('Failed to fetch all inventory:', error);
+        logger.error('Failed to fetch all inventory:', error);
         res.status(500).json({ error: 'Failed to fetch all inventory' });
     }
 });
@@ -102,7 +103,7 @@ router.get('/export', async (req, res) => {
 
         res.json({ success: true, data, count: data.length });
     } catch (error) {
-        console.error('Failed to export inventory:', error);
+        logger.error('Failed to export inventory:', error);
         res.status(500).json({ error: 'Failed to export inventory' });
     }
 });
@@ -130,7 +131,7 @@ router.get('/summary', async (req, res) => {
             totalQuantity: totalQuantity._sum.quantity || 0
         });
     } catch (error) {
-        console.error('Failed to fetch summary:', error);
+        logger.error('Failed to fetch summary:', error);
         res.status(500).json({ error: 'Failed to fetch summary' });
     }
 });

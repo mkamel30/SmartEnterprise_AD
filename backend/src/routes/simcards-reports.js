@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -39,7 +40,7 @@ router.get('/', async (req, res) => {
 
         res.json({ success: true, data: formatted, total: formatted.length });
     } catch (error) {
-        console.error('Failed to fetch SIM cards:', error);
+        logger.error('Failed to fetch SIM cards:', error);
         res.status(500).json({ error: 'Failed to fetch SIM cards' });
     }
 });
@@ -84,7 +85,7 @@ router.get('/movements', async (req, res) => {
 
         res.json({ success: true, data: formatted, total: formatted.length });
     } catch (error) {
-        console.error('Failed to fetch SIM movements:', error);
+        logger.error('Failed to fetch SIM movements:', error);
         res.status(500).json({ error: 'Failed to fetch SIM movements' });
     }
 });
@@ -108,7 +109,7 @@ router.get('/summary', async (req, res) => {
             byNetwork: byNetwork.reduce((acc, n) => { acc[n.networkType || 'Unknown'] = n._count; return acc; }, {})
         });
     } catch (error) {
-        console.error('Failed to fetch SIM summary:', error);
+        logger.error('Failed to fetch SIM summary:', error);
         res.status(500).json({ error: 'Failed to fetch SIM summary' });
     }
 });

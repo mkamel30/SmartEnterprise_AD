@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
         });
         res.json(parts);
     } catch (error) {
-        console.error('Failed to fetch master spare parts:', error);
+        logger.error('Failed to fetch master spare parts:', error);
         res.status(500).json({ error: 'Failed to fetch master spare parts' });
     }
 });
@@ -29,7 +29,7 @@ router.post('/broadcast', async (req, res) => {
         await syncQueueService.enqueueUpdate('SPARE_PART', 'BROADCAST', masterParts);
         res.json({ message: 'Spare parts broadcast initiated' });
     } catch (error) {
-        console.error('Broadcast failed:', error);
+        logger.error('Broadcast failed:', error);
         res.status(500).json({ error: 'Broadcast failed' });
     }
 });
@@ -81,7 +81,7 @@ router.post('/', async (req, res) => {
         if (error.code === 'P2002') {
             return res.status(400).json({ error: 'Part Number already exists' });
         }
-        console.error('Failed to create master spare part:', error);
+        logger.error('Failed to create master spare part:', error);
         res.status(500).json({ error: 'Failed to create master spare part' });
     }
 });
@@ -100,7 +100,7 @@ router.put('/:id', async (req, res) => {
                     partId: req.params.id,
                     oldCost: oldPart.defaultCost,
                     newCost,
-                    changedBy: req.user?.name || req.user?.username || 'Admin'
+                    changedBy: req.admin?.name || req.admin?.username || 'Admin'
                 }
             });
         }
@@ -124,7 +124,7 @@ router.put('/:id', async (req, res) => {
 
         res.json(part);
     } catch (error) {
-        console.error('Failed to update master spare part:', error);
+        logger.error('Failed to update master spare part:', error);
         res.status(500).json({ error: 'Failed to update master spare part' });
     }
 });
@@ -138,7 +138,7 @@ router.get('/:id/price-logs', async (req, res) => {
         });
         res.json(logs);
     } catch (error) {
-        console.error('Failed to fetch price logs:', error);
+        logger.error('Failed to fetch price logs:', error);
         res.status(500).json({ error: 'Failed to fetch price logs' });
     }
 });
@@ -161,7 +161,7 @@ router.post('/bulk-delete', async (req, res) => {
 
         res.json({ message: `${ids.length} spare parts deleted successfully` });
     } catch (error) {
-        console.error('Bulk delete failed:', error);
+        logger.error('Bulk delete failed:', error);
         res.status(500).json({ error: 'Bulk delete failed' });
     }
 });
@@ -235,7 +235,7 @@ router.post('/import', async (req, res) => {
                 results.imported++;
             } catch (e) {
                 results.errors++;
-                console.warn('Import item error:', e.message);
+                logger.warn('Import item error:', e.message);
             }
         }
 
@@ -250,7 +250,7 @@ router.post('/import', async (req, res) => {
             errors: results.errors
         });
     } catch (error) {
-        console.error('Import failed:', error);
+        logger.error('Import failed:', error);
         res.status(500).json({ error: 'Import failed' });
     }
 });
@@ -266,7 +266,7 @@ router.delete('/:id', async (req, res) => {
 
         res.json({ message: 'Master spare part deleted successfully' });
     } catch (error) {
-        console.error('Failed to delete master spare part:', error);
+        logger.error('Failed to delete master spare part:', error);
         res.status(500).json({ error: 'Failed to delete master spare part' });
     }
 });

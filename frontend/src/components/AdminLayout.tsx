@@ -157,20 +157,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <div key={group.id} className="space-y-1">
                                     <button
                                         onClick={() => toggleGroup(group.id)}
-                                        className={`w-full flex items-center px-3 py-3 rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${hasActiveChild
-                                            ? 'bg-primary/5 text-primary'
-                                            : 'text-foreground/70 hover:bg-muted font-bold'
-                                            }`}
+                                        className={`
+                                            w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200
+                                            ${hasActiveChild || isExpanded
+                                                ? 'text-blue-900 bg-blue-50' 
+                                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}
+                                        `}
                                     >
-                                        <div className="flex items-center justify-center min-w-[24px]">
-                                            <GroupIcon size={22} className={hasActiveChild ? 'text-primary' : 'opacity-50 group-hover/btn:opacity-100'} />
-                                        </div>
-                                        <span className="mr-3 text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-1 text-right">
-                                            التقارير
+                                        <GroupIcon size={14} strokeWidth={1.8} className="shrink-0" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
+                                            {group.name}
                                         </span>
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            <ChevronDown size={14} className={`transition-transform duration-300 opacity-30 ${isExpanded ? 'rotate-180' : ''}`} />
-                                        </div>
+                                        <ChevronDown size={10} className={`shrink-0 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     <div className={`

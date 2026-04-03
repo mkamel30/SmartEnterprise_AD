@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -108,7 +109,7 @@ router.get('/', async (req, res) => {
 
         res.json(matrix);
     } catch (error) {
-        console.error('Fetch permissions failed:', error);
+        logger.error('Fetch permissions failed:', error);
         res.status(500).json({ error: 'Failed' });
     }
 });
@@ -139,7 +140,7 @@ router.post('/bulk', async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Bulk update failed:', error);
+        logger.error('Bulk update failed:', error);
         res.status(500).json({ error: 'Failed' });
     }
 });

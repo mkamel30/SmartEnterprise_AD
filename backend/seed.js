@@ -1,17 +1,17 @@
 const { PrismaClient } = require('@prisma/client');
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const logger = require('./utils/logger');
 const prisma = new PrismaClient();
 
 async function main() {
   logger.info('--- Seeding Central Admin Portal ---');
 
-  // Create Super Admin with exact credentials as specified
-  const adminPassword = 'Mk@351762';
+  const adminPassword = crypto.randomBytes(16).toString('hex');
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-  const recoveryKey = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const recoveryKey = crypto.randomBytes(8).toString('hex').toUpperCase();
 
   try {
     const admin = await prisma.adminUser.upsert({

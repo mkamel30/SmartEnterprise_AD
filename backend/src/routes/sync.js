@@ -87,7 +87,7 @@ router.post('/request-sync', branchAuth, validate(requestSyncSchema), async (req
 
         res.json({ success: true, data: result });
     } catch (error) {
-        console.error('Branch sync request failed:', error);
+        logger.error('Branch sync request failed:', error);
         await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PULL', 'FAILED', 'فشل المزامنة: ' + error.message);
         res.status(500).json({ success: false, error: error.message });
     }
@@ -305,7 +305,7 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Fatal Push sync failure:', error);
+        logger.error('Fatal Push sync failure:', error);
         await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PUSH', 'FAILED', 'فشل الإرسال القاتل: ' + error.message);
         res.status(500).json({ error: 'Push sync failed: ' + error.message });
     }
@@ -325,7 +325,7 @@ router.post('/request-full-sync/:branchId', adminAuth, async (req, res) => {
         
         res.json({ message: 'Full sync requested successfully via WebSockets' });
     } catch (error) {
-        console.error('Failed to request full sync:', error);
+        logger.error('Failed to request full sync:', error);
         res.status(500).json({ error: 'Failed to request sync' });
     }
 });
@@ -338,7 +338,7 @@ router.get('/branch-stock/:branchId/:partId', adminAuth, async (req, res) => {
         const { branchId, partId } = req.params;
         res.json({ stock: [], branchId, partId, note: 'Branch stock queried via WebSocket' });
     } catch (error) {
-        console.error('Branch stock query failed:', error);
+        logger.error('Branch stock query failed:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -367,7 +367,7 @@ router.get('/logs', adminAuth, async (req, res) => {
 
         res.json({ data: logs, pagination: { total, limit, offset, pages: Math.ceil(total / limit) } });
     } catch (error) {
-        console.error('Failed to get sync logs:', error);
+        logger.error('Failed to get sync logs:', error);
         res.status(500).json({ error: error.message });
     }
 });

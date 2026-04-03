@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -59,7 +60,7 @@ router.get('/financial-summary', async (req, res) => {
             totalEnterpriseRevenue: summary.reduce((sum, b) => sum + b.revenue, 0)
         });
     } catch (error) {
-        console.error('Financial summary failed:', error);
+        logger.error('Financial summary failed:', error);
         res.status(500).json({ error: 'Failed' });
     }
 });
@@ -115,7 +116,7 @@ router.get('/inventory-valuation', async (req, res) => {
             itemCount: inventory.length
         });
     } catch (error) {
-        console.error('Inventory valuation failed:', error);
+        logger.error('Inventory valuation failed:', error);
         res.status(500).json({ error: 'Failed to calculate valuation' });
     }
 });

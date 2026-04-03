@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
         });
         res.json(parameters);
     } catch (error) {
-        console.error('Failed to fetch POS parameters:', error);
+        logger.error('Failed to fetch POS parameters:', error);
         res.status(500).json({ error: 'Failed to fetch POS parameters' });
     }
 });
@@ -27,7 +28,7 @@ router.post('/broadcast', async (req, res) => {
         await syncQueueService.enqueueUpdate('MACHINE_PARAMETER', 'BROADCAST', parameters);
         res.json({ message: 'Machine Parameters broadcast initiated' });
     } catch (error) {
-        console.error('Broadcast failed:', error);
+        logger.error('Broadcast failed:', error);
         res.status(500).json({ error: 'Broadcast failed' });
     }
 });
@@ -52,7 +53,7 @@ router.post('/', async (req, res) => {
         if (error.code === 'P2002') {
             return res.status(400).json({ error: 'Prefix already exists' });
         }
-        console.error('Failed to create POS parameter:', error);
+        logger.error('Failed to create POS parameter:', error);
         res.status(500).json({ error: 'Failed to create POS parameter' });
     }
 });
@@ -71,7 +72,7 @@ router.put('/:id', async (req, res) => {
 
         res.json(parameter);
     } catch (error) {
-        console.error('Failed to update POS parameter:', error);
+        logger.error('Failed to update POS parameter:', error);
         res.status(500).json({ error: 'Failed to update POS parameter' });
     }
 });
@@ -87,7 +88,7 @@ router.delete('/:id', async (req, res) => {
 
         res.json({ message: 'POS parameter deleted successfully' });
     } catch (error) {
-        console.error('Failed to delete POS parameter:', error);
+        logger.error('Failed to delete POS parameter:', error);
         res.status(500).json({ error: 'Failed to delete POS parameter' });
     }
 });

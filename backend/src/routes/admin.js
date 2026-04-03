@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -158,7 +159,7 @@ router.post('/sync/users', async (req, res) => {
 
         res.json({ message: `Initiated sync for ${users.length} users to all branches.` });
     } catch (error) {
-        console.error('Manual user sync failed:', error);
+        logger.error('Manual user sync failed:', error);
         res.status(500).json({ error: 'Sync failed' });
     }
 });
@@ -176,7 +177,7 @@ router.get('/branches', async (req, res) => {
         });
         res.json(branches);
     } catch (error) {
-        console.error('Failed to fetch branches:', error);
+        logger.error('Failed to fetch branches:', error);
         res.status(500).json({ error: 'Failed to fetch branches' });
     }
 });
@@ -200,7 +201,7 @@ router.get('/branches/:id/users', async (req, res) => {
         });
         res.json(users);
     } catch (error) {
-        console.error('Failed to fetch branch users:', error);
+        logger.error('Failed to fetch branch users:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
@@ -230,7 +231,7 @@ router.delete('/branches/:id', async (req, res) => {
 
         res.json({ success: true, message: 'Branch deleted' });
     } catch (error) {
-        console.error('Failed to delete branch:', error);
+        logger.error('Failed to delete branch:', error);
         res.status(500).json({ error: 'Failed to delete branch' });
     }
 });
@@ -268,7 +269,7 @@ router.get('/users', async (req, res) => {
 
         res.json({ users, total, pages: Math.ceil(total / limit) });
     } catch (error) {
-        console.error('Failed to fetch users:', error);
+        logger.error('Failed to fetch users:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
@@ -298,7 +299,7 @@ router.delete('/users/:id', async (req, res) => {
 
         res.json({ success: true, message: 'User deleted' });
     } catch (error) {
-        console.error('Failed to delete user:', error);
+        logger.error('Failed to delete user:', error);
         res.status(500).json({ error: 'Failed to delete user' });
     }
 });
@@ -350,7 +351,7 @@ router.post('/users/:id/reset-password', async (req, res) => {
             username: user.username
         });
     } catch (error) {
-        console.error('Failed to reset password:', error);
+        logger.error('Failed to reset password:', error);
         res.status(500).json({ error: 'Failed to reset password' });
     }
 });
@@ -381,7 +382,7 @@ router.post('/users/:id/unlock', async (req, res) => {
 
         res.json({ success: true, message: 'Account unlocked successfully' });
     } catch (error) {
-        console.error('Failed to unlock account:', error);
+        logger.error('Failed to unlock account:', error);
         res.status(500).json({ error: 'Failed to unlock account' });
     }
 });
@@ -408,7 +409,7 @@ router.get('/user-sync-logs', async (req, res) => {
 
         res.json({ logs, total, pages: Math.ceil(total / limit) });
     } catch (error) {
-        console.error('Failed to fetch sync logs:', error);
+        logger.error('Failed to fetch sync logs:', error);
         res.status(500).json({ error: 'Failed to fetch logs' });
     }
 });

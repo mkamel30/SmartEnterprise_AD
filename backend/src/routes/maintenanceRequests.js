@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
@@ -76,7 +77,7 @@ router.get('/', async (req, res) => {
 
         res.json({ success: true, data: filtered, total: filtered.length });
     } catch (error) {
-        console.error('Failed to fetch maintenance requests:', error);
+        logger.error('Failed to fetch maintenance requests:', error);
         res.status(500).json({ error: 'Failed to fetch maintenance requests' });
     }
 });
@@ -138,7 +139,7 @@ router.get('/export', async (req, res) => {
 
         res.json({ success: true, data, count: data.length });
     } catch (error) {
-        console.error('Failed to export maintenance requests:', error);
+        logger.error('Failed to export maintenance requests:', error);
         res.status(500).json({ error: 'Failed to export maintenance requests' });
     }
 });
@@ -199,7 +200,7 @@ router.get('/summary', async (req, res) => {
             statusBreakdown
         });
     } catch (error) {
-        console.error('Failed to fetch summary:', error);
+        logger.error('Failed to fetch summary:', error);
         res.status(500).json({ error: 'Failed to fetch summary' });
     }
 });
