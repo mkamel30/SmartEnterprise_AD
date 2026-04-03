@@ -4,6 +4,7 @@ const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
 const syncQueueService = require('../services/syncQueue.service');
 const logger = require('../../utils/logger');
+const ExcelJS = require('exceljs');
 
 router.use(adminAuth);
 
@@ -266,6 +267,54 @@ router.delete('/:id', async (req, res) => {
     } catch (error) {
         logger.error('Failed to delete master spare part:', error);
         res.status(500).json({ error: 'Failed to delete master spare part' });
+    }
+});
+
+// Download template
+router.get('/template/download', async (req, res) => {
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const ws = workbook.addWorksheet('Spare Parts');
+        ws.columns = [
+            { header: 'Name', key: 'name' },
+            { header: 'Code', key: 'code' },
+            { header: 'Default Cost', key: 'defaultCost' },
+            { header: 'Category', key: 'category' }
+        ];
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=spare_parts_template.xlsx');
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        logger.error('Template generation failed:', error);
+        res.status(500).json({ error: 'Failed to generate template' });
+    }
+});
+
+// Export spare parts
+router.get('/export', async (req, res) => {
+    try {
+        const parts = await prisma.masterSparePart.findMany({
+            orderBy: { name: 'asc' }
+        });
+
+        const workbook = new ExcelJS.Workbook();
+        const ws = workbook.addWorksheet('Spare Parts');
+        ws.columns = [
+            { header: 'Name', key: 'name' },
+            { header: 'Code', key: 'code' },
+            { header: 'Default Cost', key: 'defaultCost' },
+            { header: 'Category', key: 'category' }
+        ];
+        parts.forEach(p => ws.addRow({ name: p.name, code: p.code, defaultCost: p.defaultCost, category: p.category || '' }));
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=spare_parts_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        logger.error('Export failed:', error);
+        res.status(500).json({ error: 'Failed to export spare parts' });
     }
 });
 

@@ -147,4 +147,104 @@ router.get('/summary', async (req, res) => {
     }
 });
 
+// Get all installments
+router.get('/installments', async (req, res) => {
+    try {
+        const { overdue, branchId } = req.query;
+        const now = new Date();
+        const where = {};
+        if (branchId) where.branchId = branchId;
+        if (overdue === 'true') {
+            where.isPaid = false;
+            where.dueDate = { lt: now };
+        }
+
+        const installments = await prisma.installment.findMany({
+            where,
+            include: {
+                branch: { select: { id: true, name: true } },
+                sale: { include: { customer: { select: { client_name: true, bkcode: true } } } }
+            },
+            orderBy: { dueDate: 'asc' },
+            take: 500
+        });
+
+        const formatted = installments.map(i => ({
+            id: i.id,
+            dueDate: i.dueDate,
+            amount: i.amount,
+            isPaid: i.isPaid,
+            branchId: i.branchId,
+            branchName: i.branch?.name || '-',
+            saleId: i.saleId,
+            customerName: i.sale?.customer?.client_name || '-',
+            customerCode: i.sale?.customer?.bkcode || '-',
+            serialNumber: i.sale?.serialNumber || '-',
+            daysOverdue: (!i.isPaid && i.dueDate < now) ? Math.floor((now - new Date(i.dueDate)) / (1000 * 60 * 60 * 24)) : 0
+        }));
+
+        res.json({ success: true, data: formatted, total: formatted.length });
+    } catch (error) {
+        logger.error('Failed to fetch installments:', error);
+        res.status(500).json({ error: 'Failed to fetch installments' });
+    }
+});
+
+// Pay installment
+router.post('/installments/:id/pay', async (req, res) => {
+    try {
+        const { amount, receiptNumber, paymentPlace } = req.body;
+        const installment = await prisma.installment.findUnique({ where: { id: req.params.id } });
+        if (!installment) return res.status(404).json({ error: 'Installment not found' });
+
+        const updated = await prisma.installment.update({
+            where: { id: req.params.id },
+            data: { isPaid: true, paidAmount: amount || installment.amount, receiptNumber, paymentPlace }
+        });
+
+        res.json({ success: true, data: updated });
+    } catch (error) {
+        logger.error('Failed to pay installment:', error);
+        res.status(500).json({ error: 'Failed to pay installment' });
+    }
+});
+
+// Recalculate installments
+router.put('/:saleId/recalculate', async (req, res) => {
+    try {
+        const { newCount } = req.body;
+        if (!newCount || newCount < 1) return res.status(400).json({ error: 'Valid count required' });
+
+        const sale = await prisma.machineSale.findUnique({
+            where: { id: req.params.saleId },
+            include: { installments: true }
+        });
+        if (!sale) return res.status(404).json({ error: 'Sale not found' });
+
+        const remaining = sale.totalPrice - sale.paidAmount;
+        const amountPerInstallment = remaining / newCount;
+
+        await prisma.installment.deleteMany({ where: { saleId: req.params.saleId, isPaid: false } });
+
+        const now = new Date();
+        for (let i = 0; i < newCount; i++) {
+            const dueDate = new Date(now);
+            dueDate.setMonth(dueDate.getMonth() + i + 1);
+            await prisma.installment.create({
+                data: {
+                    saleId: req.params.saleId,
+                    amount: amountPerInstallment,
+                    dueDate,
+                    branchId: sale.branchId
+                }
+            });
+        }
+
+        res.json({ success: true, message: `Recalculated to ${newCount} installments` });
+    } catch (error) {
+        logger.error('Failed to recalculate:', error);
+        res.status(500).json({ error: 'Failed to recalculate installments' });
+    }
+});
+
 module.exports = router;

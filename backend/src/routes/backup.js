@@ -44,7 +44,7 @@ router.post('/create', async (req, res) => {
         
         const dbUrl = process.env.DATABASE_URL;
         if (!dbUrl) {
-            return res.status(500).json({ error: 'DATABASE_URL not configured' });
+            return res.status(500).json({ error: 'Database connection not configured' });
         }
         
         const url = new URL(dbUrl);

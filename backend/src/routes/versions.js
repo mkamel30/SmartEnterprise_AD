@@ -323,7 +323,7 @@ router.get('/logs', authenticateToken, requireSuperAdmin, async (req, res) => {
     res.json({ success: true, logs, total, limit: parseInt(limit), offset: parseInt(offset) });
 });
 
-router.post('/:branchCode/status', authenticateToken, async (req, res) => {
+router.post('/:branchCode/status', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
     const { status, version, progress, errorMessage } = req.body;
 

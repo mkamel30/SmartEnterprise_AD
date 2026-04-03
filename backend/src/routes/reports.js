@@ -125,4 +125,117 @@ router.get('/inventory-valuation', async (req, res) => {
     }
 });
 
+router.get('/movements', async (req, res) => {
+    try {
+        const { branchId, startDate, endDate } = req.query;
+        const where = {};
+        if (branchId) where.branchId = branchId;
+        if (startDate || endDate) {
+            where.createdAt = {};
+            if (startDate) where.createdAt.gte = new Date(startDate);
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                where.createdAt.lte = end;
+            }
+        }
+
+        const movements = await prisma.stockMovement.findMany({
+            where,
+            include: { branch: { select: { id: true, name: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 500
+        });
+
+        res.json({ success: true, data: movements, total: movements.length });
+    } catch (error) {
+        logger.error('Movements report failed:', error);
+        res.status(500).json({ error: 'Failed to fetch movements' });
+    }
+});
+
+router.get('/performance', async (req, res) => {
+    try {
+        const { branchId, startDate, endDate } = req.query;
+        const where = {};
+        if (branchId) where.branchId = branchId;
+        if (startDate || endDate) {
+            where.createdAt = {};
+            if (startDate) where.createdAt.gte = new Date(startDate);
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                where.createdAt.lte = end;
+            }
+        }
+
+        const [requests, payments] = await Promise.all([
+            prisma.maintenanceRequest.findMany({ where, select: { id: true, status: true, branchId: true, createdAt: true } }),
+            prisma.payment.findMany({ where, select: { amount: true, branchId: true, createdAt: true } })
+        ]);
+
+        res.json({ success: true, requests: requests.length, totalRevenue: payments.reduce((s, p) => s + p.amount, 0) });
+    } catch (error) {
+        logger.error('Performance report failed:', error);
+        res.status(500).json({ error: 'Failed to fetch performance' });
+    }
+});
+
+router.get('/executive', async (req, res) => {
+    try {
+        const { branchId, startDate, endDate } = req.query;
+        const where = branchId ? { branchId } : {};
+
+        const [branches, totalRevenue, totalRequests, totalCustomers] = await Promise.all([
+            prisma.branch.findMany({ where: { isActive: true }, select: { id: true, code: true, name: true, status: true } }),
+            prisma.payment.aggregate({ where, _sum: { amount: true }, _count: true }),
+            prisma.maintenanceRequest.count(where),
+            prisma.customer.count(where)
+        ]);
+
+        res.json({
+            success: true,
+            branches,
+            totalRevenue: totalRevenue._sum.amount || 0,
+            totalRequests,
+            totalCustomers
+        });
+    } catch (error) {
+        logger.error('Executive report failed:', error);
+        res.status(500).json({ error: 'Failed to fetch executive report' });
+    }
+});
+
+router.get('/monthly-closing', async (req, res) => {
+    try {
+        const { month, branchId } = req.query;
+        if (!month) return res.status(400).json({ error: 'Month is required' });
+
+        const monthDate = new Date(month);
+        const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+        const where = { createdAt: { gte: start, lte: end } };
+        if (branchId) where.branchId = branchId;
+
+        const [payments, requests, sales] = await Promise.all([
+            prisma.payment.aggregate({ where, _sum: { amount: true }, _count: true }),
+            prisma.maintenanceRequest.count(where),
+            prisma.machineSale.count({ where: { saleDate: { gte: start, lte: end }, ...(branchId ? { branchId } : {}) } })
+        ]);
+
+        res.json({
+            success: true,
+            month,
+            totalRevenue: payments._sum.amount || 0,
+            paymentCount: payments._count,
+            requestCount: requests,
+            salesCount: sales
+        });
+    } catch (error) {
+        logger.error('Monthly closing failed:', error);
+        res.status(500).json({ error: 'Failed to fetch monthly closing' });
+    }
+});
+
 module.exports = router;

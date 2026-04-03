@@ -198,4 +198,47 @@ router.get('/summary', async (req, res) => {
     }
 });
 
+// Get payment stats
+router.get('/stats', async (req, res) => {
+    try {
+        const { branchId } = req.query;
+        const where = branchId ? { branchId } : {};
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const [totalThisMonth, totalAll] = await Promise.all([
+            prisma.payment.aggregate({ where: { ...where, createdAt: { gte: monthStart } }, _sum: { amount: true }, _count: true }),
+            prisma.payment.aggregate({ where, _sum: { amount: true }, _count: true })
+        ]);
+
+        res.json({
+            totalThisMonth: totalThisMonth._sum.amount || 0,
+            countThisMonth: totalThisMonth._count,
+            totalAll: totalAll._sum.amount || 0,
+            countAll: totalAll._count
+        });
+    } catch (error) {
+        logger.error('Payment stats failed:', error);
+        res.status(500).json({ error: 'Failed to fetch payment stats' });
+    }
+});
+
+// Check receipt
+router.get('/check-receipt', async (req, res) => {
+    try {
+        const { number } = req.query;
+        if (!number) return res.status(400).json({ error: 'Receipt number required' });
+
+        const exists = await prisma.payment.findFirst({
+            where: { receiptNumber: number },
+            select: { id: true }
+        });
+
+        res.json({ exists: !!exists });
+    } catch (error) {
+        logger.error('Check receipt failed:', error);
+        res.status(500).json({ error: 'Failed to check receipt' });
+    }
+});
+
 module.exports = router;

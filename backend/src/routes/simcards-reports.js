@@ -65,7 +65,7 @@ router.get('/movements', async (req, res) => {
         const movements = await prisma.simMovementLog.findMany({
             where,
             include: {
-                Branch: { select: { id: true, name: true } }
+                branch: { select: { id: true, name: true } }
             },
             orderBy: { createdAt: 'desc' },
             take: 500
@@ -75,7 +75,7 @@ router.get('/movements', async (req, res) => {
             id: m.id,
             date: m.createdAt,
             branchId: m.branchId,
-            branchName: m.Branch?.name || '-',
+            branchName: m.branch?.name || '-',
             simId: m.simId,
             serialNumber: m.serialNumber,
             action: m.action,

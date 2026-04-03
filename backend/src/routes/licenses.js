@@ -257,7 +257,7 @@ router.post('/verify', async (req, res) => {
     }
 });
 
-router.post('/suspend', async (req, res) => {
+router.post('/suspend', adminAuth, async (req, res) => {
     try {
         const { licenseKey, reason } = req.body;
 
@@ -292,7 +292,7 @@ router.post('/suspend', async (req, res) => {
     }
 });
 
-router.post('/revoke', async (req, res) => {
+router.post('/revoke', adminAuth, async (req, res) => {
     try {
         const { licenseKey, reason } = req.body;
 

@@ -52,7 +52,6 @@ router.post('/validate', async (req, res) => {
                 email: user.email,
                 displayName: user.displayName,
                 role: user.role,
-                password: user.password, // hashed — saved locally for future login
                 branchId: user.branchId
             },
             branch: {

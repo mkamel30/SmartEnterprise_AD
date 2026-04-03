@@ -633,4 +633,75 @@ router.post('/:id/pull-inventory', adminAuth, async (req, res) => {
     }
 });
 
+// Get active branches
+router.get('/active', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            where: { isActive: true },
+            orderBy: { name: 'asc' }
+        });
+        res.json(branches);
+    } catch (error) {
+        logger.error('Failed to fetch active branches:', error);
+        res.status(500).json({ error: 'Failed to fetch active branches' });
+    }
+});
+
+// Get branches by type
+router.get('/type/:type', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            where: { type: req.params.type },
+            orderBy: { name: 'asc' }
+        });
+        res.json(branches);
+    } catch (error) {
+        logger.error('Failed to fetch branches by type:', error);
+        res.status(500).json({ error: 'Failed to fetch branches' });
+    }
+});
+
+// Get maintenance centers with branches
+router.get('/centers/with-branches', async (req, res) => {
+    try {
+        const centers = await prisma.branch.findMany({
+            where: { type: 'MAINTENANCE_CENTER', isActive: true },
+            include: { childBranches: true },
+            orderBy: { name: 'asc' }
+        });
+        res.json(centers);
+    } catch (error) {
+        logger.error('Failed to fetch centers:', error);
+        res.status(500).json({ error: 'Failed to fetch centers' });
+    }
+});
+
+// Get branches for a center
+router.get('/center/:centerId/branches', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            where: { parentBranchId: req.params.centerId, isActive: true },
+            orderBy: { name: 'asc' }
+        });
+        res.json(branches);
+    } catch (error) {
+        logger.error('Failed to fetch center branches:', error);
+        res.status(500).json({ error: 'Failed to fetch branches' });
+    }
+});
+
+// Get authorized branches
+router.get('/authorized', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            where: { isActive: true, authorizedHWID: { not: null } },
+            orderBy: { name: 'asc' }
+        });
+        res.json(branches);
+    } catch (error) {
+        logger.error('Failed to fetch authorized branches:', error);
+        res.status(500).json({ error: 'Failed to fetch authorized branches' });
+    }
+});
+
 module.exports = router;

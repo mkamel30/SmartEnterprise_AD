@@ -330,19 +330,6 @@ router.post('/request-full-sync/:branchId', adminAuth, async (req, res) => {
     }
 });
 
-
-
-// HTTP fallback: get branch stock for a specific part (called by admin socket handler)
-router.get('/branch-stock/:branchId/:partId', adminAuth, async (req, res) => {
-    try {
-        const { branchId, partId } = req.params;
-        res.json({ stock: [], branchId, partId, note: 'Branch stock queried via WebSocket' });
-    } catch (error) {
-        logger.error({ err: error.message }, 'Branch stock query failed');
-        res.status(500).json({ error: 'فشل في استعلام مخزون الفرع' });
-    }
-});
-
 // GET /sync/logs - Portal sync logs (paginated, filterable by branch)
 router.get('/logs', adminAuth, async (req, res) => {
     try {

@@ -155,4 +155,36 @@ router.put('/preferences', adminAuth, validate(preferencesSchema), async (req, r
     }
 });
 
+// Logout
+router.post('/logout', adminAuth, async (req, res) => {
+    return success(res, { message: 'Logged out successfully' });
+});
+
+// Change password
+router.post('/change-password', adminAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return apiError(res, 'Current and new password are required', 400);
+        }
+
+        const admin = await prisma.adminUser.findUnique({ where: { id: req.admin.id } });
+        if (!admin) return apiError(res, 'User not found', 404);
+
+        const isMatch = await bcrypt.compare(currentPassword, admin.passwordHash);
+        if (!isMatch) return apiError(res, 'Current password is incorrect', 401);
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.adminUser.update({
+            where: { id: admin.id },
+            data: { passwordHash: hashedPassword }
+        });
+
+        return success(res, { message: 'Password changed successfully' });
+    } catch (error) {
+        logger.error('Change password failed:', error);
+        return apiError(res, 'Failed to change password', 500);
+    }
+});
+
 module.exports = router;

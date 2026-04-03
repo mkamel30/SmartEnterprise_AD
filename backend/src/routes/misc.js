@@ -14,7 +14,12 @@ router.post('/ai', async (req, res) => {
 
 // --- User Info Helper (Commonly called) ---
 router.get('/info', async (req, res) => {
-    res.json(req.admin);
+    res.json({
+        id: req.admin.id,
+        username: req.admin.username,
+        name: req.admin.name,
+        role: req.admin.role
+    });
 });
 
 // --- Notifications ---
