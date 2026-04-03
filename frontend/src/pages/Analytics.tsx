@@ -126,9 +126,9 @@ export default function AnalyticsDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">الإيرادات حسب الفرع</h3>
-                    <div className="h-64" dir="ltr">
+                    <div className="h-64 w-full" dir="ltr">
                         {branchBreakdown.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <BarChart data={branchBreakdown}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                     <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
@@ -147,9 +147,9 @@ export default function AnalyticsDashboard() {
 
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">حالات الصيانة</h3>
-                    <div className="h-64">
+                    <div className="h-64 w-full">
                         {maintenanceStatusData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <PieChart>
                                     <Pie data={maintenanceStatusData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, value }: any) => `${name}: ${value}`}>
                                         {maintenanceStatusData.map((_entry: any, index: number) => (<Cell key={index} fill={COLORS[index % COLORS.length]} />))}

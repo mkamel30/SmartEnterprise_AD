@@ -754,7 +754,7 @@ export default function Reports() {
                     </div>
                     <div className="h-72 w-full" dir="ltr">
                         <div style={{ width: '100%', height: 300 }}>
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <BarChart data={data?.branchBreakdown || []}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                     <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
