@@ -296,6 +296,7 @@ model Branch {
   users                User[]
   warehouseMachines    WarehouseMachine[]
   warehouseSims        WarehouseSim[]
+  entitySynces         BranchEntitySync[]
 }
 
 model Customer {
@@ -827,4 +828,21 @@ model UserSyncLog {
 
   @@index([branchCode])
   @@index([syncedAt])
+}
+
+model BranchEntitySync {
+  id           String   @id @default(cuid())
+  branchId     String
+  entityType   String
+  lastSyncedAt DateTime
+  recordCount  Int      @default(0)
+  status       String   @default("SUCCESS")
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  branch       Branch   @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, entityType])
+  @@index([branchId])
+  @@index([lastSyncedAt])
 }

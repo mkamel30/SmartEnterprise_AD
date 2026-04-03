@@ -132,6 +132,9 @@ require('./src/sockets/admin.socket')(io);
 const syncQueueService = require('./src/services/syncQueue.service');
 syncQueueService.init(io);
 
+const cleanupService = require('./src/services/cleanup.service');
+cleanupService.scheduleDailyCleanup();
+
 const path = require('path');
 const frontendDist = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendDist));

@@ -6,7 +6,7 @@ import {
     RefreshCw, Settings2, LogOut, RotateCcw,
     Menu, ChevronDown, ZoomIn, ZoomOut,
     TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package, Calendar,
-    BarChart3, UserCircle
+    BarChart3, UserCircle, Activity
 } from 'lucide-react';
 
 interface NavItem {
@@ -67,6 +67,7 @@ const utilityItems: NavItem[] = [
     { id: 'software-updates', name: 'التحديثات', href: '/software-updates', icon: Github },
     { id: 'license-manager', name: 'التراخيص', href: '/license-manager', icon: Key },
     { id: 'sync-status', name: 'المزامنة', href: '/sync-status', icon: RefreshCw },
+    { id: 'sync-monitoring', name: 'مراقبة المزامنة', href: '/sync-monitoring', icon: Activity },
     { id: 'version-logs', name: 'الإصدارات', href: '/version-logs', icon: RotateCcw },
     { id: 'settings', name: 'الإعدادات', href: '/settings', icon: Settings2 },
 ];

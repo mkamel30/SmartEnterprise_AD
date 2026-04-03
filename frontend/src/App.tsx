@@ -17,6 +17,7 @@ import { Toaster } from 'react-hot-toast';
 import SoftwareUpdates from './pages/SoftwareUpdates';
 import LicenseManager from './pages/LicenseManager';
 import Analytics from './pages/Analytics';
+import SyncMonitoring from './pages/SyncMonitoring';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,7 +30,7 @@ const queryClient = new QueryClient({
 });
 
 const SUPER_ADMIN_ROUTES = [
-  '/', '/branches', '/users', '/analytics', '/sync-status',
+  '/', '/branches', '/users', '/analytics', '/sync-status', '/sync-monitoring',
   '/reports', '/reports/financial', '/reports/movements', '/reports/requests',
   '/reports/payments', '/reports/sales', '/reports/installments',
   '/reports/inventory', '/reports/simcards', '/reports/price-history',
@@ -37,7 +38,7 @@ const SUPER_ADMIN_ROUTES = [
 ];
 
 const BRANCH_ADMIN_ROUTES = [
-  '/', '/analytics', '/sync-status',
+  '/', '/analytics', '/sync-status', '/sync-monitoring',
   '/reports', '/reports/financial', '/reports/movements', '/reports/requests',
   '/reports/payments', '/reports/sales', '/reports/installments',
   '/reports/inventory', '/reports/simcards', '/reports/price-history',
@@ -97,6 +98,7 @@ function AppRoutes() {
     { path: '/users', element: <UsersPage /> },
     { path: '/analytics', element: <Analytics /> },
     { path: '/sync-status', element: <SyncStatus /> },
+    { path: '/sync-monitoring', element: <SyncMonitoring /> },
     { path: '/reports', element: <Reports /> },
     { path: '/reports/financial', element: <Reports /> },
     { path: '/reports/movements', element: <Reports /> },

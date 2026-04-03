@@ -1,8 +1,22 @@
 const prisma = require('../db');
 const syncQueueService = require('../services/syncQueue.service');
 const logger = require('../../utils/logger');
+const {
+    paymentItemSchema,
+    maintenanceRequestSchema,
+    stockMovementSchema,
+    machineSaleSchema,
+    installmentSchema,
+    simCardSchema,
+    simMovementSchema,
+    warehouseMachineSchema,
+    warehouseSimSchema,
+    posMachineSchema,
+    customerSchema,
+    validateEntityArray
+} = require('../routes/sync.schema');
 
-const ALLOWED_WAREHOUSE_MACHINE_FIELDS = ['serialNumber', 'model', 'manufacturer', 'status', 'resolution', 'notes', 'complaint', 'importDate', 'updatedAt', 'originalOwnerId', 'readyForPickup'];
+const ALLOWED_WAREHOUSE_MACHINE_FIELDS = ['serialNumber', 'model', 'manufacturer', 'status', 'resolution', 'notes', 'complaint', 'importDate', 'updatedAt', 'originalOwnerId', 'readyForPickup', 'requestId', 'customerId', 'customerName', 'customerBkcode'];
 const ALLOWED_MACHINE_SALE_FIELDS = ['serialNumber', 'customerId', 'saleDate', 'type', 'totalPrice', 'paidAmount', 'status', 'notes'];
 const ALLOWED_WAREHOUSE_SIM_FIELDS = ['serialNumber', 'type', 'networkType', 'status', 'notes', 'importDate', 'updatedAt'];
 const ALLOWED_STOCK_MOVEMENT_FIELDS = ['partId', 'type', 'quantity', 'reason', 'requestId', 'userId', 'performedBy', 'isPaid', 'receiptNumber', 'customerId', 'customerName', 'machineSerial', 'machineModel', 'paymentPlace'];
@@ -31,6 +45,16 @@ async function logPortalSync(branchId, branchCode, branchName, type, status, mes
             data: { branchId, branchCode, branchName, type, status, message, itemCount }
         });
     } catch (e) { logger.error({ err: e.message }, 'Failed to log portal sync'); }
+}
+
+async function updateBranchEntitySync(branchId, entityType, recordCount, status, errorMessage = null) {
+    try {
+        await prisma.branchEntitySync.upsert({
+            where: { branchId_entityType: { branchId, entityType } },
+            update: { lastSyncedAt: new Date(), recordCount, status, errorMessage },
+            create: { branchId, entityType, lastSyncedAt: new Date(), recordCount, status, errorMessage }
+        });
+    } catch (e) { logger.error({ err: e.message }, `Failed to update entity sync for ${entityType}`); }
 }
 
 module.exports = (io) => {
@@ -96,12 +120,11 @@ module.exports = (io) => {
                 }
             }).then(branch => {
                 if (branch) {
-                    logPortalSync(socket.branchId, socket.branchCode, branch.name, 'CONNECT', 'SUCCESS', `${socket.branchCode} (${branch.name}) اتصل عبر WebSocket`);
+                    logPortalSync(socket.branchId, socket.branchCode, branch.name, 'CONNECT', 'SUCCESS', `${socket.branchCode} (${branch.name}) connected via WebSocket`);
                 }
             }).catch((e) => { logger.error({ err: e.message }, 'Failed to update branch status on connect'); });
 
             socket.join(`branch_${socket.branchId}`);
-
             syncQueueService.pushPendingToBranch(socket.branchId);
         }
 
@@ -139,15 +162,9 @@ module.exports = (io) => {
                     result.users = await prisma.user.findMany({
                         where: { isActive: true, branchId: socket.branchId },
                         select: {
-                            id: true,
-                            uid: true,
-                            username: true,
-                            email: true,
-                            displayName: true,
-                            role: true,
-                            isActive: true,
-                            branchId: true,
-                            createdAt: true
+                            id: true, uid: true, username: true, email: true,
+                            displayName: true, role: true, isActive: true,
+                            branchId: true, createdAt: true
                         }
                     });
                 }
@@ -166,6 +183,7 @@ module.exports = (io) => {
                 }
 
                 socket.emit('portal_sync_response', { success: true, data: result });
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PULL', 'SUCCESS', `${socket.branchCode} pulled master data`);
                 logger.info(`[Sync] Sent sync response to branch ${socket.branchCode}`);
             } catch (error) {
                 logger.error('[Sync] Error serving sync request:', error.message);
@@ -190,22 +208,22 @@ module.exports = (io) => {
                         });
                         logger.info(`[Sync] User '${user.username}' deactivated on portal`);
                     } else {
-                             const { id, uid, username, email, displayName, role, isActive } = cleanUser;
-                             const existingUser = id ? await prisma.user.findUnique({ where: { id } }) 
-                                                : (username ? await prisma.user.findFirst({ where: { username, branchId: targetBranch?.id } }) : null);
-     
-                             if (existingUser) {
-                                 await prisma.user.update({
-                                     where: { id: existingUser.id },
-                                     data: { uid, email, displayName, role, isActive, branchId: targetBranch?.id }
-                                 });
-                                 logger.info(`[Sync] User '${username}' updated from branch ${targetBranchCode}`);
-                             } else {
-                                 await prisma.user.create({
-                                     data: { id, uid, username, email, displayName, role, isActive, branchId: targetBranch?.id }
-                                 });
-                                 logger.info(`[Sync] User '${username}' created from branch ${targetBranchCode}`);
-                             }
+                        const { id, uid, username, email, displayName, role, isActive } = cleanUser;
+                        const existingUser = id ? await prisma.user.findUnique({ where: { id } }) 
+                            : (username ? await prisma.user.findFirst({ where: { username, branchId: targetBranch?.id } }) : null);
+
+                        if (existingUser) {
+                            await prisma.user.update({
+                                where: { id: existingUser.id },
+                                data: { uid, email, displayName, role, isActive, branchId: targetBranch?.id }
+                            });
+                            logger.info(`[Sync] User '${username}' updated from branch ${targetBranchCode}`);
+                        } else {
+                            await prisma.user.create({
+                                data: { id, uid, username, email, displayName, role, isActive, branchId: targetBranch?.id }
+                            });
+                            logger.info(`[Sync] User '${username}' created from branch ${targetBranchCode}`);
+                        }
                     }
 
                     await prisma.userSyncLog.create({
@@ -214,7 +232,7 @@ module.exports = (io) => {
                             userId: cleanUser.id,
                             username: user.username,
                             email: user.email,
-                            action: cleanUser._deleted ? 'DELETED' : (existingUser ? 'SYNCED' : 'CREATED'),
+                            action: cleanUser._deleted ? 'DELETED' : 'SYNCED',
                             source: 'BRANCH',
                             status: 'SUCCESS'
                         }
@@ -222,7 +240,6 @@ module.exports = (io) => {
                 }
             } catch (error) {
                 logger.error('[Sync] Error upserting user from branch:', error.message);
-                
                 await prisma.userSyncLog.create({
                     data: {
                         branchCode: branchCode || socket.branchCode,
@@ -250,26 +267,28 @@ module.exports = (io) => {
                                 where: { id: cleanUser.id },
                                 data: { isActive: false }
                             }).catch(() => {});
-                         } else {
-                             const { id, uid, username, email, displayName, role, isActive } = cleanUser;
-                             const existingUser = id ? await prisma.user.findUnique({ where: { id } }) : null;
-                             if (existingUser) {
-                                 await prisma.user.update({
-                                     where: { id },
-                                     data: { uid, username, email, displayName, role, isActive, branchId: socket.branchId }
-                                 });
-                             } else {
-                                 await prisma.user.create({
-                                     data: { id, uid, username, email, displayName, role, isActive, branchId: socket.branchId }
-                                 });
-                             }
-                         }
+                        } else {
+                            const { id, uid, username, email, displayName, role, isActive } = cleanUser;
+                            const existingUser = id ? await prisma.user.findUnique({ where: { id } }) : null;
+                            if (existingUser) {
+                                await prisma.user.update({
+                                    where: { id },
+                                    data: { uid, username, email, displayName, role, isActive, branchId: socket.branchId }
+                                });
+                            } else {
+                                await prisma.user.create({
+                                    data: { id, uid, username, email, displayName, role, isActive, branchId: socket.branchId }
+                                });
+                            }
+                        }
                     }
                 }
 
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Full push: ${users?.length || 0} users, ${machineParams?.length || 0} params`);
                 logger.info(`[Sync] Full Push completed for branch ${socket.branchCode}`);
             } catch (error) {
                 logger.error('[Sync] Full Push processing failed:', error.message);
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Full push failed: ${error.message}`);
             }
         });
 
@@ -328,11 +347,13 @@ module.exports = (io) => {
                         await prisma.$transaction(validItems);
                     }
                     
-                    logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'SUCCESS', `تم تحديث مخزون ${inventory.length} قطعة غيار`, inventory.length);
+                    await updateBranchEntitySync(socket.branchId, 'inventory', inventory.length, 'SUCCESS');
+                    logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Updated inventory: ${inventory.length} parts`, inventory.length);
                 }
             } catch (error) {
                 logger.error('[Sync] Error processing inventory push:', error.message);
-                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'FAILED', `فشل تحديث المخزون: ${error.message}`);
+                await updateBranchEntitySync(socket.branchId, 'inventory', 0, 'FAILED', error.message);
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Inventory push failed: ${error.message}`);
             }
         });
 
@@ -343,77 +364,98 @@ module.exports = (io) => {
             logger.info(`[Sync] Received data push (${Object.keys(entities || {}).length} types) from branch ${branchCode || socket.branchCode}`);
 
             try {
-                if (entities.machines) {
-                    for (const m of entities.machines) {
+                const results = {};
+                let totalSynced = 0;
+
+                if (entities.machines && Array.isArray(entities.machines)) {
+                    const ops = entities.machines.map(m => {
                         const safe = pickFields(m, ALLOWED_WAREHOUSE_MACHINE_FIELDS);
-                        await prisma.warehouseMachine.upsert({
+                        return prisma.warehouseMachine.upsert({
                             where: { serialNumber: m.serialNumber },
                             update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
                             create: { ...safe, branchId: socket.branchId }
                         });
-                    }
+                    });
+                    await prisma.$transaction(ops);
+                    results.warehouseMachines = entities.machines.length;
+                    totalSynced += entities.machines.length;
                 }
 
-                if (entities.sales) {
-                    for (const s of entities.sales) {
+                if (entities.sales && Array.isArray(entities.sales)) {
+                    const ops = entities.sales.map(s => {
                         const safe = pickFields(s, ALLOWED_MACHINE_SALE_FIELDS);
-                        await prisma.machineSale.upsert({
+                        return prisma.machineSale.upsert({
                             where: { id: s.id },
                             update: { ...safe, branchId: socket.branchId },
                             create: { ...safe, branchId: socket.branchId }
                         });
-                    }
+                    });
+                    await prisma.$transaction(ops);
+                    results.machineSales = entities.sales.length;
+                    totalSynced += entities.sales.length;
                 }
 
-                if (entities.sims) {
-                    for (const sim of entities.sims) {
+                if (entities.sims && Array.isArray(entities.sims)) {
+                    const ops = entities.sims.map(sim => {
                         const safe = pickFields(sim, ALLOWED_WAREHOUSE_SIM_FIELDS);
-                        await prisma.warehouseSim.upsert({
+                        return prisma.warehouseSim.upsert({
                             where: { serialNumber: sim.serialNumber },
                             update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
                             create: { ...safe, branchId: socket.branchId }
                         });
-                    }
+                    });
+                    await prisma.$transaction(ops);
+                    results.warehouseSims = entities.sims.length;
+                    totalSynced += entities.sims.length;
                 }
 
-                if (entities.movements) {
+                if (entities.movements && Array.isArray(entities.movements)) {
                     const existingPartIds = new Set(
                         (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
                     );
-                    for (const mov of entities.movements) {
-                        if (mov.partId && !existingPartIds.has(mov.partId)) {
-                            logger.warn(`[Sync] Skipping StockMovement ${mov.id}: MasterSparePart ${mov.partId} not found`);
-                            continue;
-                        }
+                    const validMovements = entities.movements.filter(mov => !mov.partId || existingPartIds.has(mov.partId));
+                    const ops = validMovements.map(mov => {
                         const safe = pickFields(mov, ALLOWED_STOCK_MOVEMENT_FIELDS);
-                        await prisma.stockMovement.upsert({
+                        return prisma.stockMovement.upsert({
                             where: { id: mov.id },
                             update: { ...safe, branchId: socket.branchId },
                             create: { ...safe, branchId: socket.branchId }
                         });
-                    }
+                    });
+                    if (ops.length > 0) await prisma.$transaction(ops);
+                    results.stockMovements = entities.movements.length;
+                    totalSynced += entities.movements.length;
                 }
 
-                if (entities.payments) {
-                    for (const pay of entities.payments) {
+                if (entities.payments && Array.isArray(entities.payments)) {
+                    const ops = entities.payments.map(pay => {
                         const safe = pickFields(pay, ALLOWED_PAYMENT_FIELDS);
-                        await prisma.payment.upsert({
+                        return prisma.payment.upsert({
                             where: { id: pay.id },
                             update: { ...safe, branchId: socket.branchId },
                             create: { ...safe, branchId: socket.branchId }
                         });
-                    }
+                    });
+                    await prisma.$transaction(ops);
+                    results.payments = entities.payments.length;
+                    totalSynced += entities.payments.length;
                 }
 
-                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'SUCCESS', `تم تحديث بيانات التقارير (ماكينات، مبيعات، شرائح، حركات، مدفوعات)`);
+                for (const [entityType, count] of Object.entries(results)) {
+                    await updateBranchEntitySync(socket.branchId, entityType, count, 'SUCCESS');
+                }
+
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Data push: ${totalSynced} items`, totalSynced);
+                socket.emit('sync_ack', { status: 'SUCCESS', totalSynced, results });
             } catch (error) {
                 logger.error('[Sync] Error processing data push:', error.message);
-                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'FAILED', `فشل تحديث بيانات التقارير: ${error.message}`);
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Data push failed: ${error.message}`);
+                socket.emit('sync_ack', { status: 'FAILED', error: error.message });
             }
         });
 
         socket.on('branch_report_push', async (data) => {
-            const { branchCode, branchId: reportedBranchId, entities, timestamp } = data;
+            const { branchCode, entities, timestamp } = data;
             if (!socket.isBranch || !socket.branchId) return;
 
             logger.info(`[Sync] Received REPORT push (${Object.keys(entities || {}).length} types) from branch ${branchCode || socket.branchCode}`);
@@ -421,169 +463,231 @@ module.exports = (io) => {
             try {
                 let totalSynced = 0;
                 const results = {};
+                const errors = {};
 
                 if (entities.maintenanceRequests && Array.isArray(entities.maintenanceRequests)) {
-                    for (const r of entities.maintenanceRequests) {
-                        const safe = pickFields(r, ALLOWED_MAINTENANCE_REQUEST_FIELDS);
-                        await prisma.maintenanceRequest.upsert({
-                            where: { id: r.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.maintenanceRequests, maintenanceRequestSchema, 'maintenanceRequests');
+                    if (validation.errors.length > 0) {
+                        errors.maintenanceRequests = validation.errors;
+                        logger.warn(`[Sync] Validation errors in maintenanceRequests: ${validation.errors.length} records skipped`);
                     }
-                    results.maintenanceRequests = entities.maintenanceRequests.length;
-                    totalSynced += entities.maintenanceRequests.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.maintenanceRequest.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.maintenanceRequests = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.payments && Array.isArray(entities.payments)) {
-                    for (const p of entities.payments) {
-                        const safe = pickFields(p, ALLOWED_PAYMENT_FIELDS);
-                        await prisma.payment.upsert({
-                            where: { id: p.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.payments, paymentItemSchema, 'payments');
+                    if (validation.errors.length > 0) {
+                        errors.payments = validation.errors;
+                        logger.warn(`[Sync] Validation errors in payments: ${validation.errors.length} records skipped`);
                     }
-                    results.payments = entities.payments.length;
-                    totalSynced += entities.payments.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.payment.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.payments = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
                     const existingPartIds = new Set(
                         (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
                     );
-                    for (const m of entities.stockMovements) {
-                        if (m.partId && !existingPartIds.has(m.partId)) {
-                            logger.warn(`[Sync] Skipping StockMovement ${m.id}: MasterSparePart ${m.partId} not found`);
-                            continue;
-                        }
-                        const safe = pickFields(m, ALLOWED_STOCK_MOVEMENT_FIELDS);
-                        await prisma.stockMovement.upsert({
-                            where: { id: m.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validMovements = entities.stockMovements.filter(m => !m.partId || existingPartIds.has(m.partId));
+                    const validation = validateEntityArray(validMovements, stockMovementSchema, 'stockMovements');
+                    if (validation.errors.length > 0) {
+                        errors.stockMovements = validation.errors;
                     }
-                    results.stockMovements = entities.stockMovements.length;
-                    totalSynced += entities.stockMovements.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.stockMovement.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.stockMovements = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.machineSales && Array.isArray(entities.machineSales)) {
-                    for (const s of entities.machineSales) {
-                        const safe = pickFields(s, ALLOWED_MACHINE_SALE_FIELDS);
-                        await prisma.machineSale.upsert({
-                            where: { id: s.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.machineSales, machineSaleSchema, 'machineSales');
+                    if (validation.errors.length > 0) {
+                        errors.machineSales = validation.errors;
                     }
-                    results.machineSales = entities.machineSales.length;
-                    totalSynced += entities.machineSales.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.machineSale.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.machineSales = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.installments && Array.isArray(entities.installments)) {
-                    for (const i of entities.installments) {
-                        const safe = pickFields(i, ALLOWED_INSTALLMENT_FIELDS);
-                        await prisma.installment.upsert({
-                            where: { id: i.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.installments, installmentSchema, 'installments');
+                    if (validation.errors.length > 0) {
+                        errors.installments = validation.errors;
                     }
-                    results.installments = entities.installments.length;
-                    totalSynced += entities.installments.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.installment.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.installments = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.simCards && Array.isArray(entities.simCards)) {
-                    for (const sim of entities.simCards) {
-                        const safe = pickFields(sim, ALLOWED_SIM_CARD_FIELDS);
-                        await prisma.simCard.upsert({
-                            where: { id: sim.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.simCards, simCardSchema, 'simCards');
+                    if (validation.errors.length > 0) {
+                        errors.simCards = validation.errors;
                     }
-                    results.simCards = entities.simCards.length;
-                    totalSynced += entities.simCards.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.simCard.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.simCards = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.simMovements && Array.isArray(entities.simMovements)) {
-                    for (const m of entities.simMovements) {
-                        const safe = pickFields(m, ALLOWED_SIM_MOVEMENT_FIELDS);
-                        await prisma.simMovementLog.upsert({
-                            where: { id: m.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.simMovements, simMovementSchema, 'simMovements');
+                    if (validation.errors.length > 0) {
+                        errors.simMovements = validation.errors;
                     }
-                    results.simMovements = entities.simMovements.length;
-                    totalSynced += entities.simMovements.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.simMovementLog.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.simMovements = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.warehouseMachines && Array.isArray(entities.warehouseMachines)) {
-                    for (const m of entities.warehouseMachines) {
-                        const safe = pickFields(m, ALLOWED_WAREHOUSE_MACHINE_FIELDS);
-                        await prisma.warehouseMachine.upsert({
-                            where: { serialNumber: m.serialNumber },
-                            update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.warehouseMachines, warehouseMachineSchema, 'warehouseMachines');
+                    if (validation.errors.length > 0) {
+                        errors.warehouseMachines = validation.errors;
                     }
-                    results.warehouseMachines = entities.warehouseMachines.length;
-                    totalSynced += entities.warehouseMachines.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.warehouseMachine.upsert({
+                            where: { serialNumber: r.serialNumber },
+                            update: { ...r, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.warehouseMachines = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.warehouseSims && Array.isArray(entities.warehouseSims)) {
-                    for (const s of entities.warehouseSims) {
-                        const safe = pickFields(s, ALLOWED_WAREHOUSE_SIM_FIELDS);
-                        await prisma.warehouseSim.upsert({
-                            where: { serialNumber: s.serialNumber },
-                            update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.warehouseSims, warehouseSimSchema, 'warehouseSims');
+                    if (validation.errors.length > 0) {
+                        errors.warehouseSims = validation.errors;
                     }
-                    results.warehouseSims = entities.warehouseSims.length;
-                    totalSynced += entities.warehouseSims.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.warehouseSim.upsert({
+                            where: { serialNumber: r.serialNumber },
+                            update: { ...r, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.warehouseSims = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.posMachines && Array.isArray(entities.posMachines)) {
-                    for (const p of entities.posMachines) {
-                        const safe = pickFields(p, ALLOWED_POS_MACHINE_FIELDS);
-                        await prisma.posMachine.upsert({
-                            where: { id: p.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.posMachines, posMachineSchema, 'posMachines');
+                    if (validation.errors.length > 0) {
+                        errors.posMachines = validation.errors;
                     }
-                    results.posMachines = entities.posMachines.length;
-                    totalSynced += entities.posMachines.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.posMachine.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.posMachines = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
                 if (entities.customers && Array.isArray(entities.customers)) {
-                    for (const c of entities.customers) {
-                        const safe = pickFields(c, ALLOWED_CUSTOMER_FIELDS);
-                        await prisma.customer.upsert({
-                            where: { id: c.id },
-                            update: { ...safe, branchId: socket.branchId },
-                            create: { ...safe, branchId: socket.branchId }
-                        });
+                    const validation = validateEntityArray(entities.customers, customerSchema, 'customers');
+                    if (validation.errors.length > 0) {
+                        errors.customers = validation.errors;
                     }
-                    results.customers = entities.customers.length;
-                    totalSynced += entities.customers.length;
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.customer.upsert({
+                            where: { id: r.id },
+                            update: { ...r, branchId: socket.branchId },
+                            create: { ...r, branchId: socket.branchId }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.customers = validation.results.length;
+                    totalSynced += validation.results.length;
                 }
 
-                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'SUCCESS', `تم تحديث جميع بيانات التقارير (${totalSynced} عنصر)`, totalSynced);
-                logger.info(`[Sync] Report push completed for ${branchCode}: ${totalSynced} items synced`);
+                for (const [entityType, count] of Object.entries(results)) {
+                    await updateBranchEntitySync(socket.branchId, entityType, count, Object.keys(errors).includes(entityType) ? 'PARTIAL' : 'SUCCESS');
+                }
+
+                const hasErrors = Object.keys(errors).length > 0;
+                const status = hasErrors ? 'PARTIAL' : 'SUCCESS';
+                const msg = hasErrors
+                    ? `Report push: ${totalSynced} items (${Object.keys(errors).length} entity types with validation errors)`
+                    : `Report push: ${totalSynced} items synced successfully`;
+
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', status, msg, totalSynced);
+                logger.info(`[Sync] Report push completed for ${branchCode}: ${totalSynced} items, status: ${status}`);
+
+                socket.emit('sync_ack', {
+                    status,
+                    totalSynced,
+                    results,
+                    errors: Object.keys(errors).length > 0 ? Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, v.length])) : null
+                });
             } catch (error) {
                 logger.error('[Sync] Error processing report push:', error.message);
-                logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'FAILED', `فشل تحديث بيانات التقارير: ${error.message}`);
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Report push failed: ${error.message}`);
+                socket.emit('sync_ack', { status: 'FAILED', error: error.message });
             }
         });
 
         socket.on('disconnect', async () => {
             logger.info(`[Socket] Branch Disconnected: ${socket.branchCode}`);
             if (socket.branchId && socket.isBranch) {
-                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) انقطع`);
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) disconnected`);
                 try {
                     await prisma.branch.update({
                         where: { id: socket.branchId },
