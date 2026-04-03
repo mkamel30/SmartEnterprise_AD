@@ -97,8 +97,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 5, 70));
 
     return (
-        <div className="flex bg-[#f8fafc] text-[#0f172a] overflow-hidden h-screen" dir="rtl">
-            {/* Mobile Overlay */}
+        <div className="flex bg-gray-50 text-gray-900 overflow-hidden h-screen" dir="rtl">
             {isSidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm transition-opacity lg:hidden"
@@ -106,32 +105,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 />
             )}
 
-            {/* Sidebar */}
             <aside className={`
                 fixed top-0 bottom-0 right-0 z-50 h-full
                 transition-all duration-300 ease-in-out
-                bg-white border-l border-slate-200 shadow-xl
+                bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900
+                border-l border-white/10 shadow-2xl
                 group peer
                 ${isSidebarOpen ? 'translate-x-0 w-64' : 'translate-x-full w-64'}
                 lg:translate-x-0 lg:w-[68px] lg:hover:w-64
             `}>
                 <div className="h-full flex flex-col overflow-hidden">
-                    {/* Logo */}
-                    <div className="h-[64px] flex items-center px-4 border-b border-slate-100">
+                    <div className="h-[64px] flex items-center px-4 border-b border-white/10">
                         <div className="flex items-center gap-3 w-full">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0A2472] to-[#0E6BA8] flex items-center justify-center shrink-0 shadow-md">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/20">
                                 <img src="/logo.png" alt="" className="w-6 h-6 object-contain brightness-0 invert" />
                             </div>
                             <div className="overflow-hidden whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
-                                <h1 className="text-xs font-black text-[#0A2472] uppercase tracking-wider">Smart Enterprise</h1>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Admin Portal</p>
+                                <h1 className="text-xs font-black text-white uppercase tracking-wider">Smart Enterprise</h1>
+                                <p className="text-[9px] font-bold text-cyan-400/70 uppercase tracking-widest">Admin Portal</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Navigation */}
-                    <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1 scrollbar-thin">
-                        {/* Main Items */}
+                    <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
                         {navItems.map(item => {
                             const Icon = item.icon;
                             const active = isActive(item.href);
@@ -141,21 +137,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     to={item.href}
                                     onClick={() => setIsSidebarOpen(false)}
                                     className={`
-                                        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group/item
+                                        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                                         ${active 
-                                            ? 'bg-[#0A2472] text-white shadow-md shadow-[#0A2472]/20' 
-                                            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}
+                                            ? 'bg-gradient-to-r from-cyan-600/30 to-blue-600/20 text-cyan-300 shadow-lg shadow-cyan-500/10 border border-cyan-500/20' 
+                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'}
                                     `}
                                 >
                                     <Icon size={18} strokeWidth={active ? 2.5 : 1.8} className="shrink-0" />
-                                    <span className="text-[11px] font-bold whitespace-nowrap overflow-hidden opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+                                    <span className="text-[11px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
                                         {item.name}
                                     </span>
                                 </Link>
                             );
                         })}
 
-                        {/* Reports Section */}
                         <div className="pt-3 pb-1">
                             <button
                                 onClick={() => {
@@ -168,19 +163,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 className={`
                                     w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200
                                     ${(isAnyReportActive || isAnyGroupExpanded)
-                                        ? 'bg-slate-100 text-slate-900' 
-                                        : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}
+                                        ? 'bg-white/10 text-white' 
+                                        : 'text-slate-400 hover:bg-white/5 hover:text-white'}
                                 `}
                             >
                                 <TrendingUp size={18} strokeWidth={1.8} className="shrink-0" />
-                                <span className="text-[11px] font-bold whitespace-nowrap overflow-hidden opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
+                                <span className="text-[11px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
                                     التقارير
                                 </span>
                                 <ChevronDown size={12} className={`shrink-0 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-200 ${isAnyGroupExpanded ? 'rotate-180' : ''}`} />
                             </button>
                         </div>
 
-                        {/* Report Sub-Groups */}
                         <div className={`overflow-hidden transition-all duration-300 ${isAnyGroupExpanded ? 'max-h-[500px]' : 'max-h-0'}`}>
                             <div className="space-y-1 pr-2">
                                 {reportGroups.map(group => {
@@ -194,12 +188,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                 className={`
                                                     w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200
                                                     ${hasActiveChild || groupOpen
-                                                        ? 'text-[#0A2472] bg-[#0A2472]/5' 
-                                                        : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}
+                                                        ? 'text-cyan-300 bg-cyan-500/10' 
+                                                        : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'}
                                                 `}
                                             >
                                                 <GroupIcon size={14} strokeWidth={1.8} className="shrink-0" />
-                                                <span className="text-[10px] font-black uppercase tracking-wider whitespace-nowrap overflow-hidden opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
                                                     {group.name}
                                                 </span>
                                                 <ChevronDown size={10} className={`shrink-0 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-transform duration-200 ${groupOpen ? 'rotate-180' : ''}`} />
@@ -217,12 +211,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                                 className={`
                                                                     flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200
                                                                     ${childActive 
-                                                                        ? 'bg-[#0A2472] text-white' 
-                                                                        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'}
+                                                                        ? 'bg-cyan-500/20 text-cyan-300' 
+                                                                        : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'}
                                                                 `}
                                                             >
                                                                 <ChildIcon size={12} strokeWidth={1.8} className="shrink-0" />
-                                                                <span className="text-[10px] font-bold whitespace-nowrap overflow-hidden opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+                                                                <span className="text-[10px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
                                                                     {child.name}
                                                                 </span>
                                                             </Link>
@@ -236,10 +230,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </div>
                         </div>
 
-                        {/* Divider */}
-                        <div className="border-t border-slate-100 my-2" />
+                        <div className="border-t border-white/10 my-2" />
 
-                        {/* Utility Items */}
                         {utilityItems.map(item => {
                             const Icon = item.icon;
                             const active = isActive(item.href);
@@ -251,12 +243,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     className={`
                                         flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                                         ${active 
-                                            ? 'bg-[#0A2472] text-white shadow-md shadow-[#0A2472]/20' 
-                                            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}
+                                            ? 'bg-gradient-to-r from-cyan-600/30 to-blue-600/20 text-cyan-300 shadow-lg shadow-cyan-500/10 border border-cyan-500/20' 
+                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'}
                                     `}
                                 >
                                     <Icon size={18} strokeWidth={active ? 2.5 : 1.8} className="shrink-0" />
-                                    <span className="text-[11px] font-bold whitespace-nowrap overflow-hidden opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+                                    <span className="text-[11px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
                                         {item.name}
                                     </span>
                                 </Link>
@@ -264,27 +256,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         })}
                     </nav>
 
-                    {/* User Profile */}
-                    <div className="border-t border-slate-100 p-2 relative">
+                    <div className="border-t border-white/10 p-2 relative">
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition-all"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all"
                         >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0A2472] to-[#0E6BA8] flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-md">
                                 {user?.displayName?.charAt(0) || 'A'}
                             </div>
                             <div className="text-right flex-1 min-w-0 overflow-hidden opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
-                                <p className="text-[11px] font-black text-slate-800 truncate">{user?.displayName || 'Admin'}</p>
+                                <p className="text-[11px] font-black text-white truncate">{user?.displayName || 'Admin'}</p>
                                 <p className="text-[9px] font-bold text-slate-400 uppercase truncate">{user?.role || ''}</p>
                             </div>
                             <ChevronDown size={14} className={`text-slate-400 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {isProfileOpen && (
-                            <div className="absolute bottom-full left-2 right-2 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-50">
+                            <div className="absolute bottom-full left-2 right-2 mb-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
                                 <button
                                     onClick={() => { logout(); navigate('/login'); }}
-                                    className="w-full flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-all"
+                                    className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-red-500/10 transition-all"
                                 >
                                     <LogOut size={14} />
                                     <span className="text-[11px] font-bold">تسجيل الخروج</span>
@@ -295,35 +286,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </aside>
 
-            {/* Main Content */}
             <main className="flex-1 lg:mr-[68px] transition-all duration-300 overflow-y-auto h-screen">
-                {/* Top Bar */}
-                <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 lg:px-6 py-3 flex items-center justify-between">
+                <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500"
+                            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
                         >
                             <Menu size={18} />
                         </button>
-                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                        <h2 className="text-sm font-black text-gray-800 uppercase tracking-wider">
                             {navItems.find(n => isActive(n.href))?.name || 
                              utilityItems.find(n => isActive(n.href))?.name ||
                              'التقارير'}
                         </h2>
                     </div>
                     <div className="flex items-center gap-1">
-                        <button onClick={handleZoomOut} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
+                        <button onClick={handleZoomOut} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600">
                             <ZoomOut size={14} />
                         </button>
-                        <span className="text-[10px] font-black text-slate-400 w-10 text-center">{zoomLevel}%</span>
-                        <button onClick={handleZoomIn} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
+                        <span className="text-[10px] font-black text-gray-400 w-10 text-center">{zoomLevel}%</span>
+                        <button onClick={handleZoomIn} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600">
                             <ZoomIn size={14} />
                         </button>
                     </div>
                 </div>
 
-                {/* Page Content */}
                 <div className="p-4 lg:p-8" style={{ zoom: `${zoomLevel}%` }}>
                     {children}
                 </div>

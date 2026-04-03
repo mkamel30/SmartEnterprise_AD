@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Branches from './pages/Branches';
 import Settings from './pages/Settings';
@@ -25,7 +25,7 @@ function App() {
       <AuthProvider>
         <SettingsProvider>
           <Router>
-            <AuthWrapper />
+            <AppRoutes />
             <Toaster position="top-right" />
           </Router>
         </SettingsProvider>
@@ -34,19 +34,18 @@ function App() {
   );
 }
 
-function AuthWrapper() {
+function AppRoutes() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) return <div className="flex h-screen items-center justify-center font-black">جاري التحقق من الجلسة...</div>;
-  
+
   if (!user) {
-    if (location.pathname === '/forgot-password') {
-      return <ForgotPassword />;
-    }
     return (
       <Routes location={location}>
-        <Route path="*" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
   }
