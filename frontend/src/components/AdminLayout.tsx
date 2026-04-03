@@ -6,7 +6,7 @@ import {
     RefreshCw, Settings2, LogOut, RotateCcw,
     Menu, ChevronDown, ZoomIn, ZoomOut,
     TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package, Calendar,
-    BarChart3
+    BarChart3, UserCircle
 } from 'lucide-react';
 
 interface NavItem {
@@ -78,11 +78,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const [expandedGroups, setExpandedGroups] = useState<string[]>(['financial-reports']);
     const [zoomLevel, setZoomLevel] = useState(100);
 
     const toggleGroup = (id: string) => {
-        setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
+        setExpandedGroups(prev =>
+            prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]
+        );
     };
 
     const isActive = (href: string) => {
@@ -90,17 +92,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return location.pathname === href || location.pathname.startsWith(href + '/');
     };
 
-    const isAnyReportActive = reportGroups.some(g => g.children.some(c => isActive(c.href)));
-    const isAnyGroupExpanded = Object.values(expandedGroups).some(Boolean);
-
     const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 5, 150));
     const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 5, 70));
 
     return (
-        <div className="flex bg-gray-50 text-gray-900 overflow-hidden h-screen" dir="rtl">
+        <div className="flex bg-background text-foreground overflow-hidden h-screen" dir="rtl">
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm transition-opacity lg:hidden"
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
@@ -108,26 +107,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <aside className={`
                 fixed top-0 bottom-0 right-0 z-50 h-full
                 transition-all duration-300 ease-in-out
-                bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900
-                border-l border-white/10 shadow-2xl
+                bg-card border-l border-border shadow-2xl
                 group peer
-                ${isSidebarOpen ? 'translate-x-0 w-64' : 'translate-x-full w-64'}
-                lg:translate-x-0 lg:w-[68px] lg:hover:w-64
+                ${isSidebarOpen ? 'translate-x-0 w-72' : 'translate-x-full w-72'}
+                lg:translate-x-0 lg:w-20 lg:hover:w-72
             `}>
                 <div className="h-full flex flex-col overflow-hidden">
-                    <div className="h-[64px] flex items-center px-4 border-b border-white/10">
-                        <div className="flex items-center gap-3 w-full">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/20">
-                                <img src="/logo.png" alt="" className="w-6 h-6 object-contain brightness-0 invert" />
-                            </div>
-                            <div className="overflow-hidden whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
-                                <h1 className="text-xs font-black text-white uppercase tracking-wider">Smart Enterprise</h1>
-                                <p className="text-[9px] font-bold text-cyan-400/70 uppercase tracking-widest">Admin Portal</p>
-                            </div>
-                        </div>
+                    <div className="p-4 flex flex-col items-center justify-center border-b border-border/50 min-h-[80px]">
+                        <img
+                            src="/logo.png"
+                            alt="Brand Logo"
+                            className="h-10 w-auto object-contain transition-transform group-hover:scale-110"
+                        />
+                        <p className="mt-2 text-[10px] font-black text-primary/60 tracking-[0.2em] uppercase font-inter whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute bottom-2">
+                            SMART ENTERPRISE
+                        </p>
                     </div>
 
-                    <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+                    <nav className="flex-1 px-2 py-2 space-y-2 overflow-y-auto custom-scroll overflow-x-hidden">
                         {navItems.map(item => {
                             const Icon = item.icon;
                             const active = isActive(item.href);
@@ -136,101 +133,77 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     key={item.id}
                                     to={item.href}
                                     onClick={() => setIsSidebarOpen(false)}
-                                    className={`
-                                        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
-                                        ${active 
-                                            ? 'bg-gradient-to-r from-cyan-600/30 to-blue-600/20 text-cyan-300 shadow-lg shadow-cyan-500/10 border border-cyan-500/20' 
-                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'}
-                                    `}
+                                    className={`flex items-center px-3 py-3 rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${active
+                                        ? 'bg-primary text-white shadow-lg ring-1 ring-primary/20'
+                                        : 'text-foreground/70 hover:bg-muted hover:text-primary'
+                                        }`}
                                 >
-                                    <Icon size={18} strokeWidth={active ? 2.5 : 1.8} className="shrink-0" />
-                                    <span className="text-[11px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className="flex items-center justify-center min-w-[24px]">
+                                        <Icon size={22} className={active ? 'text-white' : 'opacity-50'} />
+                                    </div>
+                                    <span className={`mr-3 text-sm ${active ? 'font-black' : 'font-bold'} opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-1`}>
                                         {item.name}
                                     </span>
                                 </Link>
                             );
                         })}
 
-                        <div className="pt-3 pb-1">
-                            <button
-                                onClick={() => {
-                                    const allOpen = reportGroups.every(g => expandedGroups[g.id]);
-                                    const newState = !allOpen;
-                                    const newStateMap: Record<string, boolean> = {};
-                                    reportGroups.forEach(g => { newStateMap[g.id] = newState; });
-                                    setExpandedGroups(newStateMap);
-                                }}
-                                className={`
-                                    w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200
-                                    ${(isAnyReportActive || isAnyGroupExpanded)
-                                        ? 'bg-white/10 text-white' 
-                                        : 'text-slate-400 hover:bg-white/5 hover:text-white'}
-                                `}
-                            >
-                                <TrendingUp size={18} strokeWidth={1.8} className="shrink-0" />
-                                <span className="text-[11px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
-                                    التقارير
-                                </span>
-                                <ChevronDown size={12} className={`shrink-0 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-200 ${isAnyGroupExpanded ? 'rotate-180' : ''}`} />
-                            </button>
-                        </div>
+                        {reportGroups.map(group => {
+                            const GroupIcon = group.icon;
+                            const isExpanded = expandedGroups.includes(group.id);
+                            const hasActiveChild = group.children.some(c => isActive(c.href));
 
-                        <div className={`overflow-hidden transition-all duration-300 ${isAnyGroupExpanded ? 'max-h-[500px]' : 'max-h-0'}`}>
-                            <div className="space-y-1 pr-2">
-                                {reportGroups.map(group => {
-                                    const GroupIcon = group.icon;
-                                    const groupOpen = expandedGroups[group.id];
-                                    const hasActiveChild = group.children.some(c => isActive(c.href));
-                                    return (
-                                        <div key={group.id}>
-                                            <button
-                                                onClick={() => toggleGroup(group.id)}
-                                                className={`
-                                                    w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200
-                                                    ${hasActiveChild || groupOpen
-                                                        ? 'text-cyan-300 bg-cyan-500/10' 
-                                                        : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'}
-                                                `}
-                                            >
-                                                <GroupIcon size={14} strokeWidth={1.8} className="shrink-0" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
-                                                    {group.name}
-                                                </span>
-                                                <ChevronDown size={10} className={`shrink-0 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-transform duration-200 ${groupOpen ? 'rotate-180' : ''}`} />
-                                            </button>
-                                            <div className={`overflow-hidden transition-all duration-200 ${groupOpen ? 'max-h-60 mt-0.5' : 'max-h-0'}`}>
-                                                <div className="space-y-0.5 pr-3">
-                                                    {group.children.map(child => {
-                                                        const ChildIcon = child.icon;
-                                                        const childActive = isActive(child.href);
-                                                        return (
-                                                            <Link
-                                                                key={child.id}
-                                                                to={child.href}
-                                                                onClick={() => setIsSidebarOpen(false)}
-                                                                className={`
-                                                                    flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200
-                                                                    ${childActive 
-                                                                        ? 'bg-cyan-500/20 text-cyan-300' 
-                                                                        : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'}
-                                                                `}
-                                                            >
-                                                                <ChildIcon size={12} strokeWidth={1.8} className="shrink-0" />
-                                                                <span className="text-[10px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
-                                                                    {child.name}
-                                                                </span>
-                                                            </Link>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
+                            return (
+                                <div key={group.id} className="space-y-1">
+                                    <button
+                                        onClick={() => toggleGroup(group.id)}
+                                        className={`w-full flex items-center px-3 py-3 rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${hasActiveChild
+                                            ? 'bg-primary/5 text-primary'
+                                            : 'text-foreground/70 hover:bg-muted font-bold'
+                                            }`}
+                                    >
+                                        <div className="flex items-center justify-center min-w-[24px]">
+                                            <GroupIcon size={22} className={hasActiveChild ? 'text-primary' : 'opacity-50 group-hover/btn:opacity-100'} />
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                                        <span className="mr-3 text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-1 text-right">
+                                            التقارير
+                                        </span>
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <ChevronDown size={14} className={`transition-transform duration-300 opacity-30 ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </button>
 
-                        <div className="border-t border-white/10 my-2" />
+                                    <div className={`
+                                        overflow-hidden transition-all duration-300
+                                        ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                                        lg:max-h-0 lg:opacity-0 lg:group-hover:max-h-96 lg:group-hover:opacity-100
+                                    `}>
+                                        <div className="pr-10 pl-2 space-y-1 mt-1 mb-2 border-r-2 border-primary/10 mr-4">
+                                            {group.children.map(child => {
+                                                const ChildIcon = child.icon;
+                                                const childActive = isActive(child.href);
+                                                return (
+                                                    <Link
+                                                        key={child.id}
+                                                        to={child.href}
+                                                        onClick={() => setIsSidebarOpen(false)}
+                                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${childActive
+                                                            ? 'bg-primary/10 text-primary'
+                                                            : 'text-muted-foreground hover:bg-muted hover:text-primary'
+                                                            }`}
+                                                    >
+                                                        <ChildIcon size={14} className="opacity-50" />
+                                                        <span>{child.name}</span>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        <div className="border-t border-border/50 my-2" />
 
                         {utilityItems.map(item => {
                             const Icon = item.icon;
@@ -240,15 +213,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     key={item.id}
                                     to={item.href}
                                     onClick={() => setIsSidebarOpen(false)}
-                                    className={`
-                                        flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
-                                        ${active 
-                                            ? 'bg-gradient-to-r from-cyan-600/30 to-blue-600/20 text-cyan-300 shadow-lg shadow-cyan-500/10 border border-cyan-500/20' 
-                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'}
-                                    `}
+                                    className={`flex items-center px-3 py-3 rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${active
+                                        ? 'bg-primary text-white shadow-lg ring-1 ring-primary/20'
+                                        : 'text-foreground/70 hover:bg-muted hover:text-primary'
+                                        }`}
                                 >
-                                    <Icon size={18} strokeWidth={active ? 2.5 : 1.8} className="shrink-0" />
-                                    <span className="text-[11px] font-bold whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className="flex items-center justify-center min-w-[24px]">
+                                        <Icon size={22} className={active ? 'text-white' : 'opacity-50'} />
+                                    </div>
+                                    <span className={`mr-3 text-sm ${active ? 'font-black' : 'font-bold'} opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-1`}>
                                         {item.name}
                                     </span>
                                 </Link>
@@ -256,64 +229,80 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         })}
                     </nav>
 
-                    <div className="border-t border-white/10 p-2 relative">
+                    <div className="p-4 border-t border-border/50 bg-muted/20">
+                        <div className="text-[9px] text-muted-foreground/30 text-center mb-2 font-mono">v1.0.0</div>
+                        <div className="flex items-center gap-3 overflow-hidden whitespace-nowrap">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
+                                <UserCircle size={20} />
+                            </div>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <p className="text-[11px] font-black leading-tight truncate max-w-[140px]">{user?.displayName}</p>
+                                <p className="text-[9px] font-bold text-muted-foreground opacity-60 uppercase">{user?.role}</p>
+                            </div>
+                        </div>
                         <button
-                            onClick={() => setIsProfileOpen(!isProfileOpen)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all"
+                            onClick={() => { logout(); navigate('/login'); }}
+                            className="w-full mt-2 flex items-center gap-2 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                         >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-md">
-                                {user?.displayName?.charAt(0) || 'A'}
-                            </div>
-                            <div className="text-right flex-1 min-w-0 overflow-hidden opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
-                                <p className="text-[11px] font-black text-white truncate">{user?.displayName || 'Admin'}</p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase truncate">{user?.role || ''}</p>
-                            </div>
-                            <ChevronDown size={14} className={`text-slate-400 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
+                            <LogOut size={14} />
+                            <span>تسجيل الخروج</span>
                         </button>
-
-                        {isProfileOpen && (
-                            <div className="absolute bottom-full left-2 right-2 mb-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
-                                <button
-                                    onClick={() => { logout(); navigate('/login'); }}
-                                    className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-red-500/10 transition-all"
-                                >
-                                    <LogOut size={14} />
-                                    <span className="text-[11px] font-bold">تسجيل الخروج</span>
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </div>
             </aside>
 
-            <main className="flex-1 lg:mr-[68px] transition-all duration-300 overflow-y-auto h-screen">
-                <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
-                        >
-                            <Menu size={18} />
-                        </button>
-                        <h2 className="text-sm font-black text-gray-800 uppercase tracking-wider">
-                            {navItems.find(n => isActive(n.href))?.name || 
-                             utilityItems.find(n => isActive(n.href))?.name ||
-                             'التقارير'}
-                        </h2>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <button onClick={handleZoomOut} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600">
-                            <ZoomOut size={14} />
-                        </button>
-                        <span className="text-[10px] font-black text-gray-400 w-10 text-center">{zoomLevel}%</span>
-                        <button onClick={handleZoomIn} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600">
-                            <ZoomIn size={14} />
-                        </button>
-                    </div>
-                </div>
+            <main className={`
+                flex-1 flex flex-col min-w-0 relative transition-all duration-300
+                lg:mr-20 lg:peer-hover:mr-72 transition-all duration-300
+            `}>
+                <header className="h-16 lg:h-14 flex items-center justify-between px-4 lg:px-8 shrink-0 relative z-30 bg-card border-b">
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="p-2 -mr-2 text-foreground/70 hover:bg-muted rounded-lg lg:hidden"
+                    >
+                        <Menu size={24} />
+                    </button>
 
-                <div className="p-4 lg:p-8" style={{ zoom: `${zoomLevel}%` }}>
-                    {children}
+                    <div className="lg:hidden flex items-center gap-2">
+                        <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
+                    </div>
+
+                    <div className="flex items-center gap-2 lg:gap-3 ml-auto">
+                        <div className="flex items-center gap-1">
+                            <button onClick={handleZoomOut} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
+                                <ZoomOut size={14} />
+                            </button>
+                            <span className="text-[10px] font-bold text-muted-foreground w-10 text-center">{zoomLevel}%</span>
+                            <button onClick={handleZoomIn} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
+                                <ZoomIn size={14} />
+                            </button>
+                        </div>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                                className="flex items-center gap-2 p-1 lg:p-1.5 hover:bg-muted rounded-full transition-all border border-transparent hover:border-border"
+                            >
+                                <ChevronDown size={14} className={`transition-transform duration-300 opacity-30 ${isProfileOpen ? 'rotate-180' : ''}`} />
+                                <div className="hidden md:block text-right ml-1">
+                                    <p className="text-[11px] font-black leading-tight truncate max-w-30">{user?.displayName || 'مستخدم'}</p>
+                                    <p className="text-[9px] font-bold text-muted-foreground opacity-60 uppercase tracking-tighter truncate max-w-25">{user?.role || 'Guest'}</p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
+                                    <UserCircle size={20} />
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <div className="flex-1 overflow-y-auto bg-transparent p-4 lg:p-8 lg:pt-4 custom-scroll relative">
+                    <div
+                        className="max-w-full mx-auto animate-fade-in pb-20 lg:pb-0"
+                        style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top right', transition: 'transform 0.2s ease' }}
+                    >
+                        {children}
+                    </div>
                 </div>
             </main>
         </div>

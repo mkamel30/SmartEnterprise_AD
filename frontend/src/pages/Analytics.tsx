@@ -11,7 +11,7 @@ import {
 import adminClient from '../api/adminClient';
 
 export default function AnalyticsDashboard() {
-    const [filters, setFilters] = useState({ branchId: '', period: 'month' });
+    const [filters, setFilters] = useState({ branchId: '' });
 
     const { data: branches } = useQuery({
         queryKey: ['branches-list'],
@@ -21,15 +21,6 @@ export default function AnalyticsDashboard() {
     const { data: financialData } = useQuery({
         queryKey: ['financial-summary'],
         queryFn: () => adminClient.get('/reports/financial-summary').then(r => r.data)
-    });
-
-    const { data: _stockMovementsSummary } = useQuery({
-        queryKey: ['stock-movements-summary', filters.branchId],
-        queryFn: () => {
-            const params = new URLSearchParams();
-            if (filters.branchId) params.append('branchId', filters.branchId);
-            return adminClient.get(`/stock-movements/summary?${params}`).then(r => r.data);
-        }
     });
 
     const { data: maintenanceData } = useQuery({
@@ -87,7 +78,7 @@ export default function AnalyticsDashboard() {
     const totalRevenue = financialData?.totalEnterpriseRevenue || 0;
     const totalPayments = paymentsData?.totalPayments || 0;
 
-    const maintenanceStatusData = Object.entries(maintenanceData?.statusBreakdown || {}).map(([name, count]) => ({ name, value: count }));
+    const maintenanceStatusData = Object.entries(maintenanceData?.statusBreakdown || {}).map(([name, value]: [string, any]) => ({ name, value }));
     const paymentTypeData = Object.entries(paymentsData?.typeBreakdown || {}).map(([name, v]: [string, any]) => ({ name, amount: v.amount, count: v.count }));
     const salesTypeData = [
         { name: 'كاش', value: salesData?.cashSales || 0, revenue: salesData?.cashRevenue || 0 },
@@ -98,7 +89,6 @@ export default function AnalyticsDashboard() {
 
     return (
         <div className="space-y-6" dir="rtl">
-            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-xl lg:text-2xl font-black text-primary uppercase flex items-center gap-3">
@@ -109,19 +99,16 @@ export default function AnalyticsDashboard() {
                         نظرة شاملة على أداء المجموعة
                     </p>
                 </div>
-                <div className="flex gap-3">
-                    <select 
-                        className="smart-select"
-                        value={filters.branchId}
-                        onChange={(e) => setFilters(f => ({ ...f, branchId: e.target.value }))}
-                    >
-                        <option value="">كل الفروع</option>
-                        {branches?.map((b: any) => (<option key={b.id} value={b.id}>{b.name}</option>))}
-                    </select>
-                </div>
+                <select 
+                    className="smart-select"
+                    value={filters.branchId}
+                    onChange={(e) => setFilters(f => ({ ...f, branchId: e.target.value }))}
+                >
+                    <option value="">كل الفروع</option>
+                    {branches?.map((b: any) => (<option key={b.id} value={b.id}>{b.name}</option>))}
+                </select>
             </div>
 
-            {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <SummaryCard title="إجمالي العملاء" value={totalCustomers} icon={<Users size={20} />} color="text-blue-600" bgColor="bg-blue-50" />
                 <SummaryCard title="إجمالي الماكينات" value={totalMachines} icon={<Monitor size={20} />} color="text-green-600" bgColor="bg-green-50" />
@@ -136,27 +123,28 @@ export default function AnalyticsDashboard() {
                 <SummaryCard title="كمية المخزون" value={totalInventoryQty} icon={<RefreshCw size={20} />} color="text-slate-600" bgColor="bg-slate-50" />
             </div>
 
-            {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Revenue by Branch */}
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">الإيرادات حسب الفرع</h3>
                     <div className="h-64" dir="ltr">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={branchBreakdown}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
-                                <Tooltip contentStyle={{ borderRadius: '0.75rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', textAlign: 'right' }} />
-                                <Bar dataKey="revenue" radius={[8, 8, 0, 0]}>
-                                    {branchBreakdown.map((_entry: any, index: number) => (<Cell key={index} fill={COLORS[index % COLORS.length]} />))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {branchBreakdown.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={branchBreakdown}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
+                                    <Tooltip contentStyle={{ borderRadius: '0.75rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', textAlign: 'right' }} />
+                                    <Bar dataKey="revenue" radius={[8, 8, 0, 0]}>
+                                        {branchBreakdown.map((_entry: any, index: number) => (<Cell key={index} fill={COLORS[index % COLORS.length]} />))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-slate-400 font-bold">لا توجد بيانات</div>
+                        )}
                     </div>
                 </div>
 
-                {/* Maintenance Status */}
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">حالات الصيانة</h3>
                     <div className="h-64">
@@ -175,7 +163,6 @@ export default function AnalyticsDashboard() {
                     </div>
                 </div>
 
-                {/* Sales by Type */}
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">المبيعات حسب النوع</h3>
                     <div className="space-y-4">
@@ -185,13 +172,12 @@ export default function AnalyticsDashboard() {
                                     <p className="font-black text-sm text-primary">{s.name}</p>
                                     <p className="text-[10px] text-slate-400">{s.value} عملية</p>
                                 </div>
-                                <p className="text-lg font-black text-green-600">{s.revenue?.toLocaleString()} ج.م</p>
+                                <p className="text-lg font-black text-green-600">{s.revenue?.toLocaleString() || 0} ج.م</p>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* Payments by Type */}
                 <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
                     <h3 className="text-sm font-black text-primary uppercase mb-4">المدفوعات حسب النوع</h3>
                     <div className="space-y-4">
@@ -201,7 +187,7 @@ export default function AnalyticsDashboard() {
                                     <p className="font-black text-sm text-primary">{p.name}</p>
                                     <p className="text-[10px] text-slate-400">{p.count} عملية</p>
                                 </div>
-                                <p className="text-lg font-black text-green-600">{p.amount?.toLocaleString()} ج.م</p>
+                                <p className="text-lg font-black text-green-600">{p.amount?.toLocaleString() || 0} ج.م</p>
                             </div>
                         )) : (
                             <div className="flex items-center justify-center h-32 text-slate-400 font-bold">لا توجد بيانات</div>
@@ -210,7 +196,6 @@ export default function AnalyticsDashboard() {
                 </div>
             </div>
 
-            {/* Branch Performance Table */}
             <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-slate-200">
                     <h3 className="font-black text-primary">أداء الفروع</h3>
@@ -228,7 +213,7 @@ export default function AnalyticsDashboard() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {branchBreakdown.length === 0 ? (
-                                <tr><td colSpan={5} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                                <tr><td colSpan={5} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات - قم بسحب البيانات من الفروع أولاً</td></tr>
                             ) : (
                                 branchBreakdown.map((b: any) => (
                                     <tr key={b.branchId} className="hover:bg-slate-50">
