@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import adminClient from '../api/adminClient';
-import { Plus, Search, Filter, User, Pencil, Key, Unlock, Trash2, CheckCircle, XCircle, Shield, Building2, ArrowDown, ArrowUp, Loader2 } from 'lucide-react';
+import { Search, Pencil, Key, Unlock, Trash2, Building2, ShieldCheck, RefreshCw, UserPlus, Users as UsersIcon, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 
@@ -134,7 +134,7 @@ export default function Users() {
                         />
                     </div>
                     <div className="relative">
-                        <Building size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Building2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}
                             className="border-2 border-primary/10 rounded-lg px-9 py-2.5 text-sm font-bold appearance-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white min-w-[120px]">
                             <option value="">كل الفروع</option>
@@ -202,7 +202,7 @@ export default function Users() {
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex items-center gap-1.5 flex-row-reverse">
-                                                <Building className="text-muted-foreground/30" size={12} />
+                                                <Building2 className="text-muted-foreground/30" size={12} />
                                                 <span className="text-xs font-black text-muted-foreground uppercase leading-none">{u.branch?.name || 'الإدارة المركزية'}</span>
                                             </div>
                                         </td>
