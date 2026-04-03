@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import {
-    LayoutDashboard, Building2, Users, Layers,
+    LayoutDashboard, Building2, Users,
     RefreshCw, Settings2, LogOut, RotateCcw,
     Menu, ChevronDown, ZoomIn, ZoomOut,
     TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package, Calendar
@@ -16,19 +16,10 @@ interface NavItem {
     badge?: number;
 }
 
-interface NavGroup {
-    id: string;
-    name: string;
-    icon: React.ElementType;
-    children: { id: string; name: string; href: string; icon: React.ElementType }[];
-}
-
 const allNavItems: NavItem[] = [
     { id: 'dashboard', name: 'لوحة التحكم المركزية', href: '/', icon: LayoutDashboard },
     { id: 'branches', name: 'شبكة الفروع', href: '/branches', icon: Building2 },
     { id: 'users', name: 'إدارة المستخدمين', href: '/users', icon: Users },
-    { id: 'admin-store', name: 'المخازن الإدارية', href: '/admin-store', icon: Layers },
-    { id: 'warehouse', name: 'مخازن الفروع', href: '/warehouse', icon: Layers },
     { id: 'software-updates', name: 'تحديثات النظام', href: '/software-updates', icon: Github },
     { id: 'license-manager', name: 'تراخيص الفروع', href: '/license-manager', icon: Key },
     { id: 'sync-status', name: 'مراقب المزامنة', href: '/sync-status', icon: RefreshCw },
@@ -36,22 +27,38 @@ const allNavItems: NavItem[] = [
     { id: 'settings', name: 'الإعدادات والتكوين', href: '/settings', icon: Settings2 },
 ];
 
-const reportGroup: NavGroup = {
-    id: 'reports',
-    name: 'التقارير والتصدير',
-    icon: TrendingUp,
-    children: [
-        { id: 'financial', name: 'التدقيق المالي', href: '/reports', icon: DollarSign },
-        { id: 'movements', name: 'حركات المخزون', href: '/reports/movements', icon: RefreshCw },
-        { id: 'requests', name: 'طلبات الصيانة', href: '/reports/requests', icon: Wrench },
-        { id: 'payments', name: 'المدفوعات', href: '/reports/payments', icon: DollarSign },
-        { id: 'sales', name: 'المبيعات', href: '/reports/sales', icon: DollarSign },
-        { id: 'installments', name: 'الأقساط المتأخرة', href: '/reports/installments', icon: Calendar },
-        { id: 'inventory', name: 'جرد المخزون', href: '/reports/inventory', icon: Warehouse },
-        { id: 'simcards', name: 'الشرائح', href: '/reports/simcards', icon: Package },
-        { id: 'price-history', name: 'سعر القطع', href: '/reports/price-history', icon: Package },
-    ]
-};
+const reportGroups: { id: string; name: string; icon: React.ElementType; children: { id: string; name: string; href: string; icon: React.ElementType }[] }[] = [
+    {
+        id: 'financial-reports',
+        name: 'التقارير المالية',
+        icon: DollarSign,
+        children: [
+            { id: 'financial', name: 'التدقيق المالي', href: '/reports', icon: DollarSign },
+            { id: 'payments', name: 'المدفوعات', href: '/reports/payments', icon: DollarSign },
+            { id: 'sales', name: 'المبيعات', href: '/reports/sales', icon: DollarSign },
+            { id: 'installments', name: 'الأقساط المتأخرة', href: '/reports/installments', icon: Calendar },
+        ]
+    },
+    {
+        id: 'operations-reports',
+        name: 'تقارير العمليات',
+        icon: Wrench,
+        children: [
+            { id: 'movements', name: 'حركات المخزون', href: '/reports/movements', icon: RefreshCw },
+            { id: 'requests', name: 'طلبات الصيانة', href: '/reports/requests', icon: Wrench },
+            { id: 'inventory', name: 'جرد المخزون', href: '/reports/inventory', icon: Warehouse },
+        ]
+    },
+    {
+        id: 'assets-reports',
+        name: 'تقارير الأصول',
+        icon: Package,
+        children: [
+            { id: 'simcards', name: 'الشرائح', href: '/reports/simcards', icon: Package },
+            { id: 'price-history', name: 'سعر القطع', href: '/reports/price-history', icon: TrendingUp },
+        ]
+    },
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const location = useLocation();
@@ -61,13 +68,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [zoomLevel, setZoomLevel] = useState(100);
-    const [isReportsOpen, setIsReportsOpen] = useState(false);
+    const [isReportsOpen, setIsReportsOpen] = useState<Record<string, boolean>>({});
 
     const activeTab = location.pathname === '/' ? 'dashboard' : location.pathname.split('/')[1];
     const isReportPage = location.pathname.startsWith('/reports');
 
     const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 5, 150));
     const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 5, 70));
+
+    const toggleReportGroup = (groupId: string) => {
+        setIsReportsOpen(prev => ({ ...prev, [groupId]: !prev[groupId] }));
+    };
 
     const pageTitle = allNavItems.find(n => n.id === activeTab)?.name || 'اللوحة الرئيسية';
 
@@ -143,13 +154,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             );
                         })}
 
-                        {/* Reports Dropdown */}
+                        {/* Reports Dropdown with Groups */}
                         <div>
                             <button
-                                onClick={() => setIsReportsOpen(!isReportsOpen)}
+                                onClick={() => {
+                                    const allOpen = reportGroups.every(g => isReportsOpen[g.id]);
+                                    const newState = !allOpen;
+                                    const newStateMap: Record<string, boolean> = {};
+                                    reportGroups.forEach(g => { newStateMap[g.id] = newState; });
+                                    setIsReportsOpen(newStateMap);
+                                }}
                                 className={`
                                     w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300
-                                    ${(isReportPage || isReportsOpen) 
+                                    ${(isReportPage || Object.values(isReportsOpen).some(Boolean)) 
                                         ? 'bg-white/15 text-cyan-300 shadow-[0_0_20px_rgba(108,228,240,0.15)]' 
                                         : 'text-white/60 hover:bg-white/10 hover:text-white'}
                                 `}
@@ -158,32 +175,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <span className="text-[11px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-500 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 flex-1 text-right">
                                     التقارير والتصدير
                                 </span>
-                                <ChevronDown size={14} className={`transition-transform duration-300 ${isReportsOpen ? 'rotate-180' : ''}`} />
+                                <ChevronDown size={14} className={`transition-transform duration-300 ${Object.values(isReportsOpen).some(Boolean) ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {/* Sub-items */}
-                            <div className={`overflow-hidden transition-all duration-300 ${isReportsOpen ? 'max-h-96 mt-1' : 'max-h-0'}`}>
-                                <div className="space-y-0.5 pr-4">
-                                    {reportGroup.children.map((child) => {
-                                        const ChildIcon = child.icon;
-                                        const isChildActive = location.pathname === child.href;
+                            {/* Grouped Sub-items */}
+                            <div className={`overflow-hidden transition-all duration-300 ${Object.values(isReportsOpen).some(Boolean) ? 'max-h-[600px] mt-1' : 'max-h-0'}`}>
+                                <div className="space-y-2 pr-4">
+                                    {reportGroups.map(group => {
+                                        const GroupIcon = group.icon;
+                                        const groupOpen = isReportsOpen[group.id];
+                                        const hasActiveChild = group.children.some(c => location.pathname === c.href);
                                         return (
-                                            <Link
-                                                key={child.id}
-                                                to={child.href}
-                                                onClick={() => setIsSidebarOpen(false)}
-                                                className={`
-                                                    flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200
-                                                    ${isChildActive 
-                                                        ? 'bg-cyan-400/20 text-cyan-300' 
-                                                        : 'text-white/40 hover:bg-white/10 hover:text-white/80'}
-                                                `}
-                                            >
-                                                <ChildIcon size={14} strokeWidth={2} className="shrink-0" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
-                                                    {child.name}
-                                                </span>
-                                            </Link>
+                                            <div key={group.id}>
+                                                <button
+                                                    onClick={() => toggleReportGroup(group.id)}
+                                                    className={`
+                                                        w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-200
+                                                        ${hasActiveChild || groupOpen
+                                                            ? 'text-cyan-300' 
+                                                            : 'text-white/40 hover:text-white/70'}
+                                                    `}
+                                                >
+                                                    <GroupIcon size={12} strokeWidth={2} className="shrink-0" />
+                                                    <span className="text-[9px] font-black uppercase tracking-wider whitespace-nowrap flex-1 text-right">
+                                                        {group.name}
+                                                    </span>
+                                                    <ChevronDown size={10} className={`transition-transform duration-200 ${groupOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+                                                <div className={`overflow-hidden transition-all duration-200 ${groupOpen ? 'max-h-60 mt-0.5' : 'max-h-0'}`}>
+                                                    <div className="space-y-0.5 pr-3">
+                                                        {group.children.map(child => {
+                                                            const ChildIcon = child.icon;
+                                                            const isActive = location.pathname === child.href;
+                                                            return (
+                                                                <Link
+                                                                    key={child.id}
+                                                                    to={child.href}
+                                                                    onClick={() => setIsSidebarOpen(false)}
+                                                                    className={`
+                                                                        flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-200
+                                                                        ${isActive 
+                                                                            ? 'bg-cyan-400/20 text-cyan-300' 
+                                                                            : 'text-white/30 hover:bg-white/10 hover:text-white/60'}
+                                                                    `}
+                                                                >
+                                                                    <ChildIcon size={12} strokeWidth={2} className="shrink-0" />
+                                                                    <span className="text-[9px] font-bold whitespace-nowrap">
+                                                                        {child.name}
+                                                                    </span>
+                                                                </Link>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         );
                                     })}
                                 </div>

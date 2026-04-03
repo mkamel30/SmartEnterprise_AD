@@ -3,7 +3,6 @@ import Dashboard from './pages/Dashboard';
 import Branches from './pages/Branches';
 import Settings from './pages/Settings';
 import UsersPage from './pages/Users';
-import Warehouse from './pages/Warehouse';
 import SyncStatus from './pages/SyncStatus';
 import VersionLogs from './pages/VersionLogs';
 import Reports from './pages/Reports';
@@ -14,9 +13,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
-import AdminStore from './pages/AdminStore';
 import SoftwareUpdates from './pages/SoftwareUpdates';
 import LicenseManager from './pages/LicenseManager';
+import Analytics from './pages/Analytics';
 
 const queryClient = new QueryClient();
 
@@ -55,8 +54,7 @@ function AuthWrapper() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/branches" element={<Branches />} />
           <Route path="/users" element={<UsersPage />} />
-          <Route path="/admin-store" element={<AdminStore />} />
-          <Route path="/warehouse" element={<Warehouse />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/sync-status" element={<SyncStatus />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/financial" element={<Reports />} />
