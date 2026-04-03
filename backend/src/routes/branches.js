@@ -192,7 +192,7 @@ router.post('/register-manual', adminAuth, async (req, res) => {
         res.status(500).json({ error: 'فشل في إنشاء الفرع' });
     }
 
-}
+});
 
 router.use(adminAuth);
 
