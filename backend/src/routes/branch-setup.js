@@ -240,7 +240,7 @@ router.post('/sync-user', async (req, res) => {
             }).catch(() => {});
         }
         
-        res.status(500).json({ error: 'Failed to sync user: ' + error.message });
+        res.status(500).json({ error: 'فشل في مزامنة المستخدم' });
     }
 });
 

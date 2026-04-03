@@ -428,8 +428,8 @@ model UsedPartLog {
   branch     Branch?  @relation(fields: [branchId], references: [id])
 
   @@index([branchId])
-  @@index([simId])
-  @@index([createdAt])
+  @@index([requestId])
+  @@index([closedAt])
 }
 
 model StockMovement {

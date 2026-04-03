@@ -307,7 +307,7 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
     } catch (error) {
         logger.error('Fatal Push sync failure:', error);
         await logPortalSync(req.branch?.id, req.branch?.code, req.branch?.name, 'PUSH', 'FAILED', 'فشل الإرسال القاتل: ' + error.message);
-        res.status(500).json({ error: 'Push sync failed: ' + error.message });
+        res.status(500).json({ error: 'فشل في إرسال البيانات' });
     }
 });
 
@@ -338,8 +338,8 @@ router.get('/branch-stock/:branchId/:partId', adminAuth, async (req, res) => {
         const { branchId, partId } = req.params;
         res.json({ stock: [], branchId, partId, note: 'Branch stock queried via WebSocket' });
     } catch (error) {
-        logger.error('Branch stock query failed:', error);
-        res.status(500).json({ error: error.message });
+        logger.error({ err: error.message }, 'Branch stock query failed');
+        res.status(500).json({ error: 'فشل في استعلام مخزون الفرع' });
     }
 });
 
@@ -368,7 +368,7 @@ router.get('/logs', adminAuth, async (req, res) => {
         res.json({ data: logs, pagination: { total, limit, offset, pages: Math.ceil(total / limit) } });
     } catch (error) {
         logger.error('Failed to get sync logs:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'فشل في جلب سجلات المزامنة' });
     }
 });
 
