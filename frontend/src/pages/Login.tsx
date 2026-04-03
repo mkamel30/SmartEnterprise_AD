@@ -79,7 +79,7 @@ export default function Login() {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full h-16 bg-brand-primary text-white font-black rounded-2xl shadow-2xl shadow-brand-primary/30 hover:bg-brand-blue active:scale-95 transition-all flex items-center justify-center gap-3 group disabled:opacity-70 uppercase tracking-widest text-xs"
+              className="w-full h-16 bg-brand-primary text-white font-black rounded-2xl shadow-2xl shadow-brand-primary/30 hover:bg-brand-primary/90 active:scale-95 transition-all flex items-center justify-center gap-3 group disabled:opacity-70 uppercase tracking-widest text-xs"
             >
               {loading ? <Loader2 className="animate-spin" /> : (
                 <>
