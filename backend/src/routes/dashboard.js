@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
+const logger = require('../../utils/logger');
 
 router.use(adminAuth);
 
-// Get Global Dashboard Stats (Aggregated)
 router.get('/stats', async (req, res) => {
     try {
         const [
@@ -28,7 +28,6 @@ router.get('/stats', async (req, res) => {
             }
         });
 
-        // Calculate performance from actual DB data (no mock-up)
         const performanceData = branchesWithPayments.map(b => ({
             name: b.name,
             revenue: b.payments.reduce((sum, p) => sum + p.amount, 0),
@@ -48,7 +47,7 @@ router.get('/stats', async (req, res) => {
             ]
         });
     } catch (error) {
-        console.error('Dashboard stats failed:', error);
+        logger.error({ err: error.message }, 'Dashboard stats failed');
         res.status(500).json({ error: 'Failed to fetch dashboard stats' });
     }
 });

@@ -1,7 +1,8 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const adminClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
+  timeout: 30000,
 });
 
 adminClient.interceptors.request.use((config) => {
@@ -11,5 +12,19 @@ adminClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+adminClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('portal_token');
+      localStorage.removeItem('portal_user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default adminClient;

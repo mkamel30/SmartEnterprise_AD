@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
+const syncQueueService = require('../services/syncQueue.service');
+const logger = require('../../utils/logger');
 
 router.use(adminAuth);
 

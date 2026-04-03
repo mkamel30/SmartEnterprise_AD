@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../db');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { adminAuth } = require('../middleware/auth');
 const ExcelJS = require('exceljs');
+const logger = require('../../utils/logger');
 
 // Generate branch code
 function generateBranchCode() {
@@ -46,7 +48,9 @@ router.post('/register', async (req, res) => {
 
         // Create initial admin user for this branch
         const bcrypt = require('bcryptjs');
-        const hashedPassword = await bcrypt.hash('admin123', 10);
+        const crypto = require('crypto');
+        const tempPassword = crypto.randomBytes(12).toString('hex');
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
         
         await prisma.user.create({
             data: {
@@ -67,13 +71,13 @@ router.post('/register', async (req, res) => {
             apiKey: apiKey,
             credentials: {
                 username: 'admin',
-                password: 'admin123'
+                password: tempPassword
             },
-            message: 'Branch registered successfully'
+            message: 'Branch registered successfully. Please change the default password immediately.'
         });
     } catch (error) {
-        console.error('Failed to register branch:', error);
-        res.status(500).json({ error: 'Failed to register branch: ' + error.message });
+        logger.error({ err: error.message }, 'Failed to register branch');
+        res.status(500).json({ error: 'فشل في تسجيل الفرع' });
     }
 });
 
@@ -109,7 +113,7 @@ router.post('/verify-registration', async (req, res) => {
             branchStatus: branch.status 
         });
     } catch (error) {
-        res.status(500).json({ error: 'Verification failed: ' + error.message });
+        res.status(500).json({ error: 'Verification failed' });
     }
 });
 
@@ -155,7 +159,7 @@ router.post('/complete-registration', async (req, res) => {
             branchName: branch.name
         });
     } catch (error) {
-        res.status(500).json({ error: 'Activation failed: ' + error.message });
+        res.status(500).json({ error: 'Activation failed' });
     }
 });
 

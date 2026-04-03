@@ -4,27 +4,40 @@ const prisma = require('../db');
 const { adminAuth } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const syncQueueService = require('../services/syncQueue.service');
+const logger = require('../../utils/logger');
 
 router.use(adminAuth);
 
-// Get all users across all branches
 router.get('/', async (req, res) => {
     try {
-        const users = await prisma.user.findMany({
-            include: { branch: true },
-            orderBy: { createdAt: 'desc' }
-        });
-        res.json(users);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const skip = (page - 1) * limit;
+
+        const [users, total] = await Promise.all([
+            prisma.user.findMany({
+                include: { branch: true },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.user.count()
+        ]);
+        res.json({ users, total, pages: Math.ceil(total / limit) });
     } catch (error) {
+        logger.error({ err: error.message }, 'Failed to fetch users');
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
 
-// Create user
 router.post('/', async (req, res) => {
     try {
         const { username, password, displayName, role, branchId, email } = req.body;
         
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password are required' });
+        }
+
         const passwordHash = await bcrypt.hash(password, 10);
         
         const user = await prisma.user.create({
@@ -38,17 +51,15 @@ router.post('/', async (req, res) => {
             }
         });
 
-        // Sync to branches
         await syncQueueService.enqueueUpdate('USER', 'CREATE', user);
         
         res.status(201).json(user);
     } catch (error) {
-        console.error('Failed to create user:', error);
+        logger.error({ err: error.message }, 'Failed to create user');
         res.status(500).json({ error: 'Failed to create user' });
     }
 });
 
-// Update user
 router.put('/:id', async (req, res) => {
     try {
         const { displayName, role, branchId, email, isActive } = req.body;
@@ -58,27 +69,24 @@ router.put('/:id', async (req, res) => {
             data: { displayName, role, branchId, email, isActive }
         });
 
-        // Sync to branches
         await syncQueueService.enqueueUpdate('USER', 'UPDATE', user);
         
         res.json(user);
     } catch (error) {
-        console.error('Failed to update user:', error);
+        logger.error({ err: error.message }, 'Failed to update user');
         res.status(500).json({ error: 'Failed to update user' });
     }
 });
 
-// Delete user
 router.delete('/:id', async (req, res) => {
     try {
         await prisma.user.delete({ where: { id: req.params.id } });
 
-        // Sync to branches
         await syncQueueService.enqueueUpdate('USER', 'DELETE', { id: req.params.id });
 
         res.json({ message: 'User deleted' });
     } catch (error) {
-        console.error('Failed to delete user:', error);
+        logger.error({ err: error.message }, 'Failed to delete user');
         res.status(500).json({ error: 'Failed to delete user' });
     }
 });

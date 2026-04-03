@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { api } from '../api/client';
+import adminClient from '../api/adminClient';
 
 interface UserPreferences {
   fontSize: 'small' | 'medium' | 'large';
@@ -25,6 +25,76 @@ export const useSettings = () => {
     throw new Error('useSettings must be used within SettingsProvider');
   }
   return context;
+};
+
+interface SettingsProviderProps {
+  children: ReactNode;
+}
+
+export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
+  const { user } = useAuth();
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const defaultPrefs: UserPreferences = {
+    fontSize: 'medium',
+    highlightEffect: true,
+    notificationSound: true,
+    mobilePush: false,
+    theme: 'light',
+    fontFamily: 'IBM Plex Sans Arabic',
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchPreferences();
+    } else {
+      setPreferences(defaultPrefs);
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (preferences?.fontSize) {
+      document.documentElement.setAttribute('data-font-size', preferences.fontSize);
+    }
+  }, [preferences?.fontSize]);
+
+  useEffect(() => {
+    if (preferences?.fontFamily) {
+      document.documentElement.style.setProperty('--font-arabic', preferences.fontFamily);
+      localStorage.setItem('arabic-font', preferences.fontFamily);
+    }
+  }, [preferences?.fontFamily]);
+
+  const fetchPreferences = async () => {
+    try {
+      setLoading(true);
+      const { data } = await adminClient.get('/auth/preferences');
+      setPreferences(data.preferences || data);
+    } catch (error) {
+      console.error('Failed to fetch preferences:', error);
+      setPreferences(defaultPrefs);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePreferences = async (updates: Partial<UserPreferences>) => {
+    try {
+      const { data } = await adminClient.put('/auth/preferences', updates);
+      setPreferences(data.preferences || data);
+    } catch (error) {
+      console.error('Failed to update preferences:', error);
+      throw error;
+    }
+  };
+
+  return (
+    <SettingsContext.Provider value={{ preferences, updatePreferences, loading }}>
+      {children}
+    </SettingsContext.Provider>
+  );
 };
 
 interface SettingsProviderProps {

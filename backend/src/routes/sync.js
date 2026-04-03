@@ -33,10 +33,6 @@ const branchAuth = async (req, res, next) => {
         if (branchCode) {
             branch = await prisma.branch.findFirst({ where: { code: branchCode } });
         }
-        // If still no branch found, find any branch
-        if (!branch) {
-            branch = await prisma.branch.findFirst({ where: { isActive: true } });
-        }
     }
 
     if (!branch) {

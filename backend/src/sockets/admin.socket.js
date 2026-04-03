@@ -2,13 +2,35 @@ const prisma = require('../db');
 const syncQueueService = require('../services/syncQueue.service');
 const logger = require('../../utils/logger');
 
-// Helper to log portal sync operations
+const ALLOWED_WAREHOUSE_MACHINE_FIELDS = ['serialNumber', 'model', 'manufacturer', 'status', 'resolution', 'notes', 'complaint', 'importDate', 'updatedAt', 'originalOwnerId', 'readyForPickup'];
+const ALLOWED_MACHINE_SALE_FIELDS = ['serialNumber', 'customerId', 'saleDate', 'type', 'totalPrice', 'paidAmount', 'status', 'notes'];
+const ALLOWED_WAREHOUSE_SIM_FIELDS = ['serialNumber', 'type', 'networkType', 'status', 'notes', 'importDate', 'updatedAt'];
+const ALLOWED_STOCK_MOVEMENT_FIELDS = ['partId', 'type', 'quantity', 'reason', 'requestId', 'userId', 'performedBy', 'isPaid', 'receiptNumber', 'customerId', 'customerName', 'machineSerial', 'machineModel', 'paymentPlace'];
+const ALLOWED_PAYMENT_FIELDS = ['customerId', 'customerName', 'requestId', 'amount', 'type', 'reason', 'paymentPlace', 'paymentMethod', 'receiptNumber', 'notes', 'userId', 'userName'];
+const ALLOWED_MAINTENANCE_REQUEST_FIELDS = ['customerId', 'posMachineId', 'customerName', 'customerBkcode', 'machineModel', 'machineManufacturer', 'serialNumber', 'status', 'technicianId', 'technician', 'type', 'description', 'createdBy', 'notes', 'complaint', 'actionTaken', 'closingUserId', 'closingUserName', 'closingTimestamp', 'usedParts', 'receiptNumber', 'totalCost'];
+const ALLOWED_INSTALLMENT_FIELDS = ['saleId', 'dueDate', 'amount', 'isPaid', 'paidAt', 'description', 'paidAmount', 'paymentPlace', 'receiptNumber'];
+const ALLOWED_SIM_CARD_FIELDS = ['serialNumber', 'type', 'networkType', 'customerId'];
+const ALLOWED_SIM_MOVEMENT_FIELDS = ['simId', 'serialNumber', 'action', 'details', 'performedBy'];
+const ALLOWED_POS_MACHINE_FIELDS = ['serialNumber', 'posId', 'model', 'manufacturer', 'customerId'];
+const ALLOWED_CUSTOMER_FIELDS = ['bkcode', 'client_name', 'supply_office', 'operating_date', 'address', 'contact_person', 'scanned_id_path', 'national_id', 'dept', 'telephone_1', 'telephone_2', 'has_gates', 'bk_type', 'notes', 'papers_date', 'isSpecial', 'clienttype', 'status'];
+
+function pickFields(obj, allowedFields) {
+    if (!obj || typeof obj !== 'object') return {};
+    const result = {};
+    for (const field of allowedFields) {
+        if (obj[field] !== undefined) {
+            result[field] = obj[field];
+        }
+    }
+    return result;
+}
+
 async function logPortalSync(branchId, branchCode, branchName, type, status, message, itemCount = 0) {
     try {
         await prisma.portalSyncLog.create({
             data: { branchId, branchCode, branchName, type, status, message, itemCount }
         });
-    } catch (e) { /* ignore */ }
+    } catch (e) { logger.error({ err: e.message }, 'Failed to log portal sync'); }
 }
 
 module.exports = (io) => {
@@ -16,14 +38,11 @@ module.exports = (io) => {
         const apiKey = socket.handshake.auth.apiKey || socket.handshake.headers['x-api-key'] || socket.handshake.query.apiKey;
         const token = socket.handshake.auth.token;
 
-        // Check API key first (for branch connections) - API key doesn't expire
         if (apiKey) {
             const globalApiKey = process.env.PORTAL_API_KEY;
             try {
-                // Check if this key belongs to an existing branch
                 let branch = await prisma.branch.findFirst({ where: { apiKey: apiKey } });
 
-                // Master key check: find branch by code from handshake query
                 if (!branch && apiKey === globalApiKey) {
                     const branchCode = socket.handshake.query.branchCode;
                     if (branchCode) {
@@ -34,6 +53,7 @@ module.exports = (io) => {
                 if (branch) {
                     socket.branchId = branch.id;
                     socket.branchCode = branch.code;
+                    socket.branchName = branch.name;
                     socket.isAdmin = false;
                     socket.isBranch = true;
                     logger.info(`[Socket] Branch connected: ${branch.code}`);
@@ -44,7 +64,6 @@ module.exports = (io) => {
             }
         }
 
-        // If no API key or API key not found, check token (for admin users)
         if (token) {
             try {
                 const jwt = require('jsonwebtoken');
@@ -59,18 +78,15 @@ module.exports = (io) => {
             }
         }
 
-        // No valid auth provided
         return next(new Error('Authentication error: Invalid API Key or Token'));
     });
 
     io.on('connection', (socket) => {
         logger.info(`[Socket] ${socket.isAdmin ? 'Admin' : 'Branch'} Connected: ${socket.branchCode || socket.adminUser?.username}`);
 
-        // If this is a branch, update status and join room
         if (socket.isBranch && socket.branchId) {
             const branchUrl = socket.handshake.query.branchUrl || null;
             
-            // Update branch status to ONLINE
             prisma.branch.update({
                 where: { id: socket.branchId },
                 data: { 
@@ -82,16 +98,13 @@ module.exports = (io) => {
                 if (branch) {
                     logPortalSync(socket.branchId, socket.branchCode, branch.name, 'CONNECT', 'SUCCESS', `${socket.branchCode} (${branch.name}) اتصل عبر WebSocket`);
                 }
-            }).catch(() => {});
+            }).catch((e) => { logger.error({ err: e.message }, 'Failed to update branch status on connect'); });
 
-            // Join branch room
             socket.join(`branch_${socket.branchId}`);
 
-            // Push any pending updates to the branch that just connected
             syncQueueService.pushPendingToBranch(socket.branchId);
         }
 
-        // Listen for acknowledgments of synced updates
         socket.on('ack_update', async (data) => {
             const { queueId } = data;
             if (queueId) {
@@ -107,13 +120,10 @@ module.exports = (io) => {
             }
         });
 
-        // Handle branch_identify event
         socket.on('branch_identify', (data) => {
             logger.info(`[Socket] Branch identity confirmed: ${data.branchCode}`);
-            // Could respond or update state if needed
         });
 
-        // Handle branch requesting data sync (initial sync / HTTP fallback)
         socket.on('branch_request_sync', async (data) => {
             const { branchCode, entities } = data;
             logger.info(`[Sync] Branch ${branchCode} requesting sync for: ${entities?.join(', ') || 'all'}`);
@@ -159,11 +169,10 @@ module.exports = (io) => {
                 logger.info(`[Sync] Sent sync response to branch ${socket.branchCode}`);
             } catch (error) {
                 logger.error('[Sync] Error serving sync request:', error.message);
-                socket.emit('portal_sync_response', { success: false, error: error.message });
+                socket.emit('portal_sync_response', { success: false, error: 'Sync request failed' });
             }
         });
 
-        // Handle user updates from branch (upward sync)
         socket.on('branch_user_update', async (data) => {
             const { user, branchCode } = data;
             logger.info(`[Sync] Received user update from branch ${branchCode || socket.branchCode}: ${user?.username}`);
@@ -199,7 +208,6 @@ module.exports = (io) => {
                              }
                     }
 
-                    // Log to UserSyncLog
                     await prisma.userSyncLog.create({
                         data: {
                             branchCode: targetBranchCode,
@@ -215,7 +223,6 @@ module.exports = (io) => {
             } catch (error) {
                 logger.error('[Sync] Error upserting user from branch:', error.message);
                 
-                // Log failure
                 await prisma.userSyncLog.create({
                     data: {
                         branchCode: branchCode || socket.branchCode,
@@ -230,13 +237,11 @@ module.exports = (io) => {
             }
         });
 
-        // Upward Sync: Listen for Full Push from Branch
         socket.on('branch_push_all', async (payload) => {
             logger.info(`[Sync] Received Full Push from branch ${socket.branchCode}`);
             try {
                 const { users, machineParams, spareParts } = payload;
 
-                // 1. Sync Users (Clean them first)
                 if (users && Array.isArray(users)) {
                     for (const user of users) {
                         const { branch, ...cleanUser } = user;
@@ -262,46 +267,29 @@ module.exports = (io) => {
                     }
                 }
 
-                // 2. Sync Machine Parameters (DISABLED: Portal is source of truth for parameters)
-                /*
-                if (machineParams && Array.isArray(machineParams)) {
-                    for (const param of machineParams) {
-                        await prisma.machineParameter.upsert({
-                            where: { id: param.id },
-                            update: param,
-                            create: param
-                        });
-                    }
-                }
-                */
-
-                // 3. Sync Spare Parts — DISABLED: Admin Portal is the source of truth
-                // Branches receive spare parts via normal sync, not via branch_push_all
-
                 logger.info(`[Sync] Full Push completed for branch ${socket.branchCode}`);
             } catch (error) {
                 logger.error('[Sync] Full Push processing failed:', error.message);
             }
         });
 
-                // Admin requests branch stock for a specific spare part
-                // Broadcasts to all connected branches; each branch responds with its stock
         socket.on('request_branch_stock', async (data) => {
-            // Only allow admin users to request stock
             if (!socket.isAdmin) {
                 logger.warn('[Sync] Non-admin attempted to request branch stock');
                 return;
             }
             
-            const { partId, requestId } = data;
+            const { partId, requestId, targetBranchId } = data;
             socket.adminRequestId = requestId;
             logger.info(`[Sync] Admin ${socket.adminUser?.username} requested stock for part ${partId} (requestId: ${requestId})`);
 
-            io.emit('admin_request_branch_stock', {
+            const emitTarget = targetBranchId ? io.to(`branch_${targetBranchId}`) : io;
+            emitTarget.emit('admin_request_branch_stock', {
                 partId,
-                requestId
+                requestId,
+                targetBranchId: targetBranchId || null
             });
-            logger.info(`[Sync] Broadcast admin_request_branch_stock to all branches for part ${partId}`);
+            logger.info(`[Sync] Broadcast admin_request_branch_stock for part ${partId}${targetBranchId ? ` to branch ${targetBranchId}` : ' to all branches'}`);
         });
 
         socket.on('branch_stock_response', (data) => {
@@ -311,7 +299,6 @@ module.exports = (io) => {
             }
         });
 
-        // Handle full inventory push from branch
         socket.on('branch_inventory_push', async (data) => {
             const { inventory, branchCode } = data;
             if (!socket.isBranch || !socket.branchId) return;
@@ -320,9 +307,9 @@ module.exports = (io) => {
 
             try {
                 if (inventory && Array.isArray(inventory)) {
-                    // Use a transaction to ensure atomic updates
-                    await prisma.$transaction(
-                        inventory.map(item => prisma.branchSparePart.upsert({
+                    const validItems = inventory
+                        .filter(item => item.partId && typeof item.quantity === 'number' && item.quantity >= 0)
+                        .map(item => prisma.branchSparePart.upsert({
                             where: {
                                 branchId_partId: {
                                     branchId: socket.branchId,
@@ -335,8 +322,11 @@ module.exports = (io) => {
                                 partId: item.partId,
                                 quantity: item.quantity
                             }
-                        }))
-                    );
+                        }));
+
+                    if (validItems.length > 0) {
+                        await prisma.$transaction(validItems);
+                    }
                     
                     logPortalSync(socket.branchId, socket.branchCode, null, 'PULL', 'SUCCESS', `تم تحديث مخزون ${inventory.length} قطعة غيار`, inventory.length);
                 }
@@ -346,7 +336,6 @@ module.exports = (io) => {
             }
         });
 
-        // Handle comprehensive reporting data push from branch
         socket.on('branch_data_push', async (data) => {
             const { entities, branchCode } = data;
             if (!socket.isBranch || !socket.branchId) return;
@@ -354,39 +343,40 @@ module.exports = (io) => {
             logger.info(`[Sync] Received data push (${Object.keys(entities || {}).length} types) from branch ${branchCode || socket.branchCode}`);
 
             try {
-                // We use individual updates to handle potential schema differences or missing fields gracefully
                 if (entities.machines) {
                     for (const m of entities.machines) {
+                        const safe = pickFields(m, ALLOWED_WAREHOUSE_MACHINE_FIELDS);
                         await prisma.warehouseMachine.upsert({
                             where: { serialNumber: m.serialNumber },
-                            update: { ...m, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...m, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                 }
 
                 if (entities.sales) {
                     for (const s of entities.sales) {
+                        const safe = pickFields(s, ALLOWED_MACHINE_SALE_FIELDS);
                         await prisma.machineSale.upsert({
                             where: { id: s.id },
-                            update: { ...s, branchId: socket.branchId },
-                            create: { ...s, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                 }
 
                 if (entities.sims) {
                     for (const sim of entities.sims) {
+                        const safe = pickFields(sim, ALLOWED_WAREHOUSE_SIM_FIELDS);
                         await prisma.warehouseSim.upsert({
                             where: { serialNumber: sim.serialNumber },
-                            update: { ...sim, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...sim, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                 }
 
                 if (entities.movements) {
-                    // Pre-fetch existing MasterSparePart IDs to validate FK references
                     const existingPartIds = new Set(
                         (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
                     );
@@ -395,20 +385,22 @@ module.exports = (io) => {
                             logger.warn(`[Sync] Skipping StockMovement ${mov.id}: MasterSparePart ${mov.partId} not found`);
                             continue;
                         }
+                        const safe = pickFields(mov, ALLOWED_STOCK_MOVEMENT_FIELDS);
                         await prisma.stockMovement.upsert({
                             where: { id: mov.id },
-                            update: { ...mov, branchId: socket.branchId },
-                            create: { ...mov, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                 }
 
                 if (entities.payments) {
                     for (const pay of entities.payments) {
+                        const safe = pickFields(pay, ALLOWED_PAYMENT_FIELDS);
                         await prisma.payment.upsert({
                             where: { id: pay.id },
-                            update: { ...pay, branchId: socket.branchId },
-                            create: { ...pay, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                 }
@@ -420,7 +412,6 @@ module.exports = (io) => {
             }
         });
 
-        // Handle comprehensive report data push from branch (new full report sync)
         socket.on('branch_report_push', async (data) => {
             const { branchCode, branchId: reportedBranchId, entities, timestamp } = data;
             if (!socket.isBranch || !socket.branchId) return;
@@ -431,35 +422,33 @@ module.exports = (io) => {
                 let totalSynced = 0;
                 const results = {};
 
-                // 1. Maintenance Requests
                 if (entities.maintenanceRequests && Array.isArray(entities.maintenanceRequests)) {
                     for (const r of entities.maintenanceRequests) {
+                        const safe = pickFields(r, ALLOWED_MAINTENANCE_REQUEST_FIELDS);
                         await prisma.maintenanceRequest.upsert({
                             where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.maintenanceRequests = entities.maintenanceRequests.length;
                     totalSynced += entities.maintenanceRequests.length;
                 }
 
-                // 2. Payments
                 if (entities.payments && Array.isArray(entities.payments)) {
                     for (const p of entities.payments) {
+                        const safe = pickFields(p, ALLOWED_PAYMENT_FIELDS);
                         await prisma.payment.upsert({
                             where: { id: p.id },
-                            update: { ...p, branchId: socket.branchId },
-                            create: { ...p, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.payments = entities.payments.length;
                     totalSynced += entities.payments.length;
                 }
 
-                // 3. Stock Movements
                 if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
-                    // Pre-fetch existing MasterSparePart IDs to validate FK references
                     const existingPartIds = new Set(
                         (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
                     );
@@ -468,114 +457,115 @@ module.exports = (io) => {
                             logger.warn(`[Sync] Skipping StockMovement ${m.id}: MasterSparePart ${m.partId} not found`);
                             continue;
                         }
+                        const safe = pickFields(m, ALLOWED_STOCK_MOVEMENT_FIELDS);
                         await prisma.stockMovement.upsert({
                             where: { id: m.id },
-                            update: { ...m, branchId: socket.branchId },
-                            create: { ...m, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.stockMovements = entities.stockMovements.length;
                     totalSynced += entities.stockMovements.length;
                 }
 
-                // 4. Machine Sales
                 if (entities.machineSales && Array.isArray(entities.machineSales)) {
                     for (const s of entities.machineSales) {
+                        const safe = pickFields(s, ALLOWED_MACHINE_SALE_FIELDS);
                         await prisma.machineSale.upsert({
                             where: { id: s.id },
-                            update: { ...s, branchId: socket.branchId },
-                            create: { ...s, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.machineSales = entities.machineSales.length;
                     totalSynced += entities.machineSales.length;
                 }
 
-                // 5. Installments
                 if (entities.installments && Array.isArray(entities.installments)) {
                     for (const i of entities.installments) {
+                        const safe = pickFields(i, ALLOWED_INSTALLMENT_FIELDS);
                         await prisma.installment.upsert({
                             where: { id: i.id },
-                            update: { ...i, branchId: socket.branchId },
-                            create: { ...i, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.installments = entities.installments.length;
                     totalSynced += entities.installments.length;
                 }
 
-                // 6. SIM Cards
                 if (entities.simCards && Array.isArray(entities.simCards)) {
                     for (const sim of entities.simCards) {
+                        const safe = pickFields(sim, ALLOWED_SIM_CARD_FIELDS);
                         await prisma.simCard.upsert({
                             where: { id: sim.id },
-                            update: { ...sim, branchId: socket.branchId },
-                            create: { ...sim, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.simCards = entities.simCards.length;
                     totalSynced += entities.simCards.length;
                 }
 
-                // 7. SIM Movements
                 if (entities.simMovements && Array.isArray(entities.simMovements)) {
                     for (const m of entities.simMovements) {
+                        const safe = pickFields(m, ALLOWED_SIM_MOVEMENT_FIELDS);
                         await prisma.simMovementLog.upsert({
                             where: { id: m.id },
-                            update: { ...m, branchId: socket.branchId },
-                            create: { ...m, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.simMovements = entities.simMovements.length;
                     totalSynced += entities.simMovements.length;
                 }
 
-                // 8. Warehouse Machines
                 if (entities.warehouseMachines && Array.isArray(entities.warehouseMachines)) {
                     for (const m of entities.warehouseMachines) {
+                        const safe = pickFields(m, ALLOWED_WAREHOUSE_MACHINE_FIELDS);
                         await prisma.warehouseMachine.upsert({
                             where: { serialNumber: m.serialNumber },
-                            update: { ...m, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...m, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.warehouseMachines = entities.warehouseMachines.length;
                     totalSynced += entities.warehouseMachines.length;
                 }
 
-                // 9. Warehouse SIMs
                 if (entities.warehouseSims && Array.isArray(entities.warehouseSims)) {
                     for (const s of entities.warehouseSims) {
+                        const safe = pickFields(s, ALLOWED_WAREHOUSE_SIM_FIELDS);
                         await prisma.warehouseSim.upsert({
                             where: { serialNumber: s.serialNumber },
-                            update: { ...s, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...s, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId, updatedAt: new Date() },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.warehouseSims = entities.warehouseSims.length;
                     totalSynced += entities.warehouseSims.length;
                 }
 
-                // 10. POS Machines
                 if (entities.posMachines && Array.isArray(entities.posMachines)) {
                     for (const p of entities.posMachines) {
+                        const safe = pickFields(p, ALLOWED_POS_MACHINE_FIELDS);
                         await prisma.posMachine.upsert({
                             where: { id: p.id },
-                            update: { ...p, branchId: socket.branchId },
-                            create: { ...p, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.posMachines = entities.posMachines.length;
                     totalSynced += entities.posMachines.length;
                 }
 
-                // 11. Customers
                 if (entities.customers && Array.isArray(entities.customers)) {
                     for (const c of entities.customers) {
+                        const safe = pickFields(c, ALLOWED_CUSTOMER_FIELDS);
                         await prisma.customer.upsert({
                             where: { id: c.id },
-                            update: { ...c, branchId: socket.branchId },
-                            create: { ...c, branchId: socket.branchId }
+                            update: { ...safe, branchId: socket.branchId },
+                            create: { ...safe, branchId: socket.branchId }
                         });
                     }
                     results.customers = entities.customers.length;
@@ -592,14 +582,16 @@ module.exports = (io) => {
 
         socket.on('disconnect', async () => {
             logger.info(`[Socket] Branch Disconnected: ${socket.branchCode}`);
-            logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) انقطع`);
-            try {
-                await prisma.branch.update({
-                    where: { id: socket.branchId },
-                    data: { status: 'OFFLINE', lastSeen: new Date() }
-                });
-            } catch (error) {
-                logger.error('[Socket] Error updating branch status:', error.message);
+            if (socket.branchId && socket.isBranch) {
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'DISCONNECT', 'SUCCESS', `${socket.branchCode} (${socket.branchName}) انقطع`);
+                try {
+                    await prisma.branch.update({
+                        where: { id: socket.branchId },
+                        data: { status: 'OFFLINE', lastSeen: new Date() }
+                    });
+                } catch (error) {
+                    logger.error('[Socket] Error updating branch status:', error.message);
+                }
             }
         });
     });

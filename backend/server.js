@@ -12,19 +12,29 @@ const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: '*', methods: ['GET', 'POST'] }
+    cors: { origin: process.env.FRONTEND_URL || true, methods: ['GET', 'POST'] }
 });
 
-app.use(helmet({
-    hsts: false,
-    contentSecurityPolicy: false
-}));
+app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(morgan('dev'));
 
-// Routes
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV !== 'production' ? 1000 : 10,
+    message: { error: 'Too many login attempts, please try again after 15 minutes' }
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV !== 'production' ? 2000 : 200,
+    message: { error: 'Too many requests, please try again later' }
+});
+
+app.use('/api', apiLimiter);
+
 const authRoutes = require('./src/routes/auth');
 const branchRoutes = require('./src/routes/branches');
 const parameterRoutes = require('./src/routes/parameters');
@@ -50,21 +60,14 @@ const githubRoutes = require('./src/routes/github');
 const versionRoutes = require('./src/routes/versions');
 const licenseRoutes = require('./src/routes/licenses');
 const inventoryRoutes = require('./src/routes/inventory');
-const simcardRoutes = require('./src/routes/simcards');
 const stockMovementsRoutes = require('./src/routes/stockMovements');
 const maintenanceRequestsRoutes = require('./src/routes/maintenanceRequests');
 const paymentsRoutes = require('./src/routes/payments');
 const salesRoutes = require('./src/routes/sales');
+const simcardsRoutes = require('./src/routes/simcards');
 const simcardsReportsRoutes = require('./src/routes/simcards-reports');
 
-const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV !== 'production' ? 1000 : 10,
-    message: { error: 'Too many login attempts, please try again after 15 minutes' }
-});
-
 app.use('/api/auth', loginLimiter, authRoutes);
-app.use('/api/licenses', licenseRoutes);
 app.use('/api/branch-setup', branchSetupRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/parameters', parameterRoutes);
@@ -91,23 +94,22 @@ app.use('/api/stock-movements', stockMovementsRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/sales', salesRoutes);
-app.use('/api/simcards', simcardsReportsRoutes);
-app.use('/api/simcards', simcardRoutes);
+app.use('/api/simcards', simcardsRoutes);
+app.use('/api/simcard-reports', simcardsReportsRoutes);
+app.use('/api/licenses', licenseRoutes);
 app.use('/api', miscRoutes);
 
-// Basic Health Check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'Central Admin Portal API is running' });
 });
 
-// Setup Socket.io Event Handlers
+app.set('io', io);
+
 require('./src/sockets/admin.socket')(io);
 
-// Initialize SyncQueue Service
 const syncQueueService = require('./src/services/syncQueue.service');
 syncQueueService.init(io);
 
-// Serve React frontend static files
 const path = require('path');
 const frontendDist = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendDist));
@@ -119,13 +121,12 @@ app.get('*', (req, res, next) => {
     }
 });
 
+const logger = require('./utils/logger');
 app.use((err, req, res, next) => {
-    const logger2 = require('./utils/logger');
-    logger2.error({ err: err.message, stack: err.stack }, 'Unhandled error');
+    logger.error({ err: err.message, stack: err.stack }, 'Unhandled error');
     res.status(err.status || 500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message });
 });
 
-const logger = require('./utils/logger');
 const PORT = process.env.PORT || 5005;
 
 async function ensureAdminUser() {

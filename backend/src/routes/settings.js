@@ -7,8 +7,7 @@ const asyncHandler = fn => (req, res, next) =>
 
 const { adminAuth } = require('../middleware/auth');
 
-// Client Types
-router.get('/client-types', asyncHandler(async (req, res) => {
+router.get('/client-types', adminAuth, asyncHandler(async (req, res) => {
     const types = await prisma.clientType.findMany({
         where: { isActive: true },
         orderBy: { name: 'asc' }

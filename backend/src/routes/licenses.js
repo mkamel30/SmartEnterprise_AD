@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const prisma = require('../db');
+const { adminAuth } = require('../middleware/auth');
+const logger = require('../../utils/logger');
 
-// Helper to generate a license key
 function generateLicenseKey() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     const segments = [];
@@ -17,7 +18,8 @@ function generateLicenseKey() {
     return segments.join('-');
 }
 
-// Create a new license
+router.use(adminAuth);
+
 router.post('/create', async (req, res) => {
     try {
         const { branchCode, branchName, type, expirationDate, maxActivations } = req.body;
@@ -36,7 +38,6 @@ router.post('/create', async (req, res) => {
             }
         });
 
-        // Audit log
         await prisma.licenseAudit.create({
             data: {
                 licenseId: license.id,
@@ -61,12 +62,11 @@ router.post('/create', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('License creation error:', error);
+        logger.error({ err: error.message }, 'License creation error');
         res.status(500).json({ error: 'Failed to create license' });
     }
 });
 
-// Activate a license (called by branch app)
 router.post('/activate', async (req, res) => {
     try {
         const { licenseKey, hwid, branchCode, branchName } = req.body;
@@ -83,7 +83,6 @@ router.post('/activate', async (req, res) => {
             return res.status(404).json({ error: 'License not found' });
         }
 
-        // Check if license is active
         if (license.status !== 'ACTIVE') {
             return res.status(403).json({ 
                 error: 'License is not active',
@@ -91,7 +90,6 @@ router.post('/activate', async (req, res) => {
             });
         }
 
-        // Check expiration
         if (license.expirationDate && new Date() > license.expirationDate) {
             await prisma.license.update({
                 where: { id: license.id },
@@ -100,7 +98,6 @@ router.post('/activate', async (req, res) => {
             return res.status(403).json({ error: 'License has expired' });
         }
 
-        // If license is HWID-bound, verify it
         if (license.hwid && license.hwid !== hwid) {
             await prisma.licenseAudit.create({
                 data: {
@@ -117,7 +114,6 @@ router.post('/activate', async (req, res) => {
             return res.status(403).json({ error: 'Hardware ID mismatch' });
         }
 
-        // Check activation limit
         if (license.maxActivations > 0 && license.activationCount >= license.maxActivations) {
             return res.status(403).json({ 
                 error: 'Maximum activations reached',
@@ -126,7 +122,6 @@ router.post('/activate', async (req, res) => {
             });
         }
 
-        // Update license with HWID and activation info
         const updates = {
             activationCount: license.activationCount + 1,
             activationDate: license.activationDate || new Date(),
@@ -140,7 +135,6 @@ router.post('/activate', async (req, res) => {
             data: updates
         });
 
-        // Audit log
         await prisma.licenseAudit.create({
             data: {
                 licenseId: license.id,
@@ -167,12 +161,11 @@ router.post('/activate', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('License activation error:', error);
+        logger.error({ err: error.message }, 'License activation error');
         res.status(500).json({ error: 'Activation failed' });
     }
 });
 
-// Verify a license (called periodically by branch app)
 router.post('/verify', async (req, res) => {
     try {
         const { licenseKey, hwid, branchCode, machineId } = req.body;
@@ -189,7 +182,6 @@ router.post('/verify', async (req, res) => {
             return res.status(404).json({ error: 'License not found', valid: false });
         }
 
-        // Check if license is active
         if (license.status !== 'ACTIVE') {
             return res.json({
                 valid: false,
@@ -198,7 +190,6 @@ router.post('/verify', async (req, res) => {
             });
         }
 
-        // Check expiration
         if (license.expirationDate && new Date() > license.expirationDate) {
             await prisma.license.update({
                 where: { id: license.id },
@@ -211,7 +202,6 @@ router.post('/verify', async (req, res) => {
             });
         }
 
-        // Verify HWID if bound
         if (license.hwid && hwid && license.hwid !== hwid) {
             await prisma.licenseAudit.create({
                 data: {
@@ -230,7 +220,6 @@ router.post('/verify', async (req, res) => {
             });
         }
 
-        // Update last verified timestamp
         await prisma.license.update({
             where: { id: license.id },
             data: { 
@@ -240,7 +229,6 @@ router.post('/verify', async (req, res) => {
             }
         });
 
-        // Audit log (less frequently in production)
         await prisma.licenseAudit.create({
             data: {
                 licenseId: license.id,
@@ -263,12 +251,11 @@ router.post('/verify', async (req, res) => {
                 : null
         });
     } catch (error) {
-        console.error('License verification error:', error);
+        logger.error({ err: error.message }, 'License verification error');
         res.status(500).json({ error: 'Verification failed', valid: false });
     }
 });
 
-// Suspend a license
 router.post('/suspend', async (req, res) => {
     try {
         const { licenseKey, reason } = req.body;
@@ -299,12 +286,11 @@ router.post('/suspend', async (req, res) => {
 
         res.json({ success: true, message: 'License suspended' });
     } catch (error) {
-        console.error('License suspension error:', error);
+        logger.error({ err: error.message }, 'License suspension error');
         res.status(500).json({ error: 'Failed to suspend license' });
     }
 });
 
-// Revoke a license
 router.post('/revoke', async (req, res) => {
     try {
         const { licenseKey, reason } = req.body;
@@ -335,12 +321,11 @@ router.post('/revoke', async (req, res) => {
 
         res.json({ success: true, message: 'License revoked' });
     } catch (error) {
-        console.error('License revocation error:', error);
+        logger.error({ err: error.message }, 'License revocation error');
         res.status(500).json({ error: 'Failed to revoke license' });
     }
 });
 
-// List all licenses
 router.get('/', async (req, res) => {
     try {
         const { status, branchCode, type } = req.query;
@@ -357,12 +342,11 @@ router.get('/', async (req, res) => {
 
         res.json({ licenses });
     } catch (error) {
-        console.error('License list error:', error);
+        logger.error({ err: error.message }, 'License list error');
         res.status(500).json({ error: 'Failed to list licenses' });
     }
 });
 
-// Get license audit logs
 router.get('/:licenseKey/audit', async (req, res) => {
     try {
         const { licenseKey } = req.params;
@@ -375,7 +359,7 @@ router.get('/:licenseKey/audit', async (req, res) => {
 
         res.json({ logs });
     } catch (error) {
-        console.error('License audit error:', error);
+        logger.error({ err: error.message }, 'License audit error');
         res.status(500).json({ error: 'Failed to get audit logs' });
     }
 });

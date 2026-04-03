@@ -3,19 +3,13 @@ const router = express.Router();
 const axios = require('axios');
 const db = require('../db');
 const { authenticateToken, requireSuperAdmin } = require('../middleware/auth');
+const logger = require('../../utils/logger');
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
 async function getGitHubSettings() {
     let settings = await db.gitHubSettings.findFirst();
     const envPat = process.env.GITHUB_PAT || '';
-    
-    // Debug log
-    if (!settings) {
-        console.log('[GitHub] Creating settings, envPat:', envPat ? 'SET' : 'EMPTY');
-    } else if (!settings.patToken) {
-        console.log('[GitHub] DB has no token, envPat:', envPat ? 'SET' : 'EMPTY');
-    }
     
     if (!settings) {
         settings = await db.gitHubSettings.create({
@@ -26,7 +20,6 @@ async function getGitHubSettings() {
             }
         });
     } else if (!settings.patToken && envPat) {
-        // Use env token if DB token is empty
         settings = await db.gitHubSettings.update({
             where: { id: settings.id },
             data: { patToken: envPat }
@@ -50,6 +43,7 @@ async function githubRequest(endpoint, settings, options = {}) {
         });
         return response.data;
     } catch (err) {
+        logger.error({ err: err.message }, `GitHub API Error: ${endpoint}`);
         throw err;
     }
 }
@@ -119,7 +113,7 @@ router.get('/:branchCode', authenticateToken, requireSuperAdmin, async (req, res
 
 router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
-    const initiatedBy = req.user?.username || 'system';
+    const initiatedBy = req.admin?.username || 'system';
 
     const settings = await getGitHubSettings();
     
@@ -179,14 +173,15 @@ router.post('/:branchCode/check', authenticateToken, requireSuperAdmin, async (r
                 initiatedBy
             }
         });
-        res.status(500).json({ error: 'Failed to check version: ' + err.message });
+        logger.error({ err: err.message }, 'Version check failed');
+        res.status(500).json({ error: 'Failed to check version' });
     }
 });
 
 router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
     const { version } = req.body;
-    const initiatedBy = req.user?.username || 'system';
+    const initiatedBy = req.admin?.username || 'system';
 
     const branch = await db.branch.findUnique({ where: { code: branchCode } });
     if (!branch) {
@@ -218,7 +213,7 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (re
         if (!branchUrl) {
             return res.json({ success: false, error: 'Branch URL not configured. Set BRANCH_API_URL in .env or configure branch URL in database.' });
         }
-        const response = await axios.post(
+        await axios.post(
             `${branchUrl}/api/system/update/trigger`,
             { version: version || 'latest' },
             {
@@ -252,13 +247,14 @@ router.post('/:branchCode/push', authenticateToken, requireSuperAdmin, async (re
             }
         });
 
-        res.status(500).json({ error: 'Failed to push update to branch: ' + err.message });
+        logger.error({ err: err.message }, 'Push update failed');
+        res.status(500).json({ error: 'Failed to push update to branch' });
     }
 });
 
 router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, async (req, res) => {
     const { branchCode } = req.params;
-    const initiatedBy = req.user?.username || 'system';
+    const initiatedBy = req.admin?.username || 'system';
 
     const branch = await db.branch.findUnique({ where: { code: branchCode } });
     if (!branch || !branch.apiKey) {
@@ -302,7 +298,8 @@ router.post('/:branchCode/rollback', authenticateToken, requireSuperAdmin, async
                 initiatedBy
             }
         });
-        res.status(500).json({ error: 'Failed to rollback: ' + err.message });
+        logger.error({ err: err.message }, 'Rollback failed');
+        res.status(500).json({ error: 'Failed to rollback' });
     }
 });
 
@@ -326,7 +323,7 @@ router.get('/logs', authenticateToken, requireSuperAdmin, async (req, res) => {
     res.json({ success: true, logs, total, limit: parseInt(limit), offset: parseInt(offset) });
 });
 
-router.post('/:branchCode/status', async (req, res) => {
+router.post('/:branchCode/status', authenticateToken, async (req, res) => {
     const { branchCode } = req.params;
     const { status, version, progress, errorMessage } = req.body;
 
