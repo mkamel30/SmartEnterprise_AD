@@ -7,8 +7,6 @@ const logger = require('../../utils/logger');
 
 router.use(adminAuth);
 
-const syncQueueService = require('../services/syncQueue.service');
-
 // Get all Master Spare Parts
 router.get('/', async (req, res) => {
     try {
