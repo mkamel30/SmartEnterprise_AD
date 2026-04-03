@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const logger = require('../../utils/logger');
 
 /**
  * Log an administrative action to the AuditLog table
@@ -18,7 +19,7 @@ async function logAuditAction({ userId, userName, entityType, entityId, action, 
             }
         });
     } catch (error) {
-        console.error('Audit logging failed:', error);
+        logger.error({ err: error.message }, 'Audit logging failed');
     }
 }
 
