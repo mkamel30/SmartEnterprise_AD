@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
 import { 
   TrendingUp, DollarSign, RefreshCw, 
@@ -13,6 +13,7 @@ import {
   BarChart, Bar, Cell
 } from 'recharts';
 import toast from 'react-hot-toast';
+import PullReportsButton from '../components/PullReportsButton';
 
 const reportTabs = [
   { id: 'financial', label: 'التدقيق المالي', icon: DollarSign },
@@ -48,6 +49,7 @@ const paymentTypeMap: any = {
 export default function Reports() {
     const navigate = useNavigate();
     const location = useLocation();
+    const queryClient = useQueryClient();
     const [data, setData] = useState<any>(null);
     const [exporting, setExporting] = useState(false);
     const [filters, setFilters] = useState({
@@ -826,6 +828,9 @@ export default function Reports() {
                     </h1>
                     <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">مراجعة البيانات والتقارير عبر شبكة الفروع</p>
                 </div>
+                <PullReportsButton branches={branches || []} onSuccess={() => {
+                    queryClient.invalidateQueries();
+                }} />
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-2">
