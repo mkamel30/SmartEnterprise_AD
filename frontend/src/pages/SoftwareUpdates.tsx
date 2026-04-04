@@ -123,7 +123,7 @@ export default function SoftwareUpdates() {
                                 <Package className="text-primary" size={24} />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-black text-foreground">{latestData?.release?.version || 'v1.0.0'}</h2>
+                                <h2 className="text-2xl font-black text-foreground">{latestData?.release?.version || 'v1.1.0'}</h2>
                                 <p className="text-xs font-bold text-muted-foreground">{new Date(latestData?.release?.publishedAt).toLocaleDateString('ar-EG')}</p>
                             </div>
                         </div>
@@ -155,7 +155,7 @@ export default function SoftwareUpdates() {
                             </div>
                             <div className="flex justify-between items-center text-xs">
                                 <span className="font-bold text-muted-foreground">الإصدار الحالي بالفروع:</span>
-                                <span className="font-black text-success">v1.0.0</span>
+                                <span className="font-black text-success">v1.1.0</span>
                             </div>
                             <div className="flex justify-between items-center text-xs">
                                 <span className="font-bold text-muted-foreground">التحديث التلقائي:</span>
