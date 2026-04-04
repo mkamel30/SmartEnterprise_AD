@@ -43,12 +43,53 @@ export default function AnalyticsDashboard() {
     const totalMachines = totals.posMachineCount || 0;
 
     const maintenanceStatusData: any[] = [];
-    const paymentTypeData: any[] = [];
-    const salesTypeData = [
-        { name: 'كاش', value: 0, revenue: 0 },
-        { name: 'تقسيط', value: 0, revenue: 0 }
-    ];
+    const paymentTypeDataMap: any = {};
+    const maintenanceStatusMap: any = {};
+    const salesTypeMap = {
+        'CASH': { name: 'كاش', value: 0, revenue: 0 },
+        'INSTALLMENT': { name: 'تقسيط', value: 0, revenue: 0 }
+    };
 
+    branchBreakdown.forEach((b: any) => {
+        // Maintenance Status Aggregation
+        const reqDetails = b.summaries?.requests?.details;
+        if (reqDetails?.byStatus) {
+            Object.entries(reqDetails.byStatus).forEach(([status, count]: [string, any]) => {
+                maintenanceStatusMap[status] = (maintenanceStatusMap[status] || 0) + (typeof count === 'object' ? count.count : count);
+            });
+        }
+
+        // Sales Type Aggregation
+        const salesDetails = b.summaries?.sales?.details;
+        if (salesDetails?.byType) {
+            Object.entries(salesDetails.byType).forEach(([type, info]: [string, any]) => {
+                const typeKey = type.toUpperCase();
+                if (salesTypeMap[typeKey as keyof typeof salesTypeMap]) {
+                    salesTypeMap[typeKey as keyof typeof salesTypeMap].value += info.count || 0;
+                    salesTypeMap[typeKey as keyof typeof salesTypeMap].revenue += info.totalAmount || 0;
+                }
+            });
+        }
+
+        // Payment Method Aggregation
+        const paymentDetails = b.summaries?.payments?.details;
+        if (paymentDetails?.byType) {
+            Object.entries(paymentDetails.byType).forEach(([type, info]: [string, any]) => {
+                if (!paymentTypeDataMap[type]) {
+                    paymentTypeDataMap[type] = { name: type, count: 0, amount: 0 };
+                }
+                paymentTypeDataMap[type].count += (info as any).count || 0;
+                paymentTypeDataMap[type].amount += (info as any).totalAmount || 0;
+            } );
+        }
+    });
+
+    Object.entries(maintenanceStatusMap).forEach(([status, count]) => {
+        maintenanceStatusData.push({ name: status, value: count });
+    });
+
+    const paymentTypeData = Object.values(paymentTypeDataMap);
+    const salesTypeData = Object.values(salesTypeMap);
 
     const COLORS = ['#0A2472', '#0E6BA8', '#A6E1FA', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 

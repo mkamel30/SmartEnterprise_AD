@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle2, Clock, XCircle } from 'lucide-react';
-import { api } from '../api/client';
+import adminClient from '../api/adminClient';
 import toast from 'react-hot-toast';
 
 export default function SyncStatus() {
@@ -13,7 +13,7 @@ export default function SyncStatus() {
         try {
             setLoading(true);
             const statusParams = filter !== 'ALL' ? `?status=${filter}` : '';
-            const response = (await api.get(`/sync-queue${statusParams}`)) as any;
+            const response = (await adminClient.get(`/sync-queue${statusParams}`)) as any;
             
             // Safe fallback if data is missing
             setQueues(response.data?.data || []);
