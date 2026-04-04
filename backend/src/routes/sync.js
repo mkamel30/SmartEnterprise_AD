@@ -7,6 +7,9 @@ const logger = require('../../utils/logger');
 const validate = require('../middleware/validate');
 const { requestSyncSchema, pushSchema, validateEntityArray, customerSchema, posMachineSchema, paymentItemSchema, maintenanceRequestSchema, warehouseMachineSchema, simCardSchema } = require('./sync.schema');
 
+let io = null;
+router.setIo = (socketIo) => { io = socketIo; };
+
 async function logPortalSync(branchId, branchCode, branchName, type, status, message, itemCount = 0, details = null) {
     try {
         await prisma.portalSyncLog.create({
@@ -264,8 +267,17 @@ router.post('/request-full-sync/:branchId', adminAuth, async (req, res) => {
         const branch = await prisma.branch.findUnique({ where: { id: branchId } });
         if (!branch) return res.status(404).json({ error: 'Branch not found' });
 
-        await syncQueueService.enqueueUpdate('SYSTEM_DIRECTIVE', 'REQUEST_FULL_SYNC', { branchId });
-        res.json({ message: 'Full sync requested successfully via WebSockets' });
+        if (branch.status !== 'ONLINE') {
+            return res.status(400).json({ error: 'Branch is offline. Cannot request sync.' });
+        }
+
+        if (io) {
+            io.to(`branch_${branchId}`).emit('SYSTEM_DIRECTIVE', { action: 'REQUEST_FULL_SYNC', branchId });
+            logger.info(`[Sync] Sent REQUEST_FULL_SYNC to branch ${branch.code}`);
+        }
+
+        await logPortalSync(branch.id, branch.code, branch.name, 'PULL', 'SUCCESS', `Requested full sync from ${branch.code}`);
+        res.json({ message: 'Full sync requested successfully', branch: { code: branch.code, name: branch.name } });
     } catch (error) {
         logger.error('Failed to request full sync:', error);
         res.status(500).json({ error: 'Failed to request sync' });
@@ -278,10 +290,42 @@ router.post('/request-report-sync/:branchId', adminAuth, async (req, res) => {
         const branch = await prisma.branch.findUnique({ where: { id: branchId } });
         if (!branch) return res.status(404).json({ error: 'Branch not found' });
 
-        await syncQueueService.enqueueUpdate('SYSTEM_DIRECTIVE', 'REQUEST_REPORT_DATA', { branchId });
-        res.json({ message: 'Report sync requested successfully via WebSockets' });
+        if (branch.status !== 'ONLINE') {
+            return res.status(400).json({ error: 'Branch is offline. Cannot request report sync.' });
+        }
+
+        if (io) {
+            io.to(`branch_${branchId}`).emit('SYSTEM_DIRECTIVE', { action: 'REQUEST_REPORT_DATA', branchId });
+            logger.info(`[Sync] Sent REQUEST_REPORT_DATA to branch ${branch.code}`);
+        }
+
+        await logPortalSync(branch.id, branch.code, branch.name, 'PULL', 'SUCCESS', `Requested report sync from ${branch.code}`);
+        res.json({ message: 'Report sync requested successfully', branch: { code: branch.code, name: branch.name } });
     } catch (error) {
         logger.error('Failed to request report sync:', error);
+        res.status(500).json({ error: 'Failed to request report sync' });
+    }
+});
+
+router.post('/request-all-report-sync', adminAuth, async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({ where: { isActive: true } });
+        const results = [];
+
+        for (const branch of branches) {
+            if (branch.status === 'ONLINE' && io) {
+                io.to(`branch_${branch.id}`).emit('SYSTEM_DIRECTIVE', { action: 'REQUEST_REPORT_DATA', branchId: branch.id });
+                results.push({ branchId: branch.id, code: branch.code, name: branch.name, status: 'REQUESTED' });
+                logger.info(`[Sync] Sent REQUEST_REPORT_DATA to branch ${branch.code}`);
+            } else {
+                results.push({ branchId: branch.id, code: branch.code, name: branch.name, status: branch.status === 'ONLINE' ? 'NO_SOCKET' : 'OFFLINE' });
+            }
+        }
+
+        await logPortalSync(null, 'SYSTEM', 'System', 'PULL', 'SUCCESS', `Requested report sync from all ${branches.length} branches`);
+        res.json({ message: 'Report sync requested from all branches', results });
+    } catch (error) {
+        logger.error('Failed to request all report sync:', error);
         res.status(500).json({ error: 'Failed to request report sync' });
     }
 });
@@ -506,6 +550,56 @@ router.get('/queue', adminAuth, async (req, res) => {
     } catch (error) {
         logger.error('Failed to get sync queue:', error);
         res.status(500).json({ error: 'Failed to get sync queue' });
+    }
+});
+
+router.get('/policies', adminAuth, async (req, res) => {
+    try {
+        const defaults = [
+            { entityType: 'payments', syncLevel: 'FULL', description: 'Payment records' },
+            { entityType: 'sales', syncLevel: 'FULL', description: 'Machine sales' },
+            { entityType: 'customers', syncLevel: 'COUNT_ONLY', description: 'Customer records' },
+            { entityType: 'requests', syncLevel: 'FULL', description: 'Maintenance requests' },
+            { entityType: 'stockMovements', syncLevel: 'SUMMARY', description: 'Stock movements' },
+            { entityType: 'installments', syncLevel: 'FULL', description: 'Installment records' },
+            { entityType: 'simMovements', syncLevel: 'SUMMARY', description: 'SIM movement logs' },
+            { entityType: 'posMachines', syncLevel: 'COUNT_ONLY', description: 'POS machines' },
+            { entityType: 'simCards', syncLevel: 'FULL', description: 'SIM cards' },
+            { entityType: 'warehouseMachines', syncLevel: 'FULL', description: 'Warehouse machines' },
+            { entityType: 'warehouseSims', syncLevel: 'FULL', description: 'Warehouse SIMs' }
+        ];
+
+        const policies = await prisma.syncPolicy.findMany({ orderBy: { entityType: 'asc' } });
+        const policyMap = {};
+        policies.forEach(p => { policyMap[p.entityType] = p; });
+
+        const result = defaults.map(def => ({
+            ...def,
+            ...(policyMap[def.entityType] || { syncLevel: def.syncLevel, enabled: true })
+        }));
+
+        res.json({ success: true, policies: result });
+    } catch (error) {
+        logger.error('Failed to get sync policies:', error);
+        res.status(500).json({ error: 'Failed to get sync policies' });
+    }
+});
+
+router.put('/policies/:entityType', adminAuth, async (req, res) => {
+    try {
+        const { entityType } = req.params;
+        const { syncLevel, enabled } = req.body;
+
+        await prisma.syncPolicy.upsert({
+            where: { entityType },
+            update: { syncLevel, enabled },
+            create: { entityType, syncLevel, enabled }
+        });
+
+        res.json({ success: true, message: `Sync policy updated for ${entityType}` });
+    } catch (error) {
+        logger.error('Failed to update sync policy:', error);
+        res.status(500).json({ error: 'Failed to update sync policy' });
     }
 });
 

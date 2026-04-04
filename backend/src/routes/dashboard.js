@@ -148,4 +148,69 @@ router.get('/search', async (req, res) => {
     }
 });
 
+router.get('/branch-summaries', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            where: { isActive: true },
+            select: { id: true, code: true, name: true, status: true, lastSeen: true },
+            orderBy: { name: 'asc' }
+        });
+
+        const summaries = await prisma.branchSummary.findMany({
+            where: { branchId: { in: branches.map(b => b.id) } }
+        });
+
+        const result = branches.map(branch => {
+            const branchSummaries = summaries.filter(s => s.branchId === branch.id);
+            const entityMap = {};
+            branchSummaries.forEach(s => {
+                entityMap[s.entityType] = {
+                    count: s.recordCount,
+                    totalAmount: s.totalAmount,
+                    lastUpdatedAt: s.lastUpdatedAt
+                };
+            });
+
+            return {
+                id: branch.id,
+                code: branch.code,
+                name: branch.name,
+                status: branch.status,
+                lastSeen: branch.lastSeen,
+                summaries: entityMap,
+                totalRevenue: entityMap.payments?.totalAmount || 0,
+                paymentCount: entityMap.payments?.count || 0,
+                salesCount: entityMap.sales?.count || 0,
+                customerCount: entityMap.customers?.count || 0,
+                requestCount: entityMap.requests?.count || 0,
+                posMachineCount: entityMap.posMachines?.count || 0,
+                simCardCount: entityMap.simCards?.count || 0,
+                warehouseMachineCount: entityMap.warehouseMachines?.count || 0,
+                warehouseSimCount: entityMap.warehouseSims?.count || 0,
+                installmentCount: entityMap.installments?.count || 0,
+                stockMovementCount: entityMap.stockMovements?.count || 0
+            };
+        });
+
+        const totals = result.reduce((acc, b) => ({
+            totalRevenue: acc.totalRevenue + b.totalRevenue,
+            paymentCount: acc.paymentCount + b.paymentCount,
+            salesCount: acc.salesCount + b.salesCount,
+            customerCount: acc.customerCount + b.customerCount,
+            requestCount: acc.requestCount + b.requestCount,
+            posMachineCount: acc.posMachineCount + b.posMachineCount,
+            simCardCount: acc.simCardCount + b.simCardCount,
+            warehouseMachineCount: acc.warehouseMachineCount + b.warehouseMachineCount,
+            warehouseSimCount: acc.warehouseSimCount + b.warehouseSimCount,
+            installmentCount: acc.installmentCount + b.installmentCount,
+            stockMovementCount: acc.stockMovementCount + b.stockMovementCount
+        }), { totalRevenue: 0, paymentCount: 0, salesCount: 0, customerCount: 0, requestCount: 0, posMachineCount: 0, simCardCount: 0, warehouseMachineCount: 0, warehouseSimCount: 0, installmentCount: 0, stockMovementCount: 0 });
+
+        res.json({ success: true, branches: result, totals });
+    } catch (error) {
+        logger.error('Branch summaries failed:', error);
+        res.status(500).json({ error: 'Failed to fetch branch summaries' });
+    }
+});
+
 module.exports = router;

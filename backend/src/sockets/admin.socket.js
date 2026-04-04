@@ -684,6 +684,37 @@ module.exports = (io) => {
             }
         });
 
+        socket.on('branch_summary_push', async (data) => {
+            const { branchCode, summary, timestamp } = data;
+            if (!socket.isBranch || !socket.branchId) return;
+
+            logger.info(`[Sync] Received SUMMARY push from branch ${branchCode || socket.branchCode}`);
+
+            try {
+                const ops = Object.entries(summary).map(([entityType, info]) => {
+                    const count = typeof info === 'object' ? (info.count || 0) : info;
+                    const totalAmount = typeof info === 'object' ? (info.totalAmount || 0) : 0;
+                    return prisma.branchSummary.upsert({
+                        where: { branchId_entityType: { branchId: socket.branchId, entityType } },
+                        update: { recordCount: count, totalAmount, lastUpdatedAt: new Date() },
+                        create: { branchId: socket.branchId, entityType, recordCount: count, totalAmount, lastUpdatedAt: new Date() }
+                    });
+                });
+
+                if (ops.length > 0) {
+                    await prisma.$transaction(ops);
+                }
+
+                await updateBranchEntitySync(socket.branchId, '_summary', Object.values(summary).length, 'SUCCESS');
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Summary push: ${ops.length} entity counts updated`);
+                socket.emit('summary_ack', { status: 'SUCCESS', entities: ops.length });
+            } catch (error) {
+                logger.error('[Sync] Error processing summary push:', error.message);
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Summary push failed: ${error.message}`);
+                socket.emit('summary_ack', { status: 'FAILED', error: error.message });
+            }
+        });
+
         socket.on('disconnect', async () => {
             logger.info(`[Socket] Branch Disconnected: ${socket.branchCode}`);
             if (socket.branchId && socket.isBranch) {

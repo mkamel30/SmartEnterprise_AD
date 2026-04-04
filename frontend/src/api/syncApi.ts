@@ -87,8 +87,12 @@ const syncApi = {
         return request(`/sync/request-full-sync/${branchId}`, { method: 'POST' });
     },
 
-    requestReportSync: (branchId: string): Promise<{ message: string }> => {
+    requestReportSync: (branchId: string): Promise<{ message: string; branch: { code: string; name: string } }> => {
         return request(`/sync/request-report-sync/${branchId}`, { method: 'POST' });
+    },
+
+    requestAllReportSync: (): Promise<{ message: string; results: { branchId: string; code: string; name: string; status: string }[] }> => {
+        return request('/sync/request-all-report-sync', { method: 'POST' });
     },
 
     getCleanupPolicy: (): Promise<{ success: boolean; policy: CleanupPolicy[] }> => {
@@ -101,6 +105,18 @@ const syncApi = {
 
     runCleanup: (): Promise<CleanupResult> => {
         return request('/sync/cleanup/run', { method: 'POST' });
+    },
+
+    getSyncPolicies: (): Promise<{ success: boolean; policies: { entityType: string; syncLevel: string; enabled: boolean; description: string }[] }> => {
+        return request('/sync/policies');
+    },
+
+    updateSyncPolicy: (entityType: string, data: { syncLevel: string; enabled?: boolean }): Promise<{ success: boolean; message: string }> => {
+        return request(`/sync/policies/${entityType}`, { method: 'PUT', body: JSON.stringify(data) });
+    },
+
+    getBranchSummaries: (): Promise<{ success: boolean; branches: any[]; totals: any }> => {
+        return request('/dashboard/branch-summaries');
     }
 };
 

@@ -135,6 +135,8 @@ syncQueueService.init(io);
 const cleanupService = require('./src/services/cleanup.service');
 cleanupService.scheduleDailyCleanup();
 
+syncRoutes.setIo(io);
+
 const path = require('path');
 const frontendDist = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendDist));

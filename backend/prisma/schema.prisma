@@ -297,6 +297,7 @@ model Branch {
   warehouseMachines    WarehouseMachine[]
   warehouseSims        WarehouseSim[]
   entitySynces         BranchEntitySync[]
+  summaries            BranchSummary[]
 }
 
 model Customer {
@@ -845,4 +846,26 @@ model BranchEntitySync {
   @@unique([branchId, entityType])
   @@index([branchId])
   @@index([lastSyncedAt])
+}
+
+model BranchSummary {
+  id              String   @id @default(cuid())
+  branchId        String
+  entityType      String
+  recordCount     Int      @default(0)
+  totalAmount     Float    @default(0)
+  lastUpdatedAt   DateTime @default(now())
+  branch          Branch   @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, entityType])
+  @@index([branchId])
+}
+
+model SyncPolicy {
+  id           String   @id @default(cuid())
+  entityType   String   @unique
+  syncLevel    String   @default("COUNT_ONLY")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

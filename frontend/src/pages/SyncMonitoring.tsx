@@ -114,6 +114,26 @@ export default function SyncMonitoring() {
         refetchInterval: 60000
     });
 
+    const { data: branchSummaries } = useQuery({
+        queryKey: ['branch-summaries'],
+        queryFn: syncApi.getBranchSummaries,
+        refetchInterval: 15000
+    });
+
+    const { data: syncPolicies } = useQuery({
+        queryKey: ['sync-policies'],
+        queryFn: syncApi.getSyncPolicies,
+        refetchInterval: 30000
+    });
+
+    const updateSyncPolicy = useMutation({
+        mutationFn: ({ entityType, data }: { entityType: string; data: { syncLevel: string; enabled?: boolean } }) =>
+            syncApi.updateSyncPolicy(entityType, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['sync-policies'] });
+        }
+    });
+
     const runCleanup = useMutation({
         mutationFn: syncApi.runCleanup,
         onSuccess: () => {
@@ -139,6 +159,13 @@ export default function SyncMonitoring() {
 
     const requestReportSync = useMutation({
         mutationFn: syncApi.requestReportSync,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+        }
+    });
+
+    const requestAllReportSync = useMutation({
+        mutationFn: syncApi.requestAllReportSync,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['sync-status'] });
         }
@@ -184,8 +211,10 @@ export default function SyncMonitoring() {
 
     const tabs = [
         { id: 'status', label: 'حالة المزامنة', icon: Activity },
-        { id: 'logs', label: 'سجل المزامنة', icon: BarChart3 },
-        { id: 'queue', label: 'قائمة الانتظار', icon: Clock },
+        { id: 'summaries', label: 'ملخصات الفروع', icon: BarChart3 },
+        { id: 'policies', label: 'سياسة المزامنة', icon: Settings },
+        { id: 'logs', label: 'سجل المزامنة', icon: Clock },
+        { id: 'queue', label: 'قائمة الانتظار', icon: Database },
         { id: 'cleanup', label: 'التنظيف التلقائي', icon: Trash2 },
         { id: 'live', label: 'البث المباشر', icon: Zap }
     ];
@@ -198,13 +227,23 @@ export default function SyncMonitoring() {
                         <h1 className="text-2xl font-black text-slate-900">مراقبة المزامنة</h1>
                         <p className="text-sm text-slate-500 mt-1">تتبع حالة المزامنة بين الفروع واللوحة المركزية</p>
                     </div>
-                    <button
-                        onClick={() => queryClient.invalidateQueries({ queryKey: ['sync-status'] })}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                        تحديث
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => requestAllReportSync.mutate()}
+                            disabled={requestAllReportSync.isPending}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                        >
+                            <Database className="w-4 h-4" />
+                            {requestAllReportSync.isPending ? 'جاري السحب...' : 'سحب التقارير من الفروع'}
+                        </button>
+                        <button
+                            onClick={() => queryClient.invalidateQueries({ queryKey: ['sync-status'] })}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            تحديث
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex gap-1 bg-white p-1 rounded-2xl border border-slate-200 mb-6 overflow-x-auto">
@@ -559,6 +598,104 @@ export default function SyncMonitoring() {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'summaries' && (
+                    <div className="space-y-4">
+                        {branchSummaries?.totals && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {[
+                                    { label: 'إجمالي العملاء', value: branchSummaries.totals.customerCount || 0, color: 'blue' },
+                                    { label: 'إجمالي المبيعات', value: branchSummaries.totals.salesCount || 0, color: 'emerald' },
+                                    { label: 'إجمالي الإيرادات', value: `${(branchSummaries.totals.totalRevenue || 0).toLocaleString()} ج.م`, color: 'amber' },
+                                    { label: 'طلبات الصيانة', value: branchSummaries.totals.requestCount || 0, color: 'purple' },
+                                    { label: 'نقاط البيع', value: branchSummaries.totals.posMachineCount || 0, color: 'cyan' },
+                                    { label: 'الشرائح', value: branchSummaries.totals.simCardCount || 0, color: 'pink' },
+                                    { label: 'أجهزة المخزن', value: branchSummaries.totals.warehouseMachineCount || 0, color: 'orange' },
+                                    { label: 'شرائح المخزن', value: branchSummaries.totals.warehouseSimCount || 0, color: 'indigo' }
+                                ].map((card, i) => (
+                                    <div key={i} className={`bg-white rounded-2xl border border-slate-200 p-4`}>
+                                        <div className="text-xs text-slate-400 font-bold">{card.label}</div>
+                                        <div className="text-2xl font-black text-slate-900 mt-1">{card.value}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                            <table className="w-full">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">الفرع</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">الحالة</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">العملاء</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">المبيعات</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">الإيرادات</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">الطلبات</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">POS</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">الشرائح</th>
+                                        <th className="text-right px-4 py-3 text-xs font-black text-slate-500">آخر تحديث</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {branchSummaries?.branches.map((branch: any) => (
+                                        <tr key={branch.id} className="hover:bg-slate-50">
+                                            <td className="px-4 py-3">
+                                                <div className="font-bold text-slate-900">{branch.name}</div>
+                                                <div className="text-xs text-slate-400">{branch.code}</div>
+                                            </td>
+                                            <td className="px-4 py-3"><StatusBadge status={branch.status} /></td>
+                                            <td className="px-4 py-3 text-sm font-bold">{branch.customerCount}</td>
+                                            <td className="px-4 py-3 text-sm font-bold">{branch.salesCount}</td>
+                                            <td className="px-4 py-3 text-sm font-bold text-emerald-600">{branch.totalRevenue.toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-sm">{branch.requestCount}</td>
+                                            <td className="px-4 py-3 text-sm">{branch.posMachineCount}</td>
+                                            <td className="px-4 py-3 text-sm">{branch.simCardCount}</td>
+                                            <td className="px-4 py-3 text-xs text-slate-400">
+                                                {branch.summaries?.payments?.lastUpdatedAt ? new Date(branch.summaries.payments.lastUpdatedAt).toLocaleString('ar-EG') : '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'policies' && (
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                        <h2 className="text-lg font-black text-slate-900 mb-4">سياسة مزامنة البيانات</h2>
+                        <p className="text-sm text-slate-500 mb-6">تحكم في مستوى التفاصيل التي يتم استلامها من كل فرع</p>
+                        <div className="space-y-3">
+                            {syncPolicies?.policies.map((policy: any) => (
+                                <div key={policy.entityType} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                                    <div>
+                                        <div className="text-sm font-bold text-slate-700">{ENTITY_LABELS[policy.entityType] || policy.entityType}</div>
+                                        <div className="text-xs text-slate-400">{policy.description}</div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <select
+                                            value={policy.syncLevel}
+                                            onChange={e => updateSyncPolicy.mutate({ entityType: policy.entityType, data: { syncLevel: e.target.value } })}
+                                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white font-bold"
+                                        >
+                                            <option value="FULL">سجلات كاملة</option>
+                                            <option value="COUNT_ONLY">العدد فقط</option>
+                                            <option value="SUMMARY">ملخص</option>
+                                        </select>
+                                        <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                                            <input
+                                                type="checkbox"
+                                                checked={policy.enabled}
+                                                onChange={e => updateSyncPolicy.mutate({ entityType: policy.entityType, data: { syncLevel: policy.syncLevel, enabled: e.target.checked } })}
+                                                className="rounded border-slate-300"
+                                            />
+                                            مفعل
+                                        </label>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
