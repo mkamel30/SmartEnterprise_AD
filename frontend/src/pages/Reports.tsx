@@ -240,23 +240,23 @@ export default function Reports() {
 
     const COLORS = ['#0A2472', '#0E6BA8', '#A6E1FA', '#001D4A', '#22C55E'];
 
-    const movements = stockMovements?.data || [];
-    const requests = maintenanceRequests?.data || [];
-    const paymentsData = payments?.data || [];
-    const inventoryData = inventory?.data || [];
+    const movements = (stockMovements?.data || []).filter(Array.isArray);
+    const requests = (maintenanceRequests?.data || []).filter(Array.isArray);
+    const paymentsData = (payments?.data || []).filter(Array.isArray);
+    const inventoryData = (inventory?.data || []).filter(Array.isArray);
     const logs = Array.isArray(priceLogs) ? priceLogs : [];
 
     const filteredMovements = filters.search 
-        ? movements.filter((m: any) => m.partName?.toLowerCase().includes(filters.search.toLowerCase()) || m.branchName?.toLowerCase().includes(filters.search.toLowerCase()))
+        ? (movements || []).filter((m: any) => m.partName?.toLowerCase().includes(filters.search.toLowerCase()) || m.branchName?.toLowerCase().includes(filters.search.toLowerCase()))
         : movements;
     const filteredRequests = filters.search 
-        ? requests.filter((r: any) => r.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || r.machineSerial?.toLowerCase().includes(filters.search.toLowerCase()))
+        ? (requests || []).filter((r: any) => r.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || r.machineSerial?.toLowerCase().includes(filters.search.toLowerCase()))
         : requests;
     const filteredPayments = filters.search 
-        ? paymentsData.filter((p: any) => p.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || p.receiptNumber?.toLowerCase().includes(filters.search.toLowerCase()))
+        ? (paymentsData || []).filter((p: any) => p.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || p.receiptNumber?.toLowerCase().includes(filters.search.toLowerCase()))
         : paymentsData;
     const filteredInventory = filters.search 
-        ? inventoryData.filter((i: any) => i.partName?.toLowerCase().includes(filters.search.toLowerCase()) || i.partNumber?.toLowerCase().includes(filters.search.toLowerCase()))
+        ? (inventoryData || []).filter((i: any) => i.partName?.toLowerCase().includes(filters.search.toLowerCase()) || i.partNumber?.toLowerCase().includes(filters.search.toLowerCase()))
         : inventoryData;
 
     const totalPaymentsAmount = filteredPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
@@ -689,12 +689,12 @@ export default function Reports() {
 
     const salesData = sales?.data || [];
     const overdueData = overdueInstallments?.data || [];
-    const simData = simCards?.data || [];
-    const simMovData = simMovements?.data || [];
+    const simData = (simCards?.data || []).filter(Array.isArray);
+    const simMovData = (simMovements?.data || []).filter(Array.isArray);
     const totalOverdue = overdueInstallments?.totalOverdue || 0;
     const totalSalesAmount = salesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
-    const totalCashSales = salesData.filter((s: any) => s.type === 'CASH');
-    const totalInstallmentSales = salesData.filter((s: any) => s.type === 'INSTALLMENT');
+    const totalCashSales = (salesData || []).filter((s: any) => s.type === 'CASH');
+    const totalInstallmentSales = (salesData || []).filter((s: any) => s.type === 'INSTALLMENT');
 
     const renderSales = () => (
         <div className="space-y-6">
