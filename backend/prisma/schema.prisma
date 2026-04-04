@@ -854,6 +854,7 @@ model BranchSummary {
   entityType      String
   recordCount     Int      @default(0)
   totalAmount     Float    @default(0)
+  details         Json?
   lastUpdatedAt   DateTime @default(now())
   branch          Branch   @relation(fields: [branchId], references: [id])
 

@@ -524,11 +524,18 @@ module.exports = (io) => {
                 }
 
                 if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
-                    const existingPartIds = new Set(
-                        (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
-                    );
-                    const validMovements = entities.stockMovements.filter(m => !m.partId || existingPartIds.has(m.partId));
-                    const validation = validateEntityArray(validMovements, stockMovementSchema, 'stockMovements');
+                    // Pre-process: ensure all parts mentioned in movements exist in master list
+                    for (const m of entities.stockMovements) {
+                        if (m.partId && (m.partNumber || m.partName)) {
+                            await prisma.masterSparePart.upsert({
+                                where: { id: m.partId },
+                                update: { name: m.partName || undefined, partNumber: m.partNumber || undefined },
+                                create: { id: m.partId, name: m.partName || 'Unknown', partNumber: m.partNumber || m.partId }
+                            });
+                        }
+                    }
+
+                    const validation = validateEntityArray(entities.stockMovements, stockMovementSchema, 'stockMovements');
                     if (validation.errors.length > 0) {
                         errors.stockMovements = validation.errors;
                     }
@@ -681,6 +688,17 @@ module.exports = (io) => {
                 }
 
                 if (entities.inventory && Array.isArray(entities.inventory)) {
+                    // Pre-process: ensure all parts in inventory exist in master list
+                    for (const inv of entities.inventory) {
+                        if (inv.partId && (inv.partNumber || inv.partName)) {
+                            await prisma.masterSparePart.upsert({
+                                where: { id: inv.partId },
+                                update: { name: inv.partName || undefined, partNumber: inv.partNumber || undefined },
+                                create: { id: inv.partId, name: inv.partName || 'Unknown', partNumber: inv.partNumber || inv.partId }
+                            });
+                        }
+                    }
+
                     const validation = validateEntityArray(entities.inventory, inventorySchema, 'inventory');
                     if (validation.errors.length > 0) {
                         errors.inventory = validation.errors;
@@ -735,8 +753,8 @@ module.exports = (io) => {
                     const totalAmount = typeof info === 'object' ? (info.totalAmount || 0) : 0;
                     return prisma.branchSummary.upsert({
                         where: { branchId_entityType: { branchId: socket.branchId, entityType } },
-                        update: { recordCount: count, totalAmount, lastUpdatedAt: new Date() },
-                        create: { branchId: socket.branchId, entityType, recordCount: count, totalAmount, lastUpdatedAt: new Date() }
+                        update: { recordCount: count, totalAmount, details: info, lastUpdatedAt: new Date() },
+                        create: { branchId: socket.branchId, entityType, recordCount: count, totalAmount, details: info, lastUpdatedAt: new Date() }
                     });
                 });
 
