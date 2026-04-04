@@ -5,7 +5,7 @@ import adminClient from '../api/adminClient';
 import { 
   TrendingUp, DollarSign, RefreshCw, 
   Calendar, Building, ArrowUpRight, ArrowDownRight,
-  FileSpreadsheet, Wrench, Package, Warehouse,
+  Wrench, Package, Warehouse,
   ArrowDownCircle, ArrowUpCircle, Download, CreditCard
 } from 'lucide-react';
 import { 
@@ -51,8 +51,6 @@ export default function Reports() {
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
-    const [data, setData] = useState<any>(null);
-    const [exporting, setExporting] = useState(false);
     const [chartReady, setChartReady] = useState(false);
     const [filters, setFilters] = useState({
         branchId: '',

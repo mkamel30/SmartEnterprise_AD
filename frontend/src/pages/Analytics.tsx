@@ -42,8 +42,8 @@ export default function AnalyticsDashboard() {
     const totalRevenue = totals.totalRevenue || 0;
     const totalMachines = totals.posMachineCount || 0;
 
-    const maintenanceStatusData = [];
-    const paymentTypeData = [];
+    const maintenanceStatusData: any[] = [];
+    const paymentTypeData: any[] = [];
     const salesTypeData = [
         { name: 'كاش', value: 0, revenue: 0 },
         { name: 'تقسيط', value: 0, revenue: 0 }
