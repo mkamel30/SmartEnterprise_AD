@@ -247,17 +247,17 @@ export default function Reports() {
     const logs = Array.isArray(priceLogs) ? priceLogs : [];
 
     const filteredMovements = filters.search 
-        ? (movements || []).filter((m: any) => m.partName?.toLowerCase().includes(filters.search.toLowerCase()) || m.branchName?.toLowerCase().includes(filters.search.toLowerCase()))
-        : movements;
+        ? (Array.isArray(movements) ? movements : []).filter((m: any) => m.partName?.toLowerCase().includes(filters.search.toLowerCase()) || m.branchName?.toLowerCase().includes(filters.search.toLowerCase()))
+        : (Array.isArray(movements) ? movements : []);
     const filteredRequests = filters.search 
-        ? (requests || []).filter((r: any) => r.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || r.machineSerial?.toLowerCase().includes(filters.search.toLowerCase()))
-        : requests;
+        ? (Array.isArray(requests) ? requests : []).filter((r: any) => r.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || r.machineSerial?.toLowerCase().includes(filters.search.toLowerCase()))
+        : (Array.isArray(requests) ? requests : []);
     const filteredPayments = filters.search 
-        ? (paymentsData || []).filter((p: any) => p.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || p.receiptNumber?.toLowerCase().includes(filters.search.toLowerCase()))
-        : paymentsData;
+        ? (Array.isArray(paymentsData) ? paymentsData : []).filter((p: any) => p.customerName?.toLowerCase().includes(filters.search.toLowerCase()) || p.receiptNumber?.toLowerCase().includes(filters.search.toLowerCase()))
+        : (Array.isArray(paymentsData) ? paymentsData : []);
     const filteredInventory = filters.search 
-        ? (inventoryData || []).filter((i: any) => i.partName?.toLowerCase().includes(filters.search.toLowerCase()) || i.partNumber?.toLowerCase().includes(filters.search.toLowerCase()))
-        : inventoryData;
+        ? (Array.isArray(inventoryData) ? inventoryData : []).filter((i: any) => i.partName?.toLowerCase().includes(filters.search.toLowerCase()) || i.partNumber?.toLowerCase().includes(filters.search.toLowerCase()))
+        : (Array.isArray(inventoryData) ? inventoryData : []);
 
     const totalPaymentsAmount = filteredPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
     const totalInventoryQty = filteredInventory.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
@@ -687,14 +687,14 @@ export default function Reports() {
         </div>
     );
 
-    const salesData = sales?.data || [];
-    const overdueData = overdueInstallments?.data || [];
-    const simData = Array.isArray(simCards?.data) ? simCards.data : [];
-    const simMovData = Array.isArray(simMovements?.data) ? simMovements.data : [];
+    const salesData = Array.isArray(sales?.data) ? sales.data : (Array.isArray(sales) ? sales : []);
+    const overdueData = Array.isArray(overdueInstallments?.data) ? overdueInstallments.data : (Array.isArray(overdueInstallments) ? overdueInstallments : []);
+    const simData = Array.isArray(simCards?.data) ? simCards.data : (Array.isArray(simCards) ? simCards : []);
+    const simMovData = Array.isArray(simMovements?.data) ? simMovements.data : (Array.isArray(simMovements) ? simMovements : []);
     const totalOverdue = overdueInstallments?.totalOverdue || 0;
     const totalSalesAmount = salesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
-    const totalCashSales = (salesData || []).filter((s: any) => s.type === 'CASH');
-    const totalInstallmentSales = (salesData || []).filter((s: any) => s.type === 'INSTALLMENT');
+    const totalCashSales = salesData.filter((s: any) => s.type === 'CASH');
+    const totalInstallmentSales = salesData.filter((s: any) => s.type === 'INSTALLMENT');
 
     const renderSales = () => (
         <div className="space-y-6">

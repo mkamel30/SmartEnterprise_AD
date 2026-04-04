@@ -339,7 +339,7 @@ router.post('/request-full-sync/:branchId', adminAuth, async (req, res) => {
         if (!branch) return res.status(404).json({ error: 'Branch not found' });
 
         if (branch.status !== 'ONLINE') {
-            return res.status(400).json({ error: 'Branch is offline. Cannot request sync.' });
+            return res.status(200).json({ success: false, error: 'Branch is offline. Cannot request sync.' });
         }
 
         if (io) {
@@ -362,7 +362,7 @@ router.post('/request-report-sync/:branchId', adminAuth, async (req, res) => {
         if (!branch) return res.status(404).json({ error: 'Branch not found' });
 
         if (branch.status !== 'ONLINE') {
-            return res.status(400).json({ error: 'Branch is offline. Cannot request report sync.' });
+            return res.status(200).json({ success: false, error: 'Branch is offline. Cannot request report sync.' });
         }
 
         if (io) {

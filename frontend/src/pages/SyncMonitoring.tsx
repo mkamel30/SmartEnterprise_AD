@@ -169,8 +169,9 @@ export default function SyncMonitoring() {
         mutationFn: syncApi.requestAllReportSync,
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['sync-status'] });
-            const onlineCount = data.results.filter((r: any) => r.status === 'REQUESTED').length;
-            const offlineCount = data.results.length - onlineCount;
+            const resultsArray = Array.isArray(data?.results) ? data.results : [];
+            const onlineCount = resultsArray.filter((r: any) => r.status === 'REQUESTED').length;
+            const offlineCount = resultsArray.length - onlineCount;
             if (onlineCount > 0) {
                 toast.success(`تم إرسال طلب السحب لـ ${onlineCount} فرع${offlineCount > 0 ? ` (${offlineCount}离线)` : ''}`);
             } else {
@@ -354,8 +355,9 @@ export default function SyncMonitoring() {
                                     <tbody className="divide-y divide-slate-100">
                                         {syncStatus.branches.map((branch: BranchSyncStatus) => {
                                             const entityCount = Object.keys(branch.entitySync).length;
-                                            const successCount = Object.values(branch.entitySync).filter((e: any) => e.status === 'SUCCESS').length;
-                                            const failedCount = Object.values(branch.entitySync).filter((e: any) => e.status === 'FAILED').length;
+                                            const entitySyncValues = branch.entitySync ? Object.values(branch.entitySync) : [];
+                                            const successCount = entitySyncValues.filter((e: any) => e.status === 'SUCCESS').length;
+                                            const failedCount = entitySyncValues.filter((e: any) => e.status === 'FAILED').length;
                                             return (
                                                 <tr key={branch.id} className="hover:bg-slate-50 transition-colors">
                                                     <td className="px-4 py-3">

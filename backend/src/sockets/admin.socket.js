@@ -143,8 +143,21 @@ module.exports = (io) => {
             }
         });
 
-        socket.on('branch_identify', (data) => {
-            logger.info(`[Socket] Branch identity confirmed: ${data.branchCode}`);
+        socket.on('branch_identify', async (data) => {
+            const { branchCode } = data;
+            logger.info(`[Socket] Branch identity confirmed: ${branchCode}`);
+            const branch = await prisma.branch.findFirst({ where: { code: branchCode } });
+            if (branch && socket.isBranch) {
+                socket.branchId = branch.id;
+                socket.branchCode = branch.code;
+                socket.branchName = branch.name;
+                await prisma.branch.update({
+                    where: { id: branch.id },
+                    data: { status: 'ONLINE', lastSeen: new Date() }
+                });
+                socket.join(`branch_${branch.id}`);
+                logger.info(`[Socket] Branch ${branchCode} associated via identity event`);
+            }
         });
 
         socket.on('branch_ping', async (data) => {
