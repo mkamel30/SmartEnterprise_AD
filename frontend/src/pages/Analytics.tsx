@@ -40,30 +40,6 @@ export default function AnalyticsDashboard() {
     const totalSimCards = totals.simCardCount || 0;
     const totalInventoryQty = totals.stockMovementCount || 0;
     const totalRevenue = totals.totalRevenue || 0;
-
-    const maintenanceStatusData = [];
-    const paymentTypeData = [];
-    const salesTypeData = [
-        { name: 'كاش', value: 0, revenue: 0 },
-        { name: 'تقسيط', value: 0, revenue: 0 }
-    ];
-        queryFn: () => {
-            const params = new URLSearchParams();
-            if (filters.branchId) params.append('branchId', filters.branchId);
-            return adminClient.get(`/inventory/summary?${params}`).then(r => r.data);
-        }
-    });
-
-    const branchBreakdown = branchSummaries?.branches || [];
-    const totals = branchSummaries?.totals || {};
-    
-    const totalCustomers = totals.customerCount || 0;
-    const totalSales = totals.salesCount || 0;
-    const totalMaintenanceRequests = totals.requestCount || 0;
-    const totalPayments = totals.paymentCount || 0;
-    const totalSimCards = totals.simCardCount || 0;
-    const totalInventoryQty = totals.stockMovementCount || 0;
-    const totalRevenue = totals.totalRevenue || 0;
     const totalMachines = totals.posMachineCount || 0;
 
     const maintenanceStatusData = [];
@@ -72,6 +48,7 @@ export default function AnalyticsDashboard() {
         { name: 'كاش', value: 0, revenue: 0 },
         { name: 'تقسيط', value: 0, revenue: 0 }
     ];
+
 
     const COLORS = ['#0A2472', '#0E6BA8', '#A6E1FA', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
