@@ -59,5 +59,10 @@ export const inventoryApi = {
             method: 'POST',
             body: JSON.stringify(data)
         });
+    },
+
+    getSparePartsReport: (params?: { branchId?: string }): Promise<any> => {
+        const query = params?.branchId ? `?branchId=${params.branchId}` : '';
+        return request(`/inventory/spare-parts-report${query}`);
     }
 };

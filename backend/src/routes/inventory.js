@@ -217,4 +217,83 @@ router.post('/transfer', async (req, res) => {
     }
 });
 
+// Spare parts report: current stock + outgoing items
+router.get('/spare-parts-report', async (req, res) => {
+    try {
+        const { branchId } = req.query;
+
+        // 1. Current spare parts count (quantity > 0)
+        const whereStock = branchId ? { branchId } : {};
+        whereStock.quantity = { gt: 0 };
+
+        const sparePartsStock = await prisma.branchSparePart.findMany({
+            where: whereStock,
+            include: {
+                branch: { select: { id: true, code: true, name: true } },
+                part: { select: { id: true, name: true, partNumber: true, defaultCost: true } }
+            }
+        });
+
+        // 2. Spare parts out (type = 'OUT' or 'USED')
+        const whereMovement = branchId ? { branchId } : {};
+        whereMovement.type = { in: ['OUT', 'USED'] };
+
+        const sparePartsOut = await prisma.stockMovement.findMany({
+            where: whereMovement,
+            include: {
+                branch: { select: { id: true, code: true, name: true } },
+                part: { select: { id: true, name: true, partNumber: true } },
+                customer: { select: { client_name: true, bkcode: true } },
+                request: { select: { id: true, serialNumber: true, machineModel: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // Format outgoing items
+        const formattedOut = sparePartsOut.map(m => ({
+            id: m.id,
+            date: m.createdAt,
+            clientName: m.customer?.client_name || m.customerName || '-',
+            clientCode: m.customer?.bkcode || '-',
+            terminalSerial: m.machineSerial || m.request?.serialNumber || '-',
+            terminalModel: m.machineModel || m.request?.machineModel || '-',
+            partCode: m.part?.partNumber || '-',
+            partName: m.part?.name || '-',
+            quantity: m.quantity,
+            isPaid: m.isPaid || false,
+            paymentPlace: m.paymentPlace || '-',
+            receiptNumber: m.receiptNumber || '-',
+            performedBy: m.performedBy || '-',
+            branchName: m.branch?.name || '-',
+            branchCode: m.branch?.code || '-'
+        }));
+
+        res.json({
+            success: true,
+            currentStock: {
+                totalItems: sparePartsStock.length,
+                totalQuantity: sparePartsStock.reduce((sum, s) => sum + s.quantity, 0),
+                items: sparePartsStock.map(s => ({
+                    id: s.id,
+                    branchId: s.branchId,
+                    branchCode: s.branch?.code || '-',
+                    branchName: s.branch?.name || '-',
+                    partId: s.partId,
+                    partCode: s.part?.partNumber || '-',
+                    partName: s.part?.name || '-',
+                    quantity: s.quantity,
+                    defaultCost: s.part?.defaultCost || 0
+                }))
+            },
+            outgoingItems: {
+                total: sparePartsOut.length,
+                items: formattedOut
+            }
+        });
+    } catch (error) {
+        logger.error('Failed to generate spare parts report:', error);
+        res.status(500).json({ error: 'Failed to generate spare parts report' });
+    }
+});
+
 module.exports = router;

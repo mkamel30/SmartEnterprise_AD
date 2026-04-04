@@ -108,6 +108,7 @@ class ApiClient {
     importInventory = inventoryApi.importInventory;
     getInventoryReport = inventoryApi.getInventoryReport;
     transferInventory = inventoryApi.transferInventory;
+    getSparePartsReport = inventoryApi.getSparePartsReport;
 
     // Requests
     getRequests = requestApi.getRequests;

@@ -6,16 +6,15 @@ const { adminAuth } = require('../middleware/auth');
 
 router.use(adminAuth);
 
-// Get SIM cards linked to a specific branch
+// Get SIM cards (optionally filtered by branch)
 router.get('/', async (req, res) => {
     try {
         const { branchId } = req.query;
-        if (!branchId) {
-            return res.status(400).json({ error: 'branchId is required' });
-        }
-
+        
+        const where = branchId ? { branchId } : {};
+        
         const sims = await prisma.simCard.findMany({
-            where: { branchId },
+            where,
             include: { customer: true }
         });
 

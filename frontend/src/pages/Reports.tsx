@@ -23,6 +23,7 @@ const reportTabs = [
   { id: 'sales', label: 'المبيعات', icon: DollarSign },
   { id: 'installments', label: 'الأقساط المتأخرة', icon: Calendar },
   { id: 'inventory', label: 'جرد المخزون', icon: Warehouse },
+  { id: 'spare-parts-inventory', label: 'قطع الغيار', icon: Package },
   { id: 'simcards', label: 'الشرائح', icon: Package },
   { id: 'price-history', label: 'سعر القطع', icon: Package },
 ];
@@ -128,6 +129,16 @@ export default function Reports() {
         queryKey: ['spare-parts-list'],
         queryFn: () => adminClient.get('/spare-parts').then(r => r.data),
         enabled: activeTab === 'price-history'
+    });
+
+    const { data: sparePartsReport } = useQuery({
+        queryKey: ['spare-parts-report', filters.branchId],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters.branchId) params.append('branchId', filters.branchId);
+            return adminClient.get(`/inventory/spare-parts-report?${params}`).then(r => r.data);
+        },
+        enabled: activeTab === 'spare-parts-inventory'
     });
 
     const [selectedPartId, setSelectedPartId] = useState('');
@@ -494,6 +505,133 @@ export default function Reports() {
         </div>
     );
 
+    const renderSparePartsInventory = () => {
+        const currentStock = sparePartsReport?.currentStock || { totalItems: 0, totalQuantity: 0, items: [] };
+        const outgoingItems = sparePartsReport?.outgoingItems || { total: 0, items: [] };
+
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <Package className="text-blue-600" size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الأصناف</p>
+                                <p className="text-xl font-black text-blue-600">{currentStock.totalItems}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-4 border-2 border-green-500/10 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                                <Package className="text-green-600" size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الكمية</p>
+                                <p className="text-xl font-black text-green-600">{currentStock.totalQuantity}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-4 border-2 border-amber-500/10 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                <Package className="text-amber-600" size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">مخرج (خارج)</p>
+                                <p className="text-xl font-black text-amber-600">{outgoingItems.total}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {renderFilters()}
+
+                <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-200">
+                        <h3 className="font-black text-primary">المخزون الحالي (الكمية &gt; 0)</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الكمية</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {currentStock.items.length === 0 ? (
+                                    <tr><td colSpan={4} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                                ) : (
+                                    currentStock.items.map((i: any) => (
+                                        <tr key={i.id} className="hover:bg-slate-50">
+                                            <td className="p-3 text-sm font-bold text-primary">{i.branchName}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.partCode}</td>
+                                            <td className="p-3 text-sm font-bold">{i.partName}</td>
+                                            <td className="p-3 text-lg font-black text-green-600 text-right">{i.quantity}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border-2 border-amber-500/10 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-200">
+                        <h3 className="font-black text-amber-600">قطع غيار خارج (مستهلكة)</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">كود العميل</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">الجهاز</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الكمية</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">مدفوع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">مكان الدفع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم إيصال</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {outgoingItems.items.length === 0 ? (
+                                    <tr><td colSpan={10} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                                ) : (
+                                    outgoingItems.items.map((i: any) => (
+                                        <tr key={i.id} className="hover:bg-slate-50">
+                                            <td className="p-3 text-sm">{i.date ? new Date(i.date).toLocaleDateString('ar-EG') : '-'}</td>
+                                            <td className="p-3 text-sm font-bold">{i.clientName}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.clientCode}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.terminalSerial}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.partCode}</td>
+                                            <td className="p-3 text-sm font-bold">{i.partName}</td>
+                                            <td className="p-3 text-sm font-black text-right">{i.quantity}</td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${i.isPaid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {i.isPaid ? 'نعم' : 'لا'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-sm">{i.paymentPlace}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.receiptNumber}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderPriceHistory = () => (
         <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
@@ -740,6 +878,7 @@ export default function Reports() {
             case 'sales': return renderSales();
             case 'installments': return renderInstallments();
             case 'inventory': return renderInventory();
+            case 'spare-parts-inventory': return renderSparePartsInventory();
             case 'simcards': return renderSimCards();
             case 'price-history': return renderPriceHistory();
             default: return renderFinancial();

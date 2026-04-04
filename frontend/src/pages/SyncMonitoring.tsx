@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
     Activity, RefreshCw, Database, Trash2, Settings, AlertTriangle, CheckCircle, XCircle, Clock, Eye, Zap, BarChart3, ArrowUp
 } from 'lucide-react';
@@ -166,8 +167,18 @@ export default function SyncMonitoring() {
 
     const requestAllReportSync = useMutation({
         mutationFn: syncApi.requestAllReportSync,
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['sync-status'] });
+            const onlineCount = data.results.filter((r: any) => r.status === 'REQUESTED').length;
+            const offlineCount = data.results.length - onlineCount;
+            if (onlineCount > 0) {
+                toast.success(`تم إرسال طلب السحب لـ ${onlineCount} فرع${offlineCount > 0 ? ` (${offlineCount}离线)` : ''}`);
+            } else {
+                toast.error('لا توجد فروع متصلة لإنشاء طلب السحب');
+            }
+        },
+        onError: (error: any) => {
+            toast.error('فشل في إرسال طلب السحب');
         }
     });
 
