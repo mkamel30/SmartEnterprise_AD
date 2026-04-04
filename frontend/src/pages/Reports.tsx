@@ -200,7 +200,7 @@ export default function Reports() {
 
     const fetchReports = async () => {
         try {
-            const res = await adminClient.get('/reports/financial-summary');
+            await adminClient.get('/reports/financial-summary');
             // setData(res.data);
         } catch (error) {
             toast.error('فشل في تحميل التقارير المالية');
