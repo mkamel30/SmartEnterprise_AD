@@ -107,6 +107,7 @@ function AppRoutes() {
     { path: '/reports/sales', element: <Reports /> },
     { path: '/reports/installments', element: <Reports /> },
     { path: '/reports/inventory', element: <Reports /> },
+    { path: '/reports/spare-parts', element: <Reports /> },
     { path: '/reports/simcards', element: <Reports /> },
     { path: '/reports/price-history', element: <Reports /> },
     { path: '/version-logs', element: <VersionLogs /> },
