@@ -177,7 +177,7 @@ export default function SyncMonitoring() {
                 toast.error('لا توجد فروع متصلة لإنشاء طلب السحب');
             }
         },
-        onError: (error: any) => {
+        onError: () => {
             toast.error('فشل في إرسال طلب السحب');
         }
     });
