@@ -24,49 +24,29 @@ export default function AnalyticsDashboard() {
         queryFn: () => adminClient.get('/branches').then(r => r.data)
     });
 
-    const { data: financialData } = useQuery({
-        queryKey: ['financial-summary'],
-        queryFn: () => adminClient.get('/reports/financial-summary').then(r => r.data)
+    // Use branch summaries instead of direct DB queries (which are empty)
+    const { data: branchSummaries } = useQuery({
+        queryKey: ['branch-summaries'],
+        queryFn: () => adminClient.get('/dashboard/branch-summaries').then(r => r.data)
     });
 
-    const { data: maintenanceData } = useQuery({
-        queryKey: ['maintenance-summary', filters.branchId],
-        queryFn: () => {
-            const params = new URLSearchParams();
-            if (filters.branchId) params.append('branchId', filters.branchId);
-            return adminClient.get(`/maintenance-requests/summary?${params}`).then(r => r.data);
-        }
-    });
+    const branchBreakdown = branchSummaries?.branches || [];
+    const totals = branchSummaries?.totals || {};
+    
+    const totalCustomers = totals.customerCount || 0;
+    const totalSales = totals.salesCount || 0;
+    const totalMaintenanceRequests = totals.requestCount || 0;
+    const totalPayments = totals.paymentCount || 0;
+    const totalSimCards = totals.simCardCount || 0;
+    const totalInventoryQty = totals.stockMovementCount || 0;
+    const totalRevenue = totals.totalRevenue || 0;
 
-    const { data: paymentsData } = useQuery({
-        queryKey: ['payments-summary', filters.branchId],
-        queryFn: () => {
-            const params = new URLSearchParams();
-            if (filters.branchId) params.append('branchId', filters.branchId);
-            return adminClient.get(`/payments/summary?${params}`).then(r => r.data);
-        }
-    });
-
-    const { data: salesData } = useQuery({
-        queryKey: ['sales-summary', filters.branchId],
-        queryFn: () => {
-            const params = new URLSearchParams();
-            if (filters.branchId) params.append('branchId', filters.branchId);
-            return adminClient.get(`/sales/summary?${params}`).then(r => r.data);
-        }
-    });
-
-    const { data: simData } = useQuery({
-        queryKey: ['sim-summary', filters.branchId],
-        queryFn: () => {
-            const params = new URLSearchParams();
-            if (filters.branchId) params.append('branchId', filters.branchId);
-            return adminClient.get(`/simcard-reports?${params}`).then(r => r.data);
-        }
-    });
-
-    const { data: inventoryData } = useQuery({
-        queryKey: ['inventory-summary', filters.branchId],
+    const maintenanceStatusData = [];
+    const paymentTypeData = [];
+    const salesTypeData = [
+        { name: 'كاش', value: 0, revenue: 0 },
+        { name: 'تقسيط', value: 0, revenue: 0 }
+    ];
         queryFn: () => {
             const params = new URLSearchParams();
             if (filters.branchId) params.append('branchId', filters.branchId);
@@ -74,21 +54,23 @@ export default function AnalyticsDashboard() {
         }
     });
 
-    const branchBreakdown = financialData?.branchBreakdown || [];
-    const totalCustomers = branchBreakdown.reduce((sum: number, b: any) => sum + (b.customerCount || 0), 0);
-    const totalMachines = branchBreakdown.reduce((sum: number, b: any) => sum + (b.machineCount || 0), 0);
-    const totalMaintenanceRequests = maintenanceData?.total || 0;
-    const totalSales = salesData?.totalSales || 0;
-    const totalSimCards = simData?.totalSims || 0;
-    const totalInventoryQty = inventoryData?.totalQuantity || 0;
-    const totalRevenue = financialData?.totalEnterpriseRevenue || 0;
-    const totalPayments = paymentsData?.totalPayments || 0;
+    const branchBreakdown = branchSummaries?.branches || [];
+    const totals = branchSummaries?.totals || {};
+    
+    const totalCustomers = totals.customerCount || 0;
+    const totalSales = totals.salesCount || 0;
+    const totalMaintenanceRequests = totals.requestCount || 0;
+    const totalPayments = totals.paymentCount || 0;
+    const totalSimCards = totals.simCardCount || 0;
+    const totalInventoryQty = totals.stockMovementCount || 0;
+    const totalRevenue = totals.totalRevenue || 0;
+    const totalMachines = totals.posMachineCount || 0;
 
-    const maintenanceStatusData = Object.entries(maintenanceData?.statusBreakdown || {}).map(([name, value]: [string, any]) => ({ name, value }));
-    const paymentTypeData = Object.entries(paymentsData?.typeBreakdown || {}).map(([name, v]: [string, any]) => ({ name, amount: v.amount, count: v.count }));
+    const maintenanceStatusData = [];
+    const paymentTypeData = [];
     const salesTypeData = [
-        { name: 'كاش', value: salesData?.cashSales || 0, revenue: salesData?.cashRevenue || 0 },
-        { name: 'تقسيط', value: salesData?.installmentSales || 0, revenue: salesData?.installmentRevenue || 0 }
+        { name: 'كاش', value: 0, revenue: 0 },
+        { name: 'تقسيط', value: 0, revenue: 0 }
     ];
 
     const COLORS = ['#0A2472', '#0E6BA8', '#A6E1FA', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -137,10 +119,10 @@ export default function AnalyticsDashboard() {
                             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <BarChart data={branchBreakdown}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
                                     <Tooltip contentStyle={{ borderRadius: '0.75rem', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', textAlign: 'right' }} />
-                                    <Bar dataKey="revenue" radius={[8, 8, 0, 0]}>
+                                    <Bar dataKey="totalRevenue" radius={[8, 8, 0, 0]}>
                                         {branchBreakdown.map((_entry: any, index: number) => (<Cell key={index} fill={COLORS[index % COLORS.length]} />))}
                                     </Bar>
                                 </BarChart>

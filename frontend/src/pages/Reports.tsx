@@ -77,6 +77,13 @@ export default function Reports() {
         queryFn: () => adminClient.get('/branches').then(r => r.data)
     });
 
+    // Use branch summaries for financial data (counts from branches)
+    const { data: branchSummaries } = useQuery({
+        queryKey: ['branch-summaries'],
+        queryFn: () => adminClient.get('/dashboard/branch-summaries').then(r => r.data),
+        enabled: activeTab === 'financial'
+    });
+
     const { data: stockMovements } = useQuery({
         queryKey: ['stock-movements', filters.branchId],
         queryFn: () => {
@@ -885,87 +892,75 @@ export default function Reports() {
         }
     };
 
-    const renderFinancial = () => (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <SummaryCard title="إجمالي إيرادات المجموعة" value={`${data?.totalEnterpriseRevenue?.toLocaleString() || 0} ج.م`} trend="+15.4%" isUp={true} icon={<DollarSign />} />
-                <SummaryCard title="متوسط دخل الفرع" value={`${(data?.totalEnterpriseRevenue / (data?.branchBreakdown?.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 0}) || 0} ج.م`} trend="+5.2%" isUp={true} icon={<Building />} />
-                <SummaryCard title="مستحقات معلقة" value={`${(paymentsData?.totalAmount || 0).toLocaleString()} ج.م`} trend="—" isUp={false} icon={<Calendar />} />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-md">
-                    <div className="flex justify-between items-center mb-6">
-                        <div><h3 className="text-lg font-black text-primary tracking-tight uppercase">تصنيف أرباح الفروع</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">تتبع أداء العقد في الوقت الفعلي</p></div>
+    const renderFinancial = () => {
+        const totals = branchSummaries?.totals || {};
+        const branches = branchSummaries?.branches || [];
+        
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <SummaryCard title="إجمالي إيرادات المجموعة" value={`${(totals.totalRevenue || 0).toLocaleString()} ج.م`} trend="+15.4%" isUp={true} icon={<DollarSign />} />
+                    <SummaryCard title="عدد الفروع" value={branches.length} trend="+" isUp={true} icon={<Building />} />
+                    <SummaryCard title="إجمالي المدفوعات" value={totals.paymentCount || 0} trend="—" isUp={false} icon={<Calendar />} />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {[
+                        { label: 'العملاء', value: totals.customerCount || 0, color: 'text-blue-600' },
+                        { label: 'المبيعات', value: totals.salesCount || 0, color: 'text-green-600' },
+                        { label: 'طلبات الصيانة', value: totals.requestCount || 0, color: 'text-amber-600' },
+                        { label: 'الأقساط', value: totals.installmentCount || 0, color: 'text-purple-600' },
+                        { label: 'حركات المخزون', value: totals.stockMovementCount || 0, color: 'text-slate-600' },
+                        { label: 'الشرائح', value: totals.simCardCount || 0, color: 'text-cyan-600' },
+                    ].map(item => (
+                        <div key={item.label} className="bg-white rounded-xl p-3 border border-slate-200">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">{item.label}</p>
+                            <p className={`text-xl font-black ${item.color}`}>{item.value.toLocaleString()}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-2 bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-md">
+                        <div className="flex justify-between items-center mb-6">
+                            <div><h3 className="text-lg font-black text-primary tracking-tight uppercase">تصنيف أرباح الفروع</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">تتبع أداء الفروع في الوقت الفعلي</p></div>
+                        </div>
+                        <div className="h-72 w-full" dir="ltr">
+                            <div style={{ width: '100%', height: 300 }}>
+                                {chartReady ? (
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                    <BarChart data={branches}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
+                                        <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)', padding: '1rem', textAlign: 'right' }} />
+                                        <Bar dataKey="totalRevenue" radius={[10, 10, 0, 0]} barSize={50}>
+                                            {branches.map((_entry: any, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-slate-400 font-bold">جاري التحميل...</div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <div className="h-72 w-full" dir="ltr">
-                        <div style={{ width: '100%', height: 300 }}>
-                            {chartReady ? (
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                                <BarChart data={data?.branchBreakdown || []}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="branchName" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
-                                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)', padding: '1rem', textAlign: 'right' }} />
-                                    <Bar dataKey="revenue" radius={[10, 10, 0, 0]} barSize={50}>
-                                        {(data?.branchBreakdown || []).map((_entry: any, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-slate-400 font-bold">جاري التحميل...</div>
-                            )}
+                    <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-md">
+                        <div className="mb-6 text-right"><h3 className="text-lg font-black text-primary tracking-tight uppercase">ملخص الفروع</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">إحصائيات كل فرع</p></div>
+                        <div className="space-y-4">
+                            {[...branches].sort((a: any, b: any) => (b.totalRevenue || 0) - (a.totalRevenue || 0)).map((b: any, idx: number) => (
+                                <div key={b.id} className="flex items-center justify-between group cursor-default flex-row-reverse">
+                                    <div className="flex items-center gap-3 flex-row-reverse">
+                                        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center font-black text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all shrink-0">{idx + 1}</div>
+                                        <div className="text-right"><p className="text-sm font-black text-primary uppercase group-hover:text-primary/70 transition-colors">{b.name}</p><p className="text-[9px] font-bold text-muted-foreground/40 uppercase mt-0.5">{b.code}</p></div>
+                                    </div>
+                                    <div className="text-left"><p className="text-sm font-black text-muted-foreground">{(b.totalRevenue || 0).toLocaleString()} ج.م</p></div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
-                <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-md">
-                    <div className="mb-6 text-right"><h3 className="text-lg font-black text-primary tracking-tight uppercase">تحليل الشبكة</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">تدقيق تقاطع العقد البرمجية</p></div>
-                    <div className="space-y-4">
-                        {[...(data?.branchBreakdown || [])].sort((a: any, b: any) => b.revenue - a.revenue).map((b: any, idx: number) => (
-                            <div key={b.branchId} className="flex items-center justify-between group cursor-default flex-row-reverse">
-                                <div className="flex items-center gap-3 flex-row-reverse">
-                                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center font-black text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all shrink-0">{idx + 1}</div>
-                                    <div className="text-right"><p className="text-sm font-black text-primary uppercase group-hover:text-primary/70 transition-colors">{b.branchName}</p><p className="text-[9px] font-bold text-muted-foreground/40 uppercase mt-0.5">{b.requestCount} عملية</p></div>
-                                </div>
-                                <div className="text-left"><p className="text-sm font-black text-muted-foreground">{b.revenue.toLocaleString()} ج.م</p></div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
-            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-border/50 flex justify-between items-center flex-row-reverse">
-                    <div className="text-right"><h3 className="text-lg font-black text-primary tracking-tight uppercase">دفتر الأستاذ الموحد</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">سجل المعاملات المالي الموحد للمجموعة</p></div>
-                    <div className="flex gap-3">
-                        <button onClick={() => handleExport('/branches/export/all')} disabled={exporting} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-black text-xs hover:shadow-md transition-all disabled:opacity-50"><FileSpreadsheet size={14} />{exporting ? 'جاري التصدير...' : 'تصدير كل الفروع'}</button>
-                    </div>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-right">
-                        <thead><tr className="bg-muted/50 border-b-2 border-primary/10">
-                            <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الفرع</th>
-                            <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الإيرادات</th>
-                            <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">العمليات</th>
-                            <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">العملاء</th>
-                            <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الأجهزة</th>
-                            <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">المخزون</th>
-                        </tr></thead>
-                        <tbody className="divide-y divide-border/50">
-                            {data?.branchBreakdown?.map((b: any) => (
-                                <tr key={b.branchId} className="group hover:bg-muted/20 transition-colors">
-                                    <td className="p-4"><div className="flex items-center gap-3 flex-row-reverse"><div className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all"><Building size={16} /></div><div className="text-right"><p className="text-sm font-black text-primary uppercase">{b.branchName}</p><p className="text-[9px] font-bold text-muted-foreground/40 uppercase mt-0.5">#{b.branchId.slice(-5)}</p></div></div></td>
-                                    <td className="p-4"><span className="text-sm font-black text-muted-foreground">{b.revenue.toLocaleString()} ج.م</span></td>
-                                    <td className="p-4"><div className="flex items-center gap-2 flex-row-reverse"><div className="h-1.5 w-20 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(b.requestCount * 5, 100)}%` }}></div></div><span className="text-[10px] font-black text-muted-foreground/60">{b.requestCount}</span></div></td>
-                                    <td className="p-4"><span className="text-sm font-black text-muted-foreground">{b.customerCount}</span></td>
-                                    <td className="p-4"><span className="text-sm font-black text-muted-foreground">{b.machineCount}</span></td>
-                                    <td className="p-4"><span className="text-sm font-black text-muted-foreground">{b.stockCount}</span></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="space-y-6 font-arabic" dir="rtl">
