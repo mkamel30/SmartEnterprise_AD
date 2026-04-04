@@ -86,14 +86,14 @@ export default function Users() {
 
     const [branchFilter, setBranchFilter] = useState('');
 
-    const filteredUsers = users.filter(u => {
+    const filteredUsers = Array.isArray(users) ? users.filter(u => {
         const matchSearch = !searchTerm ||
             u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             u.email?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchBranch = !branchFilter || u.branchId === branchFilter;
         return matchSearch && matchBranch;
-    });
+    }) : [];
 
     const roleMap: any = {
       'SUPER_ADMIN': 'مدير عام النظام',
@@ -138,7 +138,7 @@ export default function Users() {
                         <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}
                             className="border-2 border-primary/10 rounded-lg px-9 py-2.5 text-sm font-bold appearance-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white min-w-[120px]">
                             <option value="">كل الفروع</option>
-                            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            {Array.isArray(branches) && branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                         </select>
                     </div>
                     <button 
@@ -345,7 +345,7 @@ export default function Users() {
                                 onChange={(e) => setFormData({...formData, branchId: e.target.value})}
                             >
                                 <option value="">الإدارة العامة / المركز الرئيسي</option>
-                                {branches.map(b => (
+                                {Array.isArray(branches) && branches.map(b => (
                                     <option key={b.id} value={b.id}>{b.name}</option>
                                 ))}
                             </select>

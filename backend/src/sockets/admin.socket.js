@@ -680,6 +680,23 @@ module.exports = (io) => {
                     totalSynced += validation.results.length;
                 }
 
+                if (entities.inventory && Array.isArray(entities.inventory)) {
+                    const validation = validateEntityArray(entities.inventory, inventorySchema, 'inventory');
+                    if (validation.errors.length > 0) {
+                        errors.inventory = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.branchSparePart.upsert({
+                            where: { branchId_partId: { branchId: socket.branchId, partId: r.partId } },
+                            update: { quantity: r.quantity, lastUpdated: new Date() },
+                            create: { branchId: socket.branchId, partId: r.partId, quantity: r.quantity }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.inventory = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
                 for (const [entityType, count] of Object.entries(results)) {
                     await updateBranchEntitySync(socket.branchId, entityType, count, Object.keys(errors).includes(entityType) ? 'PARTIAL' : 'SUCCESS');
                 }
