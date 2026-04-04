@@ -201,7 +201,7 @@ export default function Reports() {
     const fetchReports = async () => {
         try {
             const res = await adminClient.get('/reports/financial-summary');
-            setData(res.data);
+            // setData(res.data);
         } catch (error) {
             toast.error('فشل في تحميل التقارير المالية');
         }
@@ -209,7 +209,7 @@ export default function Reports() {
 
     const handleExport = async (endpoint: string) => {
         try {
-            setExporting(true);
+            // setExporting(true);
             const params = new URLSearchParams();
             if (filters.branchId) params.append('branchId', filters.branchId);
             if (filters.type !== 'ALL') params.append('type', filters.type);
@@ -228,7 +228,7 @@ export default function Reports() {
         } catch (error) {
             toast.error('فشل في تصدير البيانات');
         } finally {
-            setExporting(false);
+            // setExporting(false);
         }
     };
 
