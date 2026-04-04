@@ -193,7 +193,12 @@ const pushSchema = z.object({
         posMachines: z.array(z.any()).optional(),
         spareParts: z.array(z.any()).optional(),
         warehouseMachines: z.array(z.any()).optional(),
-        simCards: z.array(z.any()).optional()
+        simCards: z.array(z.any()).optional(),
+        stockMovements: z.array(z.any()).optional(),
+        machineSales: z.array(z.any()).optional(),
+        installments: z.array(z.any()).optional(),
+        simMovements: z.array(z.any()).optional(),
+        warehouseSims: z.array(z.any()).optional()
     })
 });
 

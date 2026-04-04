@@ -102,9 +102,9 @@ router.post('/request-sync', branchAuth, validate(requestSyncSchema), async (req
 
 router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
     const branchId = req.branch.id;
-    const { customers, posMachines, users, payments, maintenanceRequests, spareParts, warehouseMachines, simCards } = req.body;
+    const { customers, posMachines, users, payments, maintenanceRequests, spareParts, warehouseMachines, simCards, stockMovements, machineSales, installments, simMovements, warehouseSims } = req.body;
 
-    const stats = { customers: 0, posMachines: 0, users: 0, payments: 0, maintenanceRequests: 0, spareParts: 0, warehouseMachines: 0, simCards: 0 };
+    const stats = { customers: 0, posMachines: 0, users: 0, payments: 0, maintenanceRequests: 0, spareParts: 0, warehouseMachines: 0, simCards: 0, stockMovements: 0, machineSales: 0, installments: 0, simMovements: 0, warehouseSims: 0 };
     const errors = [];
 
     const cleanEntity = (entity) => {
@@ -226,6 +226,77 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
             stats.simCards = ops.length;
         }
 
+        if (stockMovements && Array.isArray(stockMovements)) {
+            const validation = validateEntityArray(stockMovements, stockMovementSchema, 'stockMovements');
+            if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `StockMovement[${e.index}]: ${e.errors.join(', ')}`));
+            const ops = (validation.results || []).map(m => {
+                const data = cleanEntity(m);
+                return prisma.stockMovement.create({
+                    data: { ...data, branchId }
+                });
+            });
+            if (ops.length > 0) await prisma.$transaction(ops);
+            stats.stockMovements = ops.length;
+        }
+
+        if (machineSales && Array.isArray(machineSales)) {
+            const validation = validateEntityArray(machineSales, machineSaleSchema, 'machineSales');
+            if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `MachineSale[${e.index}]: ${e.errors.join(', ')}`));
+            const ops = (validation.results || []).map(s => {
+                const data = cleanEntity(s);
+                return prisma.machineSale.upsert({
+                    where: { id: s.id },
+                    update: { ...data, branchId },
+                    create: { ...data, branchId }
+                });
+            });
+            if (ops.length > 0) await prisma.$transaction(ops);
+            stats.machineSales = ops.length;
+        }
+
+        if (installments && Array.isArray(installments)) {
+            const validation = validateEntityArray(installments, installmentSchema, 'installments');
+            if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `Installment[${e.index}]: ${e.errors.join(', ')}`));
+            const ops = (validation.results || []).map(i => {
+                const data = cleanEntity(i);
+                return prisma.installment.upsert({
+                    where: { id: i.id },
+                    update: { ...data, branchId },
+                    create: { ...data, branchId }
+                });
+            });
+            if (ops.length > 0) await prisma.$transaction(ops);
+            stats.installments = ops.length;
+        }
+
+        if (simMovements && Array.isArray(simMovements)) {
+            const validation = validateEntityArray(simMovements, simMovementSchema, 'simMovements');
+            if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `SimMovement[${e.index}]: ${e.errors.join(', ')}`));
+            const ops = (validation.results || []).map(m => {
+                const data = cleanEntity(m);
+                return prisma.simMovementLog.create({
+                    data: { ...data, branchId }
+                });
+            });
+            if (ops.length > 0) await prisma.$transaction(ops);
+            stats.simMovements = ops.length;
+        }
+
+        if (warehouseSims && Array.isArray(warehouseSims)) {
+            const validation = validateEntityArray(warehouseSims, warehouseSimSchema, 'warehouseSims');
+            if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `WarehouseSim[${e.index}]: ${e.errors.join(', ')}`));
+            const ops = (validation.results || []).map(s => {
+                const data = cleanEntity(s);
+                return prisma.warehouseSim.upsert({
+                    where: { serialNumber: s.serialNumber },
+                    update: { ...data, branchId },
+                    create: { ...data, branchId }
+                });
+            });
+            if (ops.length > 0) await prisma.$transaction(ops);
+            stats.warehouseSims = ops.length;
+        }
+
         const totalItems = Object.values(stats).reduce((a, b) => a + b, 0);
         const status = errors.length > 0 ? 'PARTIAL' : 'SUCCESS';
 
@@ -238,7 +309,7 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
             }
         });
 
-        const entityTypes = ['customers', 'posMachines', 'users', 'payments', 'maintenanceRequests', 'spareParts', 'warehouseMachines', 'simCards'];
+        const entityTypes = ['customers', 'posMachines', 'users', 'payments', 'maintenanceRequests', 'spareParts', 'warehouseMachines', 'simCards', 'stockMovements', 'machineSales', 'installments', 'simMovements', 'warehouseSims'];
         for (const entityType of entityTypes) {
             if (stats[entityType] > 0) {
                 await updateBranchEntitySync(branchId, entityType, stats[entityType], status, errors.length > 0 ? `${errors.length} errors` : null);

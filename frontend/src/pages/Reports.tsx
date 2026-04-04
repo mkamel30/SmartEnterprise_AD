@@ -240,10 +240,10 @@ export default function Reports() {
 
     const COLORS = ['#0A2472', '#0E6BA8', '#A6E1FA', '#001D4A', '#22C55E'];
 
-    const movements = (stockMovements?.data || []).filter(Array.isArray);
-    const requests = (maintenanceRequests?.data || []).filter(Array.isArray);
-    const paymentsData = (payments?.data || []).filter(Array.isArray);
-    const inventoryData = (inventory?.data || []).filter(Array.isArray);
+    const movements = Array.isArray(stockMovements?.data) ? stockMovements.data : [];
+    const requests = Array.isArray(maintenanceRequests?.data) ? maintenanceRequests.data : [];
+    const paymentsData = Array.isArray(payments?.data) ? payments.data : [];
+    const inventoryData = Array.isArray(inventory?.data) ? inventory.data : [];
     const logs = Array.isArray(priceLogs) ? priceLogs : [];
 
     const filteredMovements = filters.search 
@@ -689,8 +689,8 @@ export default function Reports() {
 
     const salesData = sales?.data || [];
     const overdueData = overdueInstallments?.data || [];
-    const simData = (simCards?.data || []).filter(Array.isArray);
-    const simMovData = (simMovements?.data || []).filter(Array.isArray);
+    const simData = Array.isArray(simCards?.data) ? simCards.data : [];
+    const simMovData = Array.isArray(simMovements?.data) ? simMovements.data : [];
     const totalOverdue = overdueInstallments?.totalOverdue || 0;
     const totalSalesAmount = salesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
     const totalCashSales = (salesData || []).filter((s: any) => s.type === 'CASH');

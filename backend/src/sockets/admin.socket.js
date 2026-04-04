@@ -147,6 +147,15 @@ module.exports = (io) => {
             logger.info(`[Socket] Branch identity confirmed: ${data.branchCode}`);
         });
 
+        socket.on('branch_ping', async (data) => {
+            if (socket.branchId) {
+                await prisma.branch.update({
+                    where: { id: socket.branchId },
+                    data: { lastSeen: new Date(), status: 'ONLINE' }
+                }).catch(() => {});
+            }
+        });
+
         socket.on('branch_request_sync', async (data) => {
             const { branchCode, entities } = data;
             logger.info(`[Sync] Branch ${branchCode} requesting sync for: ${entities?.join(', ') || 'all'}`);
