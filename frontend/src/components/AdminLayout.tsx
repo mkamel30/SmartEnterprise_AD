@@ -58,6 +58,7 @@ const reportGroups: NavGroup[] = [
         icon: Package,
         children: [
             { id: 'simcards', name: 'الشرائح', href: '/reports/simcards', icon: Package },
+            { id: 'spare-parts', name: 'قطع الغيار', href: '/reports/spare-parts', icon: Package },
             { id: 'price-history', name: 'سعر القطع', href: '/reports/price-history', icon: TrendingUp },
         ]
     },
@@ -136,13 +137,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     onClick={() => setIsSidebarOpen(false)}
                                     className={`flex items-center px-3 py-3 rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${active
                                         ? 'bg-primary text-white shadow-lg ring-1 ring-primary/20'
-                                        : 'text-foreground/70 hover:bg-muted hover:text-primary'
+                                        : 'text-slate-900 hover:bg-slate-100 hover:text-primary'
                                         }`}
                                 >
                                     <div className="flex items-center justify-center min-w-[24px]">
-                                        <Icon size={22} className={active ? 'text-white' : 'opacity-50'} />
+                                        <Icon size={22} className={active ? 'text-white' : 'text-slate-700'} />
                                     </div>
-                                    <span className={`mr-3 text-sm ${active ? 'font-black' : 'font-bold'} opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-1`}>
+                                    <span className={`mr-3 text-sm ${active ? 'font-black' : 'font-bold'} flex-1`}>
                                         {item.name}
                                     </span>
                                 </Link>
@@ -161,21 +162,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         className={`
                                             w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200
                                             ${hasActiveChild || isExpanded
-                                                ? 'text-blue-900 bg-blue-50' 
-                                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}
+                                                ? 'text-slate-900 bg-slate-100' 
+                                                : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'}
                                         `}
                                     >
                                         <GroupIcon size={14} strokeWidth={1.8} className="shrink-0" />
-                                        <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 flex-1 text-right">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap opacity-100 flex-1 text-right text-slate-700">
                                             {group.name}
                                         </span>
-                                        <ChevronDown size={10} className={`shrink-0 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                        <ChevronDown size={10} className={`shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     <div className={`
                                         overflow-hidden transition-all duration-300
                                         ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
-                                        lg:max-h-0 lg:opacity-0 lg:group-hover:max-h-96 lg:group-hover:opacity-100
                                     `}>
                                         <div className="pr-10 pl-2 space-y-1 mt-1 mb-2 border-r-2 border-primary/10 mr-4">
                                             {group.children.map(child => {
@@ -188,7 +188,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                         onClick={() => setIsSidebarOpen(false)}
                                                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${childActive
                                                             ? 'bg-primary/10 text-primary'
-                                                            : 'text-muted-foreground hover:bg-muted hover:text-primary'
+                                                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                                                             }`}
                                                     >
                                                         <ChildIcon size={14} className="opacity-50" />
@@ -214,13 +214,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     onClick={() => setIsSidebarOpen(false)}
                                     className={`flex items-center px-3 py-3 rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${active
                                         ? 'bg-primary text-white shadow-lg ring-1 ring-primary/20'
-                                        : 'text-foreground/70 hover:bg-muted hover:text-primary'
+                                        : 'text-slate-900 hover:bg-slate-100 hover:text-primary'
                                         }`}
                                 >
                                     <div className="flex items-center justify-center min-w-[24px]">
-                                        <Icon size={22} className={active ? 'text-white' : 'opacity-50'} />
+                                        <Icon size={22} className={active ? 'text-white' : 'text-slate-700'} />
                                     </div>
-                                    <span className={`mr-3 text-sm ${active ? 'font-black' : 'font-bold'} opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-1`}>
+                                    <span className={`mr-3 text-sm ${active ? 'font-black' : 'font-bold'} flex-1`}>
                                         {item.name}
                                     </span>
                                 </Link>
