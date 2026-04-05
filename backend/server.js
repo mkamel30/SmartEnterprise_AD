@@ -12,7 +12,8 @@ const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: process.env.FRONTEND_URL || true, methods: ['GET', 'POST'] }
+    cors: { origin: process.env.FRONTEND_URL || true, methods: ['GET', 'POST'] },
+    maxHttpBufferSize: 1e8
 });
 
 app.use(helmet());
