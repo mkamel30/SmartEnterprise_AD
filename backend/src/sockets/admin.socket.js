@@ -205,6 +205,31 @@ module.exports = (io) => {
                     result.globalParameters = await prisma.globalParameter.findMany();
                 }
 
+                if (!entities || entities.includes('syncPolicies')) {
+                    const defaults = [
+                        { entityType: 'payments', syncLevel: 'FULL', enabled: true },
+                        { entityType: 'sales', syncLevel: 'FULL', enabled: true },
+                        { entityType: 'customers', syncLevel: 'COUNT_ONLY', enabled: true },
+                        { entityType: 'requests', syncLevel: 'FULL', enabled: true },
+                        { entityType: 'stockMovements', syncLevel: 'SUMMARY', enabled: true },
+                        { entityType: 'installments', syncLevel: 'FULL', enabled: true },
+                        { entityType: 'simMovements', syncLevel: 'SUMMARY', enabled: true },
+                        { entityType: 'posMachines', syncLevel: 'COUNT_ONLY', enabled: true },
+                        { entityType: 'simCards', syncLevel: 'FULL', enabled: true },
+                        { entityType: 'warehouseMachines', syncLevel: 'FULL', enabled: true },
+                        { entityType: 'warehouseSims', syncLevel: 'FULL', enabled: true }
+                    ];
+
+                    const dbPolicies = await prisma.syncPolicy.findMany();
+                    const policyMap = {};
+                    dbPolicies.forEach(p => { policyMap[p.entityType] = p; });
+
+                    result.syncPolicies = defaults.map(def => ({
+                        ...def,
+                        ...(policyMap[def.entityType] || { syncLevel: def.syncLevel, enabled: true })
+                    }));
+                }
+
                 socket.emit('portal_sync_response', { success: true, data: result });
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PULL', 'SUCCESS', `${socket.branchCode} pulled master data`);
                 logger.info(`[Sync] Sent sync response to branch ${socket.branchCode}`);

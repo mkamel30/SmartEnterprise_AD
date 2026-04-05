@@ -1,0 +1,5 @@
+﻿backend/prisma/schema.prisma
+backend/src/routes/reports.js
+backend/src/routes/sync.schema.js
+backend/src/sockets/admin.socket.js
+frontend/src/pages/Reports.tsx

@@ -1,0 +1,122 @@
+﻿diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 8a4cc69..4aef829 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -445,6 +445,7 @@ model StockMovement {
+   performedBy   String?
+   branchId      String?
+   isPaid        Boolean?            @default(false)
++  paidAmount    Float?              @default(0)
+   receiptNumber String?
+   customerId    String?
+   customerName  String?
+diff --git a/backend/src/routes/reports.js b/backend/src/routes/reports.js
+index 248d19c..10f2d9a 100644
+--- a/backend/src/routes/reports.js
++++ b/backend/src/routes/reports.js
+@@ -157,24 +157,51 @@ router.get('/movements', async (req, res) => {
+ router.get('/performance', async (req, res) => {
+     try {
+         const { branchId, startDate, endDate } = req.query;
+-        const where = {};
++        const where = { status: 'Closed' };
+         if (branchId) where.branchId = branchId;
+         if (startDate || endDate) {
+-            where.createdAt = {};
+-            if (startDate) where.createdAt.gte = new Date(startDate);
++            where.closingTimestamp = {};
++            if (startDate) where.closingTimestamp.gte = new Date(startDate);
+             if (endDate) {
+                 const end = new Date(endDate);
+                 end.setHours(23, 59, 59, 999);
+-                where.createdAt.lte = end;
++                where.closingTimestamp.lte = end;
+             }
+         }
+ 
+         const [requests, payments] = await Promise.all([
+-            prisma.maintenanceRequest.findMany({ where, select: { id: true, status: true, branchId: true, createdAt: true } }),
+-            prisma.payment.findMany({ where, select: { amount: true, branchId: true, createdAt: true } })
++            prisma.maintenanceRequest.findMany({ 
++                where, 
++                select: { 
++                    id: true, 
++                    createdAt: true, 
++                    closingTimestamp: true, 
++                    totalCost: true,
++                    usedParts: true,
++                    branch: { select: { name: true } }
++                } 
++            }),
++            prisma.payment.findMany({ 
++                where: { 
++                    ...(branchId ? { branchId } : {}),
++                    ...(startDate ? { createdAt: { gte: new Date(startDate) } } : {}),
++                    ...(endDate ? { createdAt: { lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } } : {})
++                },
++                select: { amount: true } 
++            })
+         ]);
+ 
+-        res.json({ success: true, requests: requests.length, totalRevenue: payments.reduce((s, p) => s + p.amount, 0) });
++        const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
++        const allDurations = requests.map(r => new Date(r.closingTimestamp).getTime() - new Date(r.createdAt).getTime()).filter(d => d > 0);
++        const avgTimeMs = allDurations.length > 0 ? allDurations.reduce((s, d) => s + d, 0) / allDurations.length : 0;
++
++        res.json({ 
++            success: true, 
++            totalRequests: requests.length, 
++            totalRevenue,
++            avgTimeToCompletionHours: (avgTimeMs / (1000 * 60 * 60)).toFixed(1),
++            onTimeRate: requests.length > 0 ? Math.round((requests.filter(r => (new Date(r.closingTimestamp).getTime() - new Date(r.createdAt).getTime()) < 48 * 60 * 60 * 1000).length / requests.length) * 100) : 100
++        });
+     } catch (error) {
+         logger.error('Performance report failed:', error);
+         res.status(500).json({ error: 'Failed to fetch performance' });
+diff --git a/backend/src/routes/sync.schema.js b/backend/src/routes/sync.schema.js
+index 22bd6c2..c437313 100644
+--- a/backend/src/routes/sync.schema.js
++++ b/backend/src/routes/sync.schema.js
+@@ -63,7 +63,8 @@ const stockMovementSchema = z.object({
+     customerName: z.string().max(200).optional().nullable(),
+     machineSerial: z.string().max(100).optional().nullable(),
+     machineModel: z.string().max(100).optional().nullable(),
+-    paymentPlace: z.string().max(100).optional().nullable()
++    paymentPlace: z.string().max(100).optional().nullable(),
++    paidAmount: z.number().min(0).optional().nullable()
+ });
+ 
+ const machineSaleSchema = z.object({
+diff --git a/backend/src/sockets/admin.socket.js b/backend/src/sockets/admin.socket.js
+index 684901d..d4346e3 100644
+--- a/backend/src/sockets/admin.socket.js
++++ b/backend/src/sockets/admin.socket.js
+@@ -19,7 +19,7 @@ const {
+ const ALLOWED_WAREHOUSE_MACHINE_FIELDS = ['serialNumber', 'model', 'manufacturer', 'status', 'resolution', 'notes', 'complaint', 'importDate', 'updatedAt', 'originalOwnerId', 'readyForPickup', 'requestId', 'customerId', 'customerName', 'customerBkcode'];
+ const ALLOWED_MACHINE_SALE_FIELDS = ['serialNumber', 'customerId', 'saleDate', 'type', 'totalPrice', 'paidAmount', 'status', 'notes'];
+ const ALLOWED_WAREHOUSE_SIM_FIELDS = ['serialNumber', 'type', 'networkType', 'status', 'notes', 'importDate', 'updatedAt'];
+-const ALLOWED_STOCK_MOVEMENT_FIELDS = ['partId', 'type', 'quantity', 'reason', 'requestId', 'userId', 'performedBy', 'isPaid', 'receiptNumber', 'customerId', 'customerName', 'machineSerial', 'machineModel', 'paymentPlace'];
++const ALLOWED_STOCK_MOVEMENT_FIELDS = ['id', 'partId', 'type', 'quantity', 'reason', 'requestId', 'userId', 'performedBy', 'isPaid', 'paidAmount', 'receiptNumber', 'customerId', 'customerName', 'machineSerial', 'machineModel', 'paymentPlace', 'createdAt'];
+ const ALLOWED_PAYMENT_FIELDS = ['customerId', 'customerName', 'requestId', 'amount', 'type', 'reason', 'paymentPlace', 'paymentMethod', 'receiptNumber', 'notes', 'userId', 'userName'];
+ const ALLOWED_MAINTENANCE_REQUEST_FIELDS = ['customerId', 'posMachineId', 'customerName', 'customerBkcode', 'machineModel', 'machineManufacturer', 'serialNumber', 'status', 'technicianId', 'technician', 'type', 'description', 'createdBy', 'notes', 'complaint', 'actionTaken', 'closingUserId', 'closingUserName', 'closingTimestamp', 'usedParts', 'receiptNumber', 'totalCost'];
+ const ALLOWED_INSTALLMENT_FIELDS = ['saleId', 'dueDate', 'amount', 'isPaid', 'paidAt', 'description', 'paidAmount', 'paymentPlace', 'receiptNumber'];
+diff --git a/frontend/src/pages/Reports.tsx b/frontend/src/pages/Reports.tsx
+index 5d1368c..c93a7d1 100644
+--- a/frontend/src/pages/Reports.tsx
++++ b/frontend/src/pages/Reports.tsx
+@@ -26,6 +26,7 @@ const reportTabs = [
+   { id: 'spare-parts-inventory', label: '┘é╪╖╪╣ ╪د┘╪║┘è╪د╪▒', icon: Package },
+   { id: 'simcards', label: '╪د┘╪┤╪▒╪د╪خ╪ص', icon: Package },
+   { id: 'price-history', label: '╪│╪╣╪▒ ╪د┘┘é╪╖╪╣', icon: Package },
++  { id: 'performance', label: '╪ث╪»╪د╪ة ╪د┘╪╡┘è╪د┘╪ر', icon: FileBarChart },
+ ];
+ 
+ const statusMap: any = {
+@@ -877,6 +878,7 @@ export default function Reports() {
+ 
+     const renderContent = () => {
+         switch (activeTab) {
++            case 'performance': return renderPerformance();
+             case 'movements': return renderMovements();
+             case 'requests': return renderRequests();
+             case 'payments': return renderPayments();

@@ -63,7 +63,8 @@ const stockMovementSchema = z.object({
     customerName: z.string().max(200).optional().nullable(),
     machineSerial: z.string().max(100).optional().nullable(),
     machineModel: z.string().max(100).optional().nullable(),
-    paymentPlace: z.string().max(100).optional().nullable()
+    paymentPlace: z.string().max(100).optional().nullable(),
+    paidAmount: z.number().min(0).optional().nullable()
 });
 
 const machineSaleSchema = z.object({

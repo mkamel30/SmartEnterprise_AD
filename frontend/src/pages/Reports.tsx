@@ -26,6 +26,7 @@ const reportTabs = [
   { id: 'spare-parts-inventory', label: 'قطع الغيار', icon: Package },
   { id: 'simcards', label: 'الشرائح', icon: Package },
   { id: 'price-history', label: 'سعر القطع', icon: Package },
+  { id: 'performance', label: 'أداء الصيانة', icon: FileBarChart },
 ];
 
 const statusMap: any = {
@@ -877,6 +878,7 @@ export default function Reports() {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'performance': return renderPerformance();
             case 'movements': return renderMovements();
             case 'requests': return renderRequests();
             case 'payments': return renderPayments();

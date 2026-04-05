@@ -157,24 +157,51 @@ router.get('/movements', async (req, res) => {
 router.get('/performance', async (req, res) => {
     try {
         const { branchId, startDate, endDate } = req.query;
-        const where = {};
+        const where = { status: 'Closed' };
         if (branchId) where.branchId = branchId;
         if (startDate || endDate) {
-            where.createdAt = {};
-            if (startDate) where.createdAt.gte = new Date(startDate);
+            where.closingTimestamp = {};
+            if (startDate) where.closingTimestamp.gte = new Date(startDate);
             if (endDate) {
                 const end = new Date(endDate);
                 end.setHours(23, 59, 59, 999);
-                where.createdAt.lte = end;
+                where.closingTimestamp.lte = end;
             }
         }
 
         const [requests, payments] = await Promise.all([
-            prisma.maintenanceRequest.findMany({ where, select: { id: true, status: true, branchId: true, createdAt: true } }),
-            prisma.payment.findMany({ where, select: { amount: true, branchId: true, createdAt: true } })
+            prisma.maintenanceRequest.findMany({ 
+                where, 
+                select: { 
+                    id: true, 
+                    createdAt: true, 
+                    closingTimestamp: true, 
+                    totalCost: true,
+                    usedParts: true,
+                    branch: { select: { name: true } }
+                } 
+            }),
+            prisma.payment.findMany({ 
+                where: { 
+                    ...(branchId ? { branchId } : {}),
+                    ...(startDate ? { createdAt: { gte: new Date(startDate) } } : {}),
+                    ...(endDate ? { createdAt: { lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } } : {})
+                },
+                select: { amount: true } 
+            })
         ]);
 
-        res.json({ success: true, requests: requests.length, totalRevenue: payments.reduce((s, p) => s + p.amount, 0) });
+        const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const allDurations = requests.map(r => new Date(r.closingTimestamp).getTime() - new Date(r.createdAt).getTime()).filter(d => d > 0);
+        const avgTimeMs = allDurations.length > 0 ? allDurations.reduce((s, d) => s + d, 0) / allDurations.length : 0;
+
+        res.json({ 
+            success: true, 
+            totalRequests: requests.length, 
+            totalRevenue,
+            avgTimeToCompletionHours: (avgTimeMs / (1000 * 60 * 60)).toFixed(1),
+            onTimeRate: requests.length > 0 ? Math.round((requests.filter(r => (new Date(r.closingTimestamp).getTime() - new Date(r.createdAt).getTime()) < 48 * 60 * 60 * 1000).length / requests.length) * 100) : 100
+        });
     } catch (error) {
         logger.error('Performance report failed:', error);
         res.status(500).json({ error: 'Failed to fetch performance' });
