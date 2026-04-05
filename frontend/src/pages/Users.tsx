@@ -26,7 +26,7 @@ export default function Users() {
         try {
             setLoading(true);
             const res = await adminClient.get('/users');
-            setUsers(res.data);
+            setUsers(res.data.users || res.data);
             
             const bRes = await adminClient.get('/branches');
             setBranches(bRes.data);
