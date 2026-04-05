@@ -14,6 +14,7 @@ const {
     posMachineSchema,
     customerSchema,
     inventorySchema,
+    usedPartLogSchema,
     validateEntityArray
 } = require('../routes/sync.schema');
 
@@ -56,6 +57,35 @@ async function updateBranchEntitySync(branchId, entityType, recordCount, status,
             create: { branchId, entityType, lastSyncedAt: new Date(), recordCount, status, errorMessage }
         });
     } catch (e) { logger.error({ err: e.message }, `Failed to update entity sync for ${entityType}`); }
+}
+
+async function ensureCustomerExists(customerId, customerName, customerBkcode, branchId) {
+    if (!customerId) return;
+    try {
+        const existing = await prisma.customer.findUnique({ where: { id: customerId } });
+        if (!existing) {
+            // Also check if bkcode exists to avoid unique constraint error
+            let finalBkcode = customerBkcode || `AUTO-${customerId.substring(0, 8)}`;
+            const checkBk = await prisma.customer.findUnique({ where: { bkcode: finalBkcode } });
+            if (checkBk) {
+                logger.warn(`[Sync] Customer ${customerId} uses bkcode ${finalBkcode} which belongs to ${checkBk.id}. Skipping auto-create.`);
+                return;
+            }
+
+            await prisma.customer.create({
+                data: {
+                    id: customerId,
+                    client_name: customerName || 'غير معروف (تلقائي)',
+                    bkcode: finalBkcode,
+                    branchId: branchId,
+                    status: 'AUTO_SYNC'
+                }
+            });
+            logger.info(`[Socket Sync] Created skeleton customer ${customerId} for FK constraint`);
+        }
+    } catch (e) {
+        logger.error(`[Socket Sync] Failed to ensure customer ${customerId}: ${e.message}`);
+    }
 }
 
 module.exports = (io) => {
@@ -514,101 +544,99 @@ module.exports = (io) => {
                 const errors = {};
 
                 if (entities.maintenanceRequests && Array.isArray(entities.maintenanceRequests)) {
-                    const validation = validateEntityArray(entities.maintenanceRequests, maintenanceRequestSchema, 'maintenanceRequests');
-                    if (validation.errors.length > 0) {
-                        errors.maintenanceRequests = validation.errors;
-                        logger.warn(`[Sync] Validation errors in maintenanceRequests: ${validation.errors.length} records skipped`);
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.maintenanceRequest.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.maintenanceRequests = validation.results.length;
-                    totalSynced += validation.results.length;
+                    try {
+                        const validation = validateEntityArray(entities.maintenanceRequests, maintenanceRequestSchema, 'maintenanceRequests');
+                        if (validation.results.length > 0) {
+                            for (const r of validation.results) {
+                                if (r.customerId) await ensureCustomerExists(r.customerId, r.customerName, r.customerBkcode, socket.branchId);
+                                await prisma.maintenanceRequest.upsert({
+                                    where: { id: r.id },
+                                    update: { ...r, branchId: socket.branchId },
+                                    create: { ...r, branchId: socket.branchId }
+                                });
+                            }
+                        }
+                        results.maintenanceRequests = validation.results.length;
+                        totalSynced += validation.results.length;
+                    } catch (e) { logger.error({ err: e.message }, '[Sync] Blocked on maintenanceRequests'); }
                 }
 
                 if (entities.payments && Array.isArray(entities.payments)) {
-                    const validation = validateEntityArray(entities.payments, paymentItemSchema, 'payments');
-                    if (validation.errors.length > 0) {
-                        errors.payments = validation.errors;
-                        logger.warn(`[Sync] Validation errors in payments: ${validation.errors.length} records skipped`);
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.payment.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.payments = validation.results.length;
-                    totalSynced += validation.results.length;
+                    try {
+                        const validation = validateEntityArray(entities.payments, paymentItemSchema, 'payments');
+                        if (validation.results.length > 0) {
+                            for (const r of validation.results) {
+                                await prisma.payment.upsert({
+                                    where: { id: r.id },
+                                    update: { ...r, branchId: socket.branchId },
+                                    create: { ...r, branchId: socket.branchId }
+                                });
+                            }
+                        }
+                        results.payments = validation.results.length;
+                        totalSynced += validation.results.length;
+                    } catch (e) { logger.error({ err: e.message }, '[Sync] Blocked on payments'); }
                 }
 
                 if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
-                    // Pre-process: ensure all parts mentioned in movements exist in master list
-                    for (const m of entities.stockMovements) {
-                        if (m.partId && (m.partNumber || m.partName)) {
-                            await prisma.masterSparePart.upsert({
-                                where: { id: m.partId },
-                                update: { name: m.partName || undefined, partNumber: m.partNumber || undefined },
-                                create: { id: m.partId, name: m.partName || 'Unknown', partNumber: m.partNumber || m.partId }
-                            });
+                    try {
+                        // Pre-process: ensure all parts mentioned in movements exist in master list
+                        for (const m of entities.stockMovements) {
+                            if (m.partId && (m.partNumber || m.partName)) {
+                                await prisma.masterSparePart.upsert({
+                                    where: { id: m.partId },
+                                    update: { name: m.partName || undefined, partNumber: m.partNumber || undefined },
+                                    create: { id: m.partId, name: m.partName || 'Unknown', partNumber: m.partNumber || m.partId }
+                                });
+                            }
                         }
-                    }
 
-                    const validation = validateEntityArray(entities.stockMovements, stockMovementSchema, 'stockMovements');
-                    if (validation.errors.length > 0) {
-                        errors.stockMovements = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.stockMovement.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.stockMovements = validation.results.length;
-                    totalSynced += validation.results.length;
+                        const validation = validateEntityArray(entities.stockMovements, stockMovementSchema, 'stockMovements');
+                        if (validation.results.length > 0) {
+                            const ops = validation.results.map(r => prisma.stockMovement.upsert({
+                                where: { id: r.id },
+                                update: { ...r, branchId: socket.branchId },
+                                create: { ...r, branchId: socket.branchId }
+                            }));
+                            await prisma.$transaction(ops);
+                        }
+                        results.stockMovements = validation.results.length;
+                        totalSynced += validation.results.length;
+                    } catch (e) { logger.error({ err: e.message }, '[Sync] stockMovements failed'); }
                 }
 
                 if (entities.machineSales && Array.isArray(entities.machineSales)) {
-                    const validation = validateEntityArray(entities.machineSales, machineSaleSchema, 'machineSales');
-                    if (validation.errors.length > 0) {
-                        errors.machineSales = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.machineSale.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.machineSales = validation.results.length;
-                    totalSynced += validation.results.length;
+                    try {
+                        const validation = validateEntityArray(entities.machineSales, machineSaleSchema, 'machineSales');
+                        if (validation.results.length > 0) {
+                            for (const r of validation.results) {
+                                if (r.customerId) await ensureCustomerExists(r.customerId, null, null, socket.branchId);
+                                await prisma.machineSale.upsert({
+                                    where: { id: r.id },
+                                    update: { ...r, branchId: socket.branchId },
+                                    create: { ...r, branchId: socket.branchId }
+                                });
+                            }
+                        }
+                        results.machineSales = validation.results.length;
+                        totalSynced += validation.results.length;
+                    } catch (e) { logger.error({ err: e.message }, '[Sync] machineSales failed'); }
                 }
 
                 if (entities.installments && Array.isArray(entities.installments)) {
-                    const validation = validateEntityArray(entities.installments, installmentSchema, 'installments');
-                    if (validation.errors.length > 0) {
-                        errors.installments = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.installment.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.installments = validation.results.length;
-                    totalSynced += validation.results.length;
+                    try {
+                        const validation = validateEntityArray(entities.installments, installmentSchema, 'installments');
+                        if (validation.results.length > 0) {
+                            const ops = validation.results.map(r => prisma.installment.upsert({
+                                where: { id: r.id },
+                                update: { ...r, branchId: socket.branchId },
+                                create: { ...r, branchId: socket.branchId }
+                            }));
+                            await prisma.$transaction(ops);
+                        }
+                        results.installments = validation.results.length;
+                        totalSynced += validation.results.length;
+                    } catch (e) { logger.error({ err: e.message }, '[Sync] installments failed'); }
                 }
 
                 if (entities.simCards && Array.isArray(entities.simCards)) {
@@ -741,6 +769,22 @@ module.exports = (io) => {
                     totalSynced += validation.results.length;
                 }
 
+                if (entities.usedPartLogs && Array.isArray(entities.usedPartLogs)) {
+                    const validation = validateEntityArray(entities.usedPartLogs, usedPartLogSchema, 'usedPartLogs');
+                    if (validation.results.length > 0) {
+                        for (const r of validation.results) {
+                            if (r.customerId) await ensureCustomerExists(r.customerId, r.customerName, r.customerBkcode, socket.branchId);
+                            await prisma.usedPartLog.upsert({
+                                where: { id: r.id },
+                                update: { ...r, branchId: socket.branchId },
+                                create: { ...r, branchId: socket.branchId }
+                            });
+                        }
+                    }
+                    results.usedPartLogs = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
                 for (const [entityType, count] of Object.entries(results)) {
                     await updateBranchEntitySync(socket.branchId, entityType, count, Object.keys(errors).includes(entityType) ? 'PARTIAL' : 'SUCCESS');
                 }
@@ -761,7 +805,7 @@ module.exports = (io) => {
                     errors: Object.keys(errors).length > 0 ? Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, v.length])) : null
                 });
             } catch (error) {
-                logger.error('[Sync] Error processing report push:', error.message);
+                logger.error({ err: error.message, stack: error.stack }, '[Sync] Error processing report push');
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Report push failed: ${error.message}`);
                 socket.emit('sync_ack', { status: 'FAILED', error: error.message });
             }
@@ -792,7 +836,7 @@ module.exports = (io) => {
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Summary push: ${ops.length} entity counts updated`);
                 socket.emit('summary_ack', { status: 'SUCCESS', entities: ops.length });
             } catch (error) {
-                logger.error('[Sync] Error processing summary push:', error.message);
+                logger.error({ err: error.message, stack: error.stack }, '[Sync] Error processing summary push');
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Summary push failed: ${error.message}`);
                 socket.emit('summary_ack', { status: 'FAILED', error: error.message });
             }

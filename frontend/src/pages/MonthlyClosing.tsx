@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
-import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2 } from 'lucide-react';
+import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2, RefreshCw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { Button } from '../components/ui/button';
 import PageHeader from '../components/PageHeader';
 
@@ -32,6 +33,7 @@ export default function MonthlyClosing() {
     const [selectedBranch, setSelectedBranch] = useState<string>('');
     const [activeSection, setActiveSection] = useState<'all' | 'sales' | 'installments' | 'parts' | 'inventory'>('all');
     const [isExporting, setIsExporting] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
 
     const { data: branchesData } = useQuery({
@@ -46,6 +48,21 @@ export default function MonthlyClosing() {
         }).then(res => res.data),
         enabled: !!selectedMonth
     });
+
+    const handleSyncAllBranches = async () => {
+        setIsSyncing(true);
+        try {
+            const res = await adminClient.post('/sync/request-all-report-sync');
+            if (res.data.results) {
+                const onlineCount = res.data.results.filter((r: any) => r.status === 'REQUESTED').length;
+                toast.success(`تم إرسال طلب سحب البيانات لـ ${onlineCount} فروع متصلة`);
+            }
+        } catch (err) {
+            toast.error('فشل في إرسال طلب السحب');
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     // Month navigation
     const navigateMonth = (dir: number) => {
@@ -197,7 +214,7 @@ export default function MonthlyClosing() {
                     className="bg-transparent border-none outline-none text-slate-700 font-bold text-sm cursor-pointer pr-2"
                 >
                     <option value="">إجمالي فروع الشركة (الكل)</option>
-                    {branchesData?.data?.map((b: any) => (
+                    {branchesData?.map((b: any) => (
                         <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                 </select>
@@ -212,6 +229,17 @@ export default function MonthlyClosing() {
                 </div>
                 <button onClick={() => navigateMonth(1)} className="text-slate-400 hover:text-[var(--color-navy)] transition-colors font-bold text-lg px-1">←</button>
             </div>
+
+            <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSyncAllBranches} 
+                disabled={isSyncing}
+                className="gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+            >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                <span className="hidden md:inline">سحب بيانات الفروع</span>
+            </Button>
 
             <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-2 rounded-xl">
                 <FileSpreadsheet size={16} />

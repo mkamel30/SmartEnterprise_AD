@@ -336,6 +336,20 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// Get active branches
+router.get('/active', async (req, res) => {
+    try {
+        const branches = await prisma.branch.findMany({
+            where: { isActive: true },
+            orderBy: { name: 'asc' }
+        });
+        res.json(branches);
+    } catch (error) {
+        logger.error('Failed to fetch active branches:', error);
+        res.status(500).json({ error: 'Failed to fetch active branches' });
+    }
+});
+
 // Get branch details
 router.get('/:id', async (req, res) => {
     try {
@@ -633,19 +647,6 @@ router.post('/:id/pull-inventory', adminAuth, async (req, res) => {
     }
 });
 
-// Get active branches
-router.get('/active', async (req, res) => {
-    try {
-        const branches = await prisma.branch.findMany({
-            where: { isActive: true },
-            orderBy: { name: 'asc' }
-        });
-        res.json(branches);
-    } catch (error) {
-        logger.error('Failed to fetch active branches:', error);
-        res.status(500).json({ error: 'Failed to fetch active branches' });
-    }
-});
 
 // Get branches by type
 router.get('/type/:type', async (req, res) => {

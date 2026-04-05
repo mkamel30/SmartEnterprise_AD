@@ -5,7 +5,7 @@ const syncQueueService = require('../services/syncQueue.service');
 const { adminAuth } = require('../middleware/auth');
 const logger = require('../../utils/logger');
 const validate = require('../middleware/validate');
-const { requestSyncSchema, pushSchema, validateEntityArray, customerSchema, posMachineSchema, paymentItemSchema, maintenanceRequestSchema, warehouseMachineSchema, simCardSchema } = require('./sync.schema');
+const { requestSyncSchema, pushSchema, validateEntityArray, customerSchema, posMachineSchema, paymentItemSchema, maintenanceRequestSchema, warehouseMachineSchema, simCardSchema, usedPartLogSchema } = require('./sync.schema');
 
 let io = null;
 router.setIo = (socketIo) => { io = socketIo; };
@@ -26,6 +26,27 @@ async function updateBranchEntitySync(branchId, entityType, recordCount, status,
             create: { branchId, entityType, lastSyncedAt: new Date(), recordCount, status, errorMessage }
         });
     } catch (e) { logger.error({ err: e.message }, `Failed to update entity sync for ${entityType}`); }
+}
+
+async function ensureCustomerExists(customerId, customerName, customerBkcode, branchId) {
+    if (!customerId) return;
+    try {
+        const existing = await prisma.customer.findUnique({ where: { id: customerId } });
+        if (!existing) {
+            await prisma.customer.create({
+                data: {
+                    id: customerId,
+                    client_name: customerName || 'غير معروف (تلقائي)',
+                    bkcode: customerBkcode || `AUTO-${customerId.substring(0, 8)}`,
+                    branchId: branchId,
+                    status: 'AUTO_SYNC'
+                }
+            });
+            logger.info(`[Sync] Created skeleton customer ${customerId} to satisfy FK constraint`);
+        }
+    } catch (e) {
+        logger.error(`[Sync] Failed to ensure customer ${customerId}: ${e.message}`);
+    }
 }
 
 const branchAuth = async (req, res, next) => {
@@ -102,9 +123,9 @@ router.post('/request-sync', branchAuth, validate(requestSyncSchema), async (req
 
 router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
     const branchId = req.branch.id;
-    const { customers, posMachines, users, payments, maintenanceRequests, spareParts, warehouseMachines, simCards, stockMovements, machineSales, installments, simMovements, warehouseSims } = req.body;
+    const { customers, posMachines, users, payments, maintenanceRequests, spareParts, warehouseMachines, simCards, stockMovements, machineSales, installments, simMovements, warehouseSims, usedPartLogs } = req.body;
 
-    const stats = { customers: 0, posMachines: 0, users: 0, payments: 0, maintenanceRequests: 0, spareParts: 0, warehouseMachines: 0, simCards: 0, stockMovements: 0, machineSales: 0, installments: 0, simMovements: 0, warehouseSims: 0 };
+    const stats = { customers: 0, posMachines: 0, users: 0, payments: 0, maintenanceRequests: 0, spareParts: 0, warehouseMachines: 0, simCards: 0, stockMovements: 0, machineSales: 0, installments: 0, simMovements: 0, warehouseSims: 0, usedPartLogs: 0 };
     const errors = [];
 
     const cleanEntity = (entity) => {
@@ -162,28 +183,40 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
         if (payments && Array.isArray(payments)) {
             const validation = validateEntityArray(payments, paymentItemSchema, 'payments');
             if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `Payment[${e.index}]: ${e.errors.join(', ')}`));
-            const ops = (validation.results || []).map(p => prisma.payment.upsert({
-                where: { id: p.id },
-                update: { ...p, branchId },
-                create: { ...p, branchId }
-            }));
-            if (ops.length > 0) await prisma.$transaction(ops);
-            stats.payments = ops.length;
+            
+            for (const p of (validation.results || [])) {
+                try {
+                    if (p.customerId) await ensureCustomerExists(p.customerId, p.customerName, null, branchId);
+                    await prisma.payment.upsert({
+                        where: { id: p.id },
+                        update: { ...p, branchId },
+                        create: { ...p, branchId }
+                    });
+                    stats.payments++;
+                } catch (e) {
+                    errors.push(`Payment ${p.id}: ${e.message}`);
+                }
+            }
         }
 
         if (maintenanceRequests && Array.isArray(maintenanceRequests)) {
             const validation = validateEntityArray(maintenanceRequests, maintenanceRequestSchema, 'maintenanceRequests');
             if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `Request[${e.index}]: ${e.errors.join(', ')}`));
-            const ops = (validation.results || []).map(r => {
-                const data = cleanEntity(r);
-                return prisma.maintenanceRequest.upsert({
-                    where: { id: r.id },
-                    update: { ...data, branchId },
-                    create: { ...data, branchId }
-                });
-            });
-            if (ops.length > 0) await prisma.$transaction(ops);
-            stats.maintenanceRequests = ops.length;
+            
+            for (const r of (validation.results || [])) {
+                try {
+                    if (r.customerId) await ensureCustomerExists(r.customerId, r.customerName, r.customerBkcode, branchId);
+                    const data = cleanEntity(r);
+                    await prisma.maintenanceRequest.upsert({
+                        where: { id: r.id },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.maintenanceRequests++;
+                } catch (e) {
+                    errors.push(`Request ${r.id}: ${e.message}`);
+                }
+            }
         }
 
         if (spareParts && Array.isArray(spareParts)) {
@@ -242,16 +275,22 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
         if (machineSales && Array.isArray(machineSales)) {
             const validation = validateEntityArray(machineSales, machineSaleSchema, 'machineSales');
             if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `MachineSale[${e.index}]: ${e.errors.join(', ')}`));
-            const ops = (validation.results || []).map(s => {
-                const data = cleanEntity(s);
-                return prisma.machineSale.upsert({
-                    where: { id: s.id },
-                    update: { ...data, branchId },
-                    create: { ...data, branchId }
-                });
-            });
-            if (ops.length > 0) await prisma.$transaction(ops);
-            stats.machineSales = ops.length;
+            
+            for (const s of (validation.results || [])) {
+                try {
+                    // MachineSales don't often carry customerName in the object, but we check if provided
+                    if (s.customerId) await ensureCustomerExists(s.customerId, s.customerName, s.customerBkcode, branchId);
+                    const data = cleanEntity(s);
+                    await prisma.machineSale.upsert({
+                        where: { id: s.id },
+                        update: { ...data, branchId },
+                        create: { ...data, branchId }
+                    });
+                    stats.machineSales++;
+                } catch (e) {
+                    errors.push(`Sale ${s.id}: ${e.message}`);
+                }
+            }
         }
 
         if (installments && Array.isArray(installments)) {
@@ -297,6 +336,23 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
             stats.warehouseSims = ops.length;
         }
 
+        if (usedPartLogs && Array.isArray(usedPartLogs)) {
+            const validation = validateEntityArray(usedPartLogs, usedPartLogSchema, 'usedPartLogs');
+            for (const log of (validation.results || [])) {
+                try {
+                    if (log.customerId) await ensureCustomerExists(log.customerId, log.customerName, log.customerBkcode, branchId);
+                    await prisma.usedPartLog.upsert({
+                        where: { id: log.id },
+                        update: { ...log, branchId },
+                        create: { ...log, branchId }
+                    });
+                    stats.usedPartLogs++;
+                } catch (e) {
+                    errors.push(`UsedPartLog ${log.id}: ${e.message}`);
+                }
+            }
+        }
+
         const totalItems = Object.values(stats).reduce((a, b) => a + b, 0);
         const status = errors.length > 0 ? 'PARTIAL' : 'SUCCESS';
 
@@ -309,7 +365,7 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
             }
         });
 
-        const entityTypes = ['customers', 'posMachines', 'users', 'payments', 'maintenanceRequests', 'spareParts', 'warehouseMachines', 'simCards', 'stockMovements', 'machineSales', 'installments', 'simMovements', 'warehouseSims'];
+        const entityTypes = ['customers', 'posMachines', 'users', 'payments', 'maintenanceRequests', 'spareParts', 'warehouseMachines', 'simCards', 'stockMovements', 'machineSales', 'installments', 'simMovements', 'warehouseSims', 'usedPartLogs'];
         for (const entityType of entityTypes) {
             if (stats[entityType] > 0) {
                 await updateBranchEntitySync(branchId, entityType, stats[entityType], status, errors.length > 0 ? `${errors.length} errors` : null);

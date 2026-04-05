@@ -155,6 +155,20 @@ const inventorySchema = z.object({
     lastUpdated: z.string().datetime().optional().nullable()
 });
 
+const usedPartLogSchema = z.object({
+    id: z.string().min(1),
+    requestId: z.string().min(1),
+    customerId: z.string().min(1),
+    customerName: z.string().max(200).optional().nullable(),
+    customerBkcode: z.string().max(50).optional().nullable(),
+    posMachineId: z.string().optional().nullable(),
+    technician: z.string().max(100).optional().nullable(),
+    closedByUserId: z.string().optional().nullable(),
+    closedAt: z.string().datetime().optional().nullable(),
+    parts: z.string().min(1),
+    receiptNumber: z.string().max(100).optional().nullable()
+});
+
 const customerSchema = z.object({
     id: z.string().min(1),
     bkcode: z.string().min(1).max(50),
@@ -206,7 +220,8 @@ const pushSchema = z.object({
         machineSales: z.array(z.any()).optional(),
         simMovements: z.array(z.any()).optional(),
         warehouseSims: z.array(z.any()).optional(),
-        inventory: z.array(z.any()).optional()
+        inventory: z.array(z.any()).optional(),
+        usedPartLogs: z.array(z.any()).optional()
     })
 });
 
@@ -225,5 +240,6 @@ module.exports = {
     posMachineSchema,
     inventorySchema,
     customerSchema,
+    usedPartLogSchema,
     validateEntityArray
 };

@@ -167,6 +167,7 @@ router.get('/branch-summaries', async (req, res) => {
                 entityMap[s.entityType] = {
                     count: s.recordCount,
                     totalAmount: s.totalAmount,
+                    details: s.details,
                     lastUpdatedAt: s.lastUpdatedAt
                 };
             });
