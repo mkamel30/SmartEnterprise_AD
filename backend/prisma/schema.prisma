@@ -445,6 +445,7 @@ model StockMovement {
   performedBy   String?
   branchId      String?
   isPaid        Boolean?            @default(false)
+  paidAmount    Float?              @default(0)
   receiptNumber String?
   customerId    String?
   customerName  String?
