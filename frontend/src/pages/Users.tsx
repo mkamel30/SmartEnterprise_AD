@@ -21,6 +21,7 @@ export default function Users() {
         branchId: '',
         isActive: true
     });
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
     const fetchUsers = async () => {
         try {
@@ -84,6 +85,33 @@ export default function Users() {
         }
     };
 
+    const handleBulkDelete = async () => {
+        if (selectedUserIds.length === 0) return;
+        if (!confirm(`هل أنت متأكد من حذف ${selectedUserIds.length} مستخدم؟`)) return;
+        try {
+            await adminClient.post('/users/bulk-delete', { userIds: selectedUserIds });
+            toast.success('تم حذف المستخدمين بنجاح');
+            setSelectedUserIds([]);
+            fetchUsers();
+        } catch (error) {
+            toast.error('فشل في حذف المستخدمين');
+        }
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedUserIds(filteredUsers.map(u => u.id));
+        } else {
+            setSelectedUserIds([]);
+        }
+    };
+
+    const handleSelectUser = (id: string) => {
+        setSelectedUserIds(prev => 
+            prev.includes(id) ? prev.filter(userId => userId !== id) : [...prev, id]
+        );
+    };
+
     const [branchFilter, setBranchFilter] = useState('');
 
     const filteredUsers = Array.isArray(users) ? users.filter(u => {
@@ -141,6 +169,15 @@ export default function Users() {
                             {Array.isArray(branches) && branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                         </select>
                     </div>
+                    {selectedUserIds.length > 0 && (
+                        <button 
+                            onClick={handleBulkDelete}
+                            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-destructive text-white rounded-lg font-black uppercase tracking-widest text-[10px] hover:shadow-md transition-all active:scale-95"
+                        >
+                            <Trash2 size={16} />
+                            <span>حذف المحدد ({selectedUserIds.length})</span>
+                        </button>
+                    )}
                     <button 
                         onClick={() => { resetForm(); setIsIdenOpen(true); }}
                         className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-black uppercase tracking-widest text-[10px] hover:shadow-md transition-all active:scale-95"
@@ -157,6 +194,14 @@ export default function Users() {
                     <table className="w-full text-right min-w-[700px]">
                         <thead>
                             <tr className="border-b-2 border-primary/10 bg-muted/50">
+                                <th className="p-4 w-12 text-center">
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary"
+                                        checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
+                                        onChange={handleSelectAll}
+                                    />
+                                </th>
                                 <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الهوية المؤسسية</th>
                                 <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الدور والصلاحيات</th>
                                 <th className="p-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">الفرع</th>
@@ -168,19 +213,27 @@ export default function Users() {
                             {loading ? (
                                 Array(5).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={5} className="p-4"><div className="h-8 bg-muted rounded-lg w-full"></div></td>
+                                        <td colSpan={6} className="p-4"><div className="h-8 bg-muted rounded-lg w-full"></div></td>
                                     </tr>
                                 ))
                             ) : filteredUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center">
+                                    <td colSpan={6} className="p-12 text-center">
                                         <UsersIcon className="mx-auto mb-3 text-muted-foreground/20" size={48} />
                                         <p className="text-muted-foreground/40 font-bold uppercase tracking-widest text-sm">لا توجد هويات مطابقة للبحث</p>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredUsers.map((u) => (
-                                    <tr key={u.id} className="group hover:bg-muted/30 transition-colors">
+                                    <tr key={u.id} className={`group hover:bg-muted/30 transition-colors ${selectedUserIds.includes(u.id) ? 'bg-primary/5' : ''}`}>
+                                        <td className="p-4 text-center">
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer"
+                                                checked={selectedUserIds.includes(u.id)}
+                                                onChange={() => handleSelectUser(u.id)}
+                                            />
+                                        </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-3 flex-row-reverse">
                                                 <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all shrink-0">

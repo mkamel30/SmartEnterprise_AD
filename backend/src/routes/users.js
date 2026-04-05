@@ -100,6 +100,29 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+router.post('/bulk-delete', async (req, res) => {
+    try {
+        const { userIds } = req.body;
+        if (!Array.isArray(userIds) || userIds.length === 0) {
+            return res.status(400).json({ error: 'No user IDs provided' });
+        }
+
+        await prisma.user.deleteMany({
+            where: { id: { in: userIds } }
+        });
+
+        // Enqueue deletion sync for affected users
+        for (const id of userIds) {
+            await syncQueueService.enqueueUpdate('USER', 'DELETE', { id });
+        }
+
+        res.json({ message: 'Users deleted successfully', count: userIds.length });
+    } catch (error) {
+        logger.error({ err: error.message }, 'Failed to bulk delete users');
+        res.status(500).json({ error: 'Failed to bulk delete users' });
+    }
+});
+
 router.delete('/:id', async (req, res) => {
     try {
         await prisma.user.delete({ where: { id: req.params.id } });
