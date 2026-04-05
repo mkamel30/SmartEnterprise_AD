@@ -18,6 +18,7 @@ import SoftwareUpdates from './pages/SoftwareUpdates';
 import LicenseManager from './pages/LicenseManager';
 import Analytics from './pages/Analytics';
 import SyncMonitoring from './pages/SyncMonitoring';
+import MonthlyClosing from './pages/MonthlyClosing';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,7 +35,7 @@ const SUPER_ADMIN_ROUTES = [
   '/reports', '/reports/financial', '/reports/movements', '/reports/requests',
   '/reports/payments', '/reports/sales', '/reports/installments',
   '/reports/inventory', '/reports/simcards', '/reports/price-history',
-  '/version-logs', '/software-updates', '/license-manager', '/settings'
+  '/monthly-closing', '/version-logs', '/software-updates', '/license-manager', '/settings'
 ];
 
 const BRANCH_ADMIN_ROUTES = [
@@ -42,7 +43,7 @@ const BRANCH_ADMIN_ROUTES = [
   '/reports', '/reports/financial', '/reports/movements', '/reports/requests',
   '/reports/payments', '/reports/sales', '/reports/installments',
   '/reports/inventory', '/reports/simcards', '/reports/price-history',
-  '/settings'
+  '/monthly-closing', '/settings'
 ];
 
 function canAccessRoute(role: string | undefined, path: string): boolean {
@@ -113,6 +114,7 @@ function AppRoutes() {
     { path: '/version-logs', element: <VersionLogs /> },
     { path: '/software-updates', element: <SoftwareUpdates /> },
     { path: '/license-manager', element: <LicenseManager /> },
+    { path: '/monthly-closing', element: <MonthlyClosing /> },
     { path: '/settings', element: <Settings /> },
   ].filter(r => canAccessRoute(user?.role, r.path));
 

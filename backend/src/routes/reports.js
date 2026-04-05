@@ -236,28 +236,146 @@ router.get('/executive', async (req, res) => {
 router.get('/monthly-closing', async (req, res) => {
     try {
         const { month, branchId } = req.query;
-        if (!month) return res.status(400).json({ error: 'Month is required' });
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+            return res.status(400).json({ error: 'الشهر مطلوب بصيغة YYYY-MM' });
+        }
 
-        const monthDate = new Date(month);
-        const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-        const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
+        const [year, mon] = month.split('-').map(Number);
+        const startDate = new Date(year, mon - 1, 1);
+        const endDate = new Date(year, mon, 0, 23, 59, 59, 999);
+        const today = new Date();
 
-        const where = { createdAt: { gte: start, lte: end } };
-        if (branchId) where.branchId = branchId;
+        let allBranchIds = [];
+        let branchInfo = null;
+        let childBranchesList = [];
 
-        const [payments, requests, sales] = await Promise.all([
-            prisma.payment.aggregate({ where, _sum: { amount: true }, _count: true }),
-            prisma.maintenanceRequest.count(where),
-            prisma.machineSale.count({ where: { saleDate: { gte: start, lte: end }, ...(branchId ? { branchId } : {}) } })
+        if (branchId) {
+            const branch = await prisma.branch.findUnique({
+                where: { id: branchId },
+                include: { childBranches: { where: { isActive: true }, select: { id: true, name: true, code: true } } }
+            });
+            if (!branch) return res.status(404).json({ error: 'الفرع غير موجود' });
+            
+            branchInfo = { id: branch.id, name: branch.name, code: branch.code };
+            childBranchesList = branch.childBranches || [];
+            allBranchIds = [branchId, ...childBranchesList.map(c => c.id)];
+        } else {
+            const allBranches = await prisma.branch.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true, code: true }
+            });
+            branchInfo = { id: 'ALL', name: 'الشركة (إجمالي الفروع)', code: 'ALL' };
+            childBranchesList = allBranches;
+            allBranchIds = allBranches.map(b => b.id);
+        }
+
+        const dateFilter = { gte: startDate, lte: endDate };
+
+        const [
+            cashSales, installmentSales,
+            collectedInstallments, overdueInstallments, upcomingInstallments,
+            paidParts, freeParts, usedPartLogs,
+            machineCount, simCount, outgoingTransfers, incomingTransfers,
+            childBranchData
+        ] = await Promise.all([
+            // Sales
+            prisma.machineSale.findMany({
+                where: { branchId: { in: allBranchIds }, saleDate: dateFilter, type: 'CASH' },
+                include: { customer: { select: { client_name: true, bkcode: true } }, branch: { select: { name: true } } },
+                orderBy: { saleDate: 'desc' }
+            }),
+            prisma.machineSale.findMany({
+                where: { branchId: { in: allBranchIds }, saleDate: dateFilter, type: 'INSTALLMENT' },
+                include: { customer: { select: { client_name: true, bkcode: true } }, branch: { select: { name: true } } },
+                orderBy: { saleDate: 'desc' }
+            }),
+            // Installments
+            prisma.installment.findMany({
+                where: { branchId: { in: allBranchIds }, isPaid: true, paidAt: dateFilter },
+                include: { sale: { include: { customer: { select: { client_name: true, bkcode: true } }, branch: { select: { name: true } } } } },
+                orderBy: { paidAt: 'desc' }
+            }),
+            prisma.installment.findMany({
+                where: { branchId: { in: allBranchIds }, isPaid: false, dueDate: { lt: endDate } },
+                include: { sale: { include: { customer: { select: { client_name: true, bkcode: true } }, branch: { select: { name: true } } } } },
+                orderBy: { dueDate: 'asc' }
+            }),
+            prisma.installment.findMany({
+                where: { branchId: { in: allBranchIds }, isPaid: false, dueDate: { gt: endDate } },
+                include: { sale: { include: { customer: { select: { client_name: true, bkcode: true } }, branch: { select: { name: true } } } } },
+                orderBy: { dueDate: 'asc' }, take: 50
+            }),
+            // Parts
+            prisma.stockMovement.findMany({
+                where: { branchId: { in: allBranchIds }, type: 'OUT', isPaid: true, createdAt: dateFilter },
+                include: { request: { select: { customerName: true, customerBkcode: true } }, branch: { select: { name: true } } },
+                orderBy: { createdAt: 'desc' }
+            }),
+            prisma.stockMovement.findMany({
+                where: { branchId: { in: allBranchIds }, type: 'OUT', isPaid: false, createdAt: dateFilter },
+                include: { request: { select: { customerName: true, customerBkcode: true } }, branch: { select: { name: true } } },
+                orderBy: { createdAt: 'desc' }
+            }),
+            prisma.usedPartLog.findMany({
+                where: { branchId: { in: allBranchIds }, closedAt: dateFilter },
+                include: { branch: { select: { name: true } } },
+                orderBy: { closedAt: 'desc' }
+            }),
+            // Inventory
+            prisma.warehouseMachine.count({ where: { branchId: { in: allBranchIds }, status: 'IN_STOCK' } }),
+            prisma.warehouseSim.count({ where: { branchId: { in: allBranchIds }, status: 'ACTIVE' } }),
+            prisma.transferOrder.count({ where: { fromBranchId: { in: allBranchIds }, createdAt: dateFilter } }),
+            prisma.transferOrder.count({ where: { toBranchId: { in: allBranchIds }, createdAt: dateFilter } }),
+            // Branch aggregation loop
+            childBranchesList.length > 0 ? Promise.all(childBranchesList.map(async (child) => {
+                const [sales, installments, parts] = await Promise.all([
+                    prisma.machineSale.aggregate({ where: { branchId: child.id, saleDate: dateFilter }, _sum: { totalPrice: true, paidAmount: true }, _count: true }),
+                    prisma.installment.aggregate({ where: { branchId: child.id, isPaid: true, paidAt: dateFilter }, _sum: { paidAmount: true }, _count: true }),
+                    prisma.stockMovement.count({ where: { branchId: child.id, type: 'OUT', createdAt: dateFilter } })
+                ]);
+                return { branchId: child.id, branchName: child.name, branchCode: child.code, sales: { count: sales._count, totalPrice: sales._sum.totalPrice || 0, paidAmount: sales._sum.paidAmount || 0 }, installmentsCollected: { count: installments._count, amount: installments._sum.paidAmount || 0 }, partsOut: parts };
+            })) : []
         ]);
 
+        const cashTotal = cashSales.reduce((sum, s) => sum + s.totalPrice, 0); const cashPaid = cashSales.reduce((sum, s) => sum + s.paidAmount, 0);
+        const installmentTotal = installmentSales.reduce((sum, s) => sum + s.totalPrice, 0); const installmentPaid = installmentSales.reduce((sum, s) => sum + s.paidAmount, 0);
+        const collectedTotal = collectedInstallments.reduce((sum, i) => sum + (i.paidAmount || i.amount), 0);
+        const overdueTotal = overdueInstallments.reduce((sum, i) => sum + i.amount, 0);
+        const upcomingTotal = upcomingInstallments.reduce((sum, i) => sum + i.amount, 0);
+
+        let totalPaidPartsValue = 0; let totalFreePartsValue = 0;
+        const partFrequencyMap = {}; const paidPartItems = []; const freePartItems = [];
+
+        usedPartLogs.forEach(log => {
+            let parts = []; try { parts = JSON.parse(log.parts || '[]'); } catch (e) { parts = []; }
+            parts.forEach(p => {
+                const partName = p.name || p.partName || 'غير معروف'; const qty = p.quantity || 1; const unitCost = parseFloat(p.cost) || 0; const isPaid = !!p.isPaid;
+                const partItem = { partName, quantity: qty, unitCost, totalValue: unitCost * qty, customerName: log.customerName, customerBkcode: log.customerBkcode, technician: log.technician, closedAt: log.closedAt, receiptNumber: log.receiptNumber, branchName: log.branch?.name };
+                if (isPaid) { totalPaidPartsValue += unitCost * qty; paidPartItems.push(partItem); }
+                else { totalFreePartsValue += unitCost * qty; freePartItems.push(partItem); }
+                if (!partFrequencyMap[partName]) partFrequencyMap[partName] = { name: partName, totalQuantity: 0, totalCost: 0, paidCount: 0, freeCount: 0 };
+                partFrequencyMap[partName].totalQuantity += qty; partFrequencyMap[partName].totalCost += unitCost * qty;
+                if (isPaid) partFrequencyMap[partName].paidCount += qty; else partFrequencyMap[partName].freeCount += qty;
+            });
+        });
+        const topParts = Object.values(partFrequencyMap).sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 15);
+
         res.json({
-            success: true,
-            month,
-            totalRevenue: payments._sum.amount || 0,
-            paymentCount: payments._count,
-            requestCount: requests,
-            salesCount: sales
+            success: true, month, branch: branchInfo, hasChildBranches: childBranchesList.length > 0,
+            sales: {
+                cash: { count: cashSales.length, totalPrice: cashTotal, paidAmount: cashPaid, remaining: cashTotal - cashPaid, details: cashSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: s.customer?.client_name, customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },
+                installment: { count: installmentSales.length, totalPrice: installmentTotal, paidAmount: installmentPaid, remaining: installmentTotal - installmentPaid, details: installmentSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: s.customer?.client_name, customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },
+                totalRevenue: cashTotal + installmentTotal, totalCollected: cashPaid + installmentPaid
+            },
+            installments: {
+                collected: { count: collectedInstallments.length, totalAmount: collectedTotal, details: collectedInstallments.map(i => ({ id: i.id, amount: i.paidAmount || i.amount, paidAt: i.paidAt, receiptNumber: i.receiptNumber, customerName: i.sale?.customer?.client_name, customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name })) },
+                overdue: { count: overdueInstallments.length, totalAmount: overdueTotal, details: overdueInstallments.map(i => ({ id: i.id, amount: i.amount, dueDate: i.dueDate, customerName: i.sale?.customer?.client_name, customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name, daysOverdue: Math.floor((today.getTime() - new Date(i.dueDate).getTime()) / (1000 * 60 * 60 * 24)) })) },
+                upcoming: { count: upcomingInstallments.length, totalAmount: upcomingTotal, details: upcomingInstallments.map(i => ({ id: i.id, amount: i.amount, dueDate: i.dueDate, customerName: i.sale?.customer?.client_name, customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name })) }
+            },
+            spareParts: { paid: { count: paidPartItems.length, totalValue: totalPaidPartsValue, details: paidPartItems }, free: { count: freePartItems.length, totalValue: totalFreePartsValue, details: freePartItems }, topParts },
+            inventory: { machines: machineCount, sims: simCount, outgoingTransfers, incomingTransfers },
+            summary: { totalMonthlyRevenue: cashPaid + installmentPaid + collectedTotal, totalSalesValue: cashTotal + installmentTotal, totalOverdueAmount: overdueTotal, totalPaidParts: totalPaidPartsValue, totalFreeParts: totalFreePartsValue, totalPartsValue: totalPaidPartsValue + totalFreePartsValue },
+            childBranches: childBranchData
         });
     } catch (error) {
         logger.error('Monthly closing failed:', error);

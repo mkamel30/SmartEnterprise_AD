@@ -40,6 +40,7 @@ const reportGroups: NavGroup[] = [
             { id: 'payments', name: 'المدفوعات', href: '/reports/payments', icon: DollarSign },
             { id: 'sales', name: 'المبيعات', href: '/reports/sales', icon: DollarSign },
             { id: 'installments', name: 'الأقساط', href: '/reports/installments', icon: Calendar },
+            { id: 'monthly-closing', name: 'التقفيلة المالية', href: '/monthly-closing', icon: BarChart3 },
         ]
     },
     {

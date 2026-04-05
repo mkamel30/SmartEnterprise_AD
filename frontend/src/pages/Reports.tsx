@@ -6,7 +6,7 @@ import {
   TrendingUp, DollarSign, RefreshCw, 
   Calendar, Building, ArrowUpRight, ArrowDownRight,
   Wrench, Package, Warehouse,
-  ArrowDownCircle, ArrowUpCircle, Download, CreditCard
+  ArrowDownCircle, ArrowUpCircle, Download, CreditCard, FileBarChart
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -873,6 +873,12 @@ export default function Reports() {
                     </table>
                 </div>
             </div>
+        </div>
+    );
+
+    const renderPerformance = () => (
+        <div className="flex items-center justify-center h-64 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold">
+            جاري العمل على تقرير أداء الصيانة...
         </div>
     );
 
