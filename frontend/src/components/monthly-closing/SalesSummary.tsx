@@ -60,6 +60,7 @@ export function SalesSummary({ sales }: SalesProps) {
                                     <th className="text-right py-3 px-4 rounded-tr-xl">الفرع</th>
                                     <th className="text-right py-3 px-4">المسلسل</th>
                                     <th className="text-right py-3 px-4">العميل</th>
+                                    <th className="text-right py-3 px-4">كود العميل</th>
                                     <th className="text-right py-3 px-4">التاريخ</th>
                                     <th className="text-right py-3 px-4">الإجمالي</th>
                                     <th className="text-right py-3 px-4 rounded-tl-xl">المدفوع</th>
@@ -71,6 +72,7 @@ export function SalesSummary({ sales }: SalesProps) {
                                         <td className="py-3 px-4 font-bold text-indigo-600">{s.branchName || '-'}</td>
                                         <td className="py-3 px-4 font-mono font-bold text-slate-700">{s.serialNumber}</td>
                                         <td className="py-3 px-4 font-bold">{s.customerName}</td>
+                                        <td className="py-3 px-4 font-mono text-slate-500">{s.customerCode}</td>
                                         <td className="py-3 px-4 text-slate-500">{new Date(s.saleDate).toLocaleDateString('ar-EG')}</td>
                                         <td className="py-3 px-4 font-bold text-emerald-600">{fmt(s.totalPrice)}</td>
                                         <td className="py-3 px-4 font-bold">{fmt(s.paidAmount)}</td>
@@ -95,6 +97,7 @@ export function SalesSummary({ sales }: SalesProps) {
                                     <th className="text-right py-3 px-4 rounded-tr-xl">الفرع</th>
                                     <th className="text-right py-3 px-4">المسلسل</th>
                                     <th className="text-right py-3 px-4">العميل</th>
+                                    <th className="text-right py-3 px-4">كود العميل</th>
                                     <th className="text-right py-3 px-4">التاريخ</th>
                                     <th className="text-right py-3 px-4">الإجمالي</th>
                                     <th className="text-right py-3 px-4">المدفوع</th>
@@ -107,6 +110,7 @@ export function SalesSummary({ sales }: SalesProps) {
                                         <td className="py-3 px-4 font-bold text-indigo-600">{s.branchName || '-'}</td>
                                         <td className="py-3 px-4 font-mono font-bold text-slate-700">{s.serialNumber}</td>
                                         <td className="py-3 px-4 font-bold">{s.customerName}</td>
+                                        <td className="py-3 px-4 font-mono text-slate-500">{s.customerCode}</td>
                                         <td className="py-3 px-4 text-slate-500">{new Date(s.saleDate).toLocaleDateString('ar-EG')}</td>
                                         <td className="py-3 px-4 font-bold text-blue-600">{fmt(s.totalPrice)}</td>
                                         <td className="py-3 px-4 font-bold">{fmt(s.paidAmount)}</td>

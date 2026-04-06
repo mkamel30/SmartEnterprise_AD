@@ -285,7 +285,7 @@ router.get('/monthly-closing', async (req, res) => {
                 orderBy: { saleDate: 'desc' }
             }),
             prisma.machineSale.findMany({
-                where: { branchId: { in: allBranchIds }, saleDate: dateFilter, type: 'INSTALLMENT' },
+                where: { branchId: { in: allBranchIds }, saleDate: dateFilter, type: { in: ['INSTALLMENT', 'LEGACY_INSTALLMENT'] } },
                 include: { customer: { select: { client_name: true, bkcode: true } }, branch: { select: { name: true } } },
                 orderBy: { saleDate: 'desc' }
             }),
@@ -336,6 +336,14 @@ router.get('/monthly-closing', async (req, res) => {
                 return { branchId: child.id, branchName: child.name, branchCode: child.code, sales: { count: sales._count, totalPrice: sales._sum.totalPrice || 0, paidAmount: sales._sum.paidAmount || 0 }, installmentsCollected: { count: installments._count, amount: installments._sum.paidAmount || 0 }, partsOut: parts };
             })) : []
         ]);
+        // Helper for formatting customer names
+        const getDisplayName = (c) => {
+            if (!c) return '-';
+            if (!c.client_name || c.client_name === 'غير معروف (تلقائي)' || c.client_name === 'غير معروف') {
+                return c.bkcode || 'غير معروف';
+            }
+            return c.client_name;
+        };
 
         const cashTotal = cashSales.reduce((sum, s) => sum + s.totalPrice, 0); const cashPaid = cashSales.reduce((sum, s) => sum + s.paidAmount, 0);
         const installmentTotal = installmentSales.reduce((sum, s) => sum + s.totalPrice, 0); const installmentPaid = installmentSales.reduce((sum, s) => sum + s.paidAmount, 0);
@@ -363,14 +371,14 @@ router.get('/monthly-closing', async (req, res) => {
         res.json({
             success: true, month, branch: branchInfo, hasChildBranches: childBranchesList.length > 0,
             sales: {
-                cash: { count: cashSales.length, totalPrice: cashTotal, paidAmount: cashPaid, remaining: cashTotal - cashPaid, details: cashSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: s.customer?.client_name, customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },
-                installment: { count: installmentSales.length, totalPrice: installmentTotal, paidAmount: installmentPaid, remaining: installmentTotal - installmentPaid, details: installmentSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: s.customer?.client_name, customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },
+                cash: { count: cashSales.length, totalPrice: cashTotal, paidAmount: cashPaid, remaining: cashTotal - cashPaid, details: cashSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: getDisplayName(s.customer), customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },
+                installment: { count: installmentSales.length, totalPrice: installmentTotal, paidAmount: installmentPaid, remaining: installmentTotal - installmentPaid, details: installmentSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: getDisplayName(s.customer), customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },
                 totalRevenue: cashTotal + installmentTotal, totalCollected: cashPaid + installmentPaid
             },
             installments: {
-                collected: { count: collectedInstallments.length, totalAmount: collectedTotal, details: collectedInstallments.map(i => ({ id: i.id, amount: i.paidAmount || i.amount, paidAt: i.paidAt, receiptNumber: i.receiptNumber, customerName: i.sale?.customer?.client_name, customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name })) },
-                overdue: { count: overdueInstallments.length, totalAmount: overdueTotal, details: overdueInstallments.map(i => ({ id: i.id, amount: i.amount, dueDate: i.dueDate, customerName: i.sale?.customer?.client_name, customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name, daysOverdue: Math.floor((today.getTime() - new Date(i.dueDate).getTime()) / (1000 * 60 * 60 * 24)) })) },
-                upcoming: { count: upcomingInstallments.length, totalAmount: upcomingTotal, details: upcomingInstallments.map(i => ({ id: i.id, amount: i.amount, dueDate: i.dueDate, customerName: i.sale?.customer?.client_name, customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name })) }
+                collected: { count: collectedInstallments.length, totalAmount: collectedTotal, details: collectedInstallments.map(i => ({ id: i.id, amount: i.paidAmount || i.amount, paidAt: i.paidAt, receiptNumber: i.receiptNumber, customerName: getDisplayName(i.sale?.customer), customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name })) },
+                overdue: { count: overdueInstallments.length, totalAmount: overdueTotal, details: overdueInstallments.map(i => ({ id: i.id, amount: i.amount, dueDate: i.dueDate, customerName: getDisplayName(i.sale?.customer), customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name, daysOverdue: Math.floor((today.getTime() - new Date(i.dueDate).getTime()) / (1000 * 60 * 60 * 24)) })) },
+                upcoming: { count: upcomingInstallments.length, totalAmount: upcomingTotal, details: upcomingInstallments.map(i => ({ id: i.id, amount: i.amount, dueDate: i.dueDate, customerName: getDisplayName(i.sale?.customer), customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name })) }
             },
             spareParts: { paid: { count: paidPartItems.length, totalValue: totalPaidPartsValue, details: paidPartItems }, free: { count: freePartItems.length, totalValue: totalFreePartsValue, details: freePartItems }, topParts },
             inventory: { machines: machineCount, sims: simCount, outgoingTransfers, incomingTransfers },

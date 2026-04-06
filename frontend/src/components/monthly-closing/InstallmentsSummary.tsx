@@ -107,6 +107,7 @@ export function InstallmentsSummary({ installments }: InstallmentsProps) {
                                 <tr className="bg-emerald-50 text-emerald-600">
                                     <th className="text-right py-3 px-4 rounded-tr-xl">الفرع</th>
                                     <th className="text-right py-3 px-4">العميل</th>
+                                    <th className="text-right py-3 px-4">كود العميل</th>
                                     <th className="text-right py-3 px-4">المبلغ</th>
                                     <th className="text-right py-3 px-4">تاريخ الدفع</th>
                                     <th className="text-right py-3 px-4 rounded-tl-xl">رقم الإيصال</th>
@@ -117,6 +118,7 @@ export function InstallmentsSummary({ installments }: InstallmentsProps) {
                                     <tr key={i.id} className="border-b border-emerald-50 hover:bg-emerald-50/50 transition-colors">
                                         <td className="py-3 px-4 font-bold text-indigo-600">{i.branchName || '-'}</td>
                                         <td className="py-3 px-4 font-bold">{i.customerName}</td>
+                                        <td className="py-3 px-4 font-mono text-slate-500">{i.customerCode}</td>
                                         <td className="py-3 px-4 font-bold text-emerald-600">{fmt(i.amount)} ج.م</td>
                                         <td className="py-3 px-4 text-slate-500">{i.paidAt ? new Date(i.paidAt).toLocaleDateString('ar-EG') : '-'}</td>
                                         <td className="py-3 px-4 text-slate-500">{i.receiptNumber || '-'}</td>

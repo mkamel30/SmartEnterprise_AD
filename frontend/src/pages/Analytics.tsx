@@ -47,7 +47,8 @@ export default function AnalyticsDashboard() {
     const maintenanceStatusMap: any = {};
     const salesTypeMap = {
         'CASH': { name: 'كاش', value: 0, revenue: 0 },
-        'INSTALLMENT': { name: 'تقسيط', value: 0, revenue: 0 }
+        'INSTALLMENT': { name: 'تقسيط', value: 0, revenue: 0 },
+        'LEGACY_INSTALLMENT': { name: 'تقسيط (سابق)', value: 0, revenue: 0 }
     };
 
     branchBreakdown.forEach((b: any) => {

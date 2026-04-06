@@ -129,7 +129,7 @@ router.get('/summary', async (req, res) => {
         const [totalSales, cashSales, installmentSales] = await Promise.all([
             prisma.machineSale.aggregate({ where, _sum: { totalPrice: true }, _count: true }),
             prisma.machineSale.aggregate({ where: { ...where, type: 'CASH' }, _sum: { totalPrice: true }, _count: true }),
-            prisma.machineSale.aggregate({ where: { ...where, type: 'INSTALLMENT' }, _sum: { totalPrice: true }, _count: true })
+            prisma.machineSale.aggregate({ where: { ...where, type: { in: ['INSTALLMENT', 'LEGACY_INSTALLMENT'] } }, _sum: { totalPrice: true }, _count: true })
         ]);
 
         res.json({

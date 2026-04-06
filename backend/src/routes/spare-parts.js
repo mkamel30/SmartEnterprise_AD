@@ -59,16 +59,22 @@ router.post('/', async (req, res) => {
             }
         }
 
+        let finalCost = parseFloat(defaultCost);
+        if (isNaN(finalCost)) finalCost = 0;
+
+        let finalMaxQty = parseInt(maxQuantity);
+        if (isNaN(finalMaxQty) || finalMaxQty < 1) finalMaxQty = 1;
+
         const part = await prisma.masterSparePart.create({
             data: { 
                 partNumber, 
                 name, 
                 description, 
                 compatibleModels, 
-                defaultCost: parseFloat(defaultCost) || 0, 
+                defaultCost: finalCost, 
                 isConsumable: !!isConsumable,
                 allowsMultiple: !!allowsMultiple,
-                maxQuantity: parseInt(maxQuantity) || 1,
+                maxQuantity: finalMaxQty,
                 category 
             }
         });
@@ -91,14 +97,18 @@ router.put('/:id', async (req, res) => {
         const { partNumber, name, description, compatibleModels, defaultCost, isConsumable, allowsMultiple, maxQuantity, category } = req.body;
         
         const oldPart = await prisma.masterSparePart.findUnique({ where: { id: req.params.id } });
-        const newCost = parseFloat(defaultCost);
+        let finalCost = parseFloat(defaultCost);
+        if (isNaN(finalCost)) finalCost = 0;
 
-        if (oldPart && oldPart.defaultCost !== newCost) {
+        let finalMaxQty = parseInt(maxQuantity);
+        if (isNaN(finalMaxQty) || finalMaxQty < 1) finalMaxQty = 1;
+
+        if (oldPart && oldPart.defaultCost !== finalCost) {
             await prisma.sparePartPriceLog.create({
                 data: {
                     partId: req.params.id,
                     oldCost: oldPart.defaultCost,
-                    newCost,
+                    newCost: finalCost,
                     changedBy: req.admin?.name || req.admin?.username || 'Admin'
                 }
             });
@@ -111,10 +121,10 @@ router.put('/:id', async (req, res) => {
                 name, 
                 description, 
                 compatibleModels, 
-                defaultCost: newCost, 
+                defaultCost: finalCost, 
                 isConsumable: !!isConsumable,
                 allowsMultiple: !!allowsMultiple,
-                maxQuantity: parseInt(maxQuantity) || 1,
+                maxQuantity: finalMaxQty,
                 category 
             }
         });

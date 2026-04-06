@@ -41,6 +41,7 @@ const statusMap: any = {
 
 const paymentTypeMap: any = {
     'INSTALLMENT': { label: 'قسط', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    'LEGACY_INSTALLMENT': { label: 'قسط (سابق)', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
     'MAINTENANCE': { label: 'صيانة', color: 'bg-orange-50 text-orange-700 border-orange-200' },
     'SALE': { label: 'بيع', color: 'bg-green-50 text-green-700 border-green-200' },
     'EXCHANGE': { label: 'استبدال', color: 'bg-purple-50 text-purple-700 border-purple-200' },
@@ -693,7 +694,7 @@ export default function Reports() {
     const totalOverdue = overdueInstallments?.totalOverdue || 0;
     const totalSalesAmount = salesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
     const totalCashSales = salesData.filter((s: any) => s.type === 'CASH');
-    const totalInstallmentSales = salesData.filter((s: any) => s.type === 'INSTALLMENT');
+    const totalInstallmentSales = salesData.filter((s: any) => ['INSTALLMENT', 'LEGACY_INSTALLMENT'].includes(s.type));
 
     const renderSales = () => (
         <div className="space-y-6">
@@ -738,7 +739,7 @@ export default function Reports() {
                                         <td className="p-3 text-sm font-bold text-primary">{s.branchName}</td>
                                         <td className="p-3 text-sm"><div className="font-bold">{s.customerName}</div><div className="text-[10px] text-slate-400">{s.customerCode}</div></td>
                                         <td className="p-3 text-sm font-mono">{s.serialNumber}</td>
-                                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full font-black text-[10px] border ${s.type === 'CASH' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{s.type === 'CASH' ? 'كاش' : 'تقسيط'}</span></td>
+                                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full font-black text-[10px] border ${s.type === 'CASH' ? 'bg-green-50 text-green-700 border-green-200' : s.type === 'LEGACY_INSTALLMENT' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{s.type === 'CASH' ? 'كاش' : s.type === 'LEGACY_INSTALLMENT' ? 'قسط (سابق)' : 'تقسيط'}</span></td>
                                         <td className="p-3 text-lg font-black">{s.totalPrice?.toLocaleString()}</td>
                                         <td className="p-3 text-sm font-bold text-green-600">{s.paidAmount?.toLocaleString()}</td>
                                         <td className="p-3 text-sm font-bold text-red-600">{s.remaining?.toLocaleString()}</td>

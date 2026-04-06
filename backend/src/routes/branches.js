@@ -444,7 +444,7 @@ router.get('/export/all', adminAuth, async (req, res) => {
                 }
 
                 const installmentSales = await prisma.machineSale.findMany({
-                    where: { branchId: branch.id, type: 'INSTALLMENT' },
+                    where: { branchId: branch.id, type: { in: ['INSTALLMENT', 'LEGACY_INSTALLMENT'] } },
                     include: {
                         customer: { select: { client_name: true, bkcode: true } },
                         installments: { select: { dueDate: true, amount: true, isPaid: true, receiptNumber: true } }

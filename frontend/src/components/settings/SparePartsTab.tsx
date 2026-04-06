@@ -85,7 +85,23 @@ export function SparePartsTab() {
                 </div>
             </div>
             <div className='bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden'>
-                <div className='overflow-x-auto'><table className='w-full'><thead className='bg-muted/50 border-b-2 border-primary/10'><tr><th className='p-4 w-12'><Checkbox checked={selectedIds.size>0&&selectedIds.size===parts?.length} onCheckedChange={toggleSelectAll} className='h-5 w-5 rounded-md' /></th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>الكود</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>اسم القطعة</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>الموديلات</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>السعر</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>التصنيف</th><th className='text-center p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>إجراءات</th></tr></thead><tbody className='divide-y divide-border/50'>{filteredParts?.map((p)=><tr key={p.id} className={`hover:bg-muted/20 transition-colors ${selectedIds.has(p.id)?'bg-primary/5':''}`}><td className='p-4'><Checkbox checked={selectedIds.has(p.id)} onCheckedChange={()=>toggleSelect(p.id)} className='h-5 w-5 rounded-md' /></td><td className='p-4 font-mono font-black text-primary text-sm'>{p.partNumber||'-'}</td><td className='p-4 font-black text-foreground'>{p.name}</td><td className='p-4'><div className='flex flex-wrap gap-1'>{(p.compatibleModels||'').split(';').filter(Boolean).map((m,i)=><span key={i} className='px-2 py-0.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[10px] font-black uppercase'>{m}</span>)||'-'}</div></td><td className='p-4 font-bold text-success'>{p.defaultCost} ج.م</td><td className='p-4'><span className='px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-[10px] font-black'>{p.category||'-'}</span></td><td className='p-4'><div className='flex items-center justify-center gap-1'><button onClick={()=>{setSelectedPart({...p});setShowEditForm(true);}} className='p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all'><Edit size={16} /></button><button onClick={()=>{setSelectedPart(p);setShowPriceLogs(true);}} className='p-2 text-purple-500 hover:bg-purple-500/10 rounded-lg transition-all'><History size={16} /></button><button onClick={()=>{setSelectedPart(p);setShowDetailModal(true);}} className='p-2 text-green-600 hover:bg-green-600/10 rounded-lg transition-all'><Eye size={16} /></button><button onClick={()=>{if(confirm('حذف هذه القطعة من القانون نهائياً؟'))deleteMutation.mutate(p.id);}} className='p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all'><Trash2 size={16} /></button></div></td></tr>)}<tr><td colSpan={7} className='p-16 text-center'><Package size={48} className='mx-auto mb-3 text-muted-foreground/20' /><p className='font-black text-lg text-muted-foreground'>لا توجد قطع غيار</p></td></tr></tbody></table></div>
+                <div className='overflow-x-auto'><table className='w-full'><thead className='bg-muted/50 border-b-2 border-primary/10'><tr><th className='p-4 w-12'><Checkbox checked={selectedIds.size>0&&selectedIds.size===parts?.length} onCheckedChange={toggleSelectAll} className='h-5 w-5 rounded-md' /></th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>الكود</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>اسم القطعة</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>الموديلات</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>السعر</th><th className='text-right p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>التصنيف</th><th className='text-center p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground'>إجراءات</th></tr></thead>                                <tbody className='divide-y divide-border/50'>
+                                    {filteredParts?.length > 0 ? (
+                                        filteredParts.map((p) => (
+                                            <tr key={p.id} className={`hover:bg-muted/20 transition-colors ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
+                                                <td className='p-4'><Checkbox checked={selectedIds.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} className='h-5 w-5 rounded-md' /></td>
+                                                <td className='p-4 font-mono font-black text-primary text-sm'>{p.partNumber || '-'}</td>
+                                                <td className='p-4 font-black text-foreground'>{p.name}</td>
+                                                <td className='p-4'><div className='flex flex-wrap gap-1'>{(p.compatibleModels || '').split(';').filter(Boolean).map((m, i) => <span key={i} className='px-2 py-0.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[10px] font-black uppercase'>{m}</span>) || '-'}</div></td>
+                                                <td className='p-4 font-bold text-success'>{p.defaultCost} ج.م</td>
+                                                <td className='p-4'><span className='px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-[10px] font-black'>{p.category || '-'}</span></td>
+                                                <td className='p-4'><div className='flex items-center justify-center gap-1'><button onClick={() => { setSelectedPart({ ...p }); setShowEditForm(true); }} className='p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all'><Edit size={16} /></button><button onClick={() => { setSelectedPart(p); setShowPriceLogs(true); }} className='p-2 text-purple-500 hover:bg-purple-500/10 rounded-lg transition-all'><History size={16} /></button><button onClick={() => { setSelectedPart(p); setShowDetailModal(true); }} className='p-2 text-green-600 hover:bg-green-600/10 rounded-lg transition-all'><Eye size={16} /></button><button onClick={() => { if (confirm('حذف هذه القطعة من القانون نهائياً؟')) deleteMutation.mutate(p.id); }} className='p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all'><Trash2 size={16} /></button></div></td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan={7} className='p-16 text-center'><Package size={48} className='mx-auto mb-3 text-muted-foreground/20' /><p className='font-black text-lg text-muted-foreground'>لا توجد قطع غيار</p></td></tr>
+                                    )}
+                                </tbody></table></div>
             </div>
             {showAddForm&&<PartFormModal title='إضافة قطعة غيار' initialData={newPart} onSubmit={(d)=>createMutation.mutate(d)} onClose={()=>setShowAddForm(false)} />}
             {showEditForm&&selectedPart&&<PartFormModal title='تعديل بيانات القطعة' initialData={selectedPart} onSubmit={(d)=>updateMutation.mutate({id:selectedPart.id,data:d})} onClose={()=>{setShowEditForm(false);setSelectedPart(null);}} />}
@@ -106,9 +122,27 @@ export function SparePartsTab() {
 function PartFormModal({ title, initialData, onSubmit, onClose }) {
     const [formData, setFormData] = useState({ name:'', partNumber:'', compatibleModels:'', defaultCost:0, isConsumable:false, allowsMultiple:false, maxQuantity:1, category:'', ...initialData });
     
+    const handleFormSubmit = (e) => {
+        e.preventDefault();
+        // Sanitize data: only send scalar fields to prevent backend update crashes
+        const { id, name, partNumber, description, compatibleModels, defaultCost, isConsumable, category, allowsMultiple, maxQuantity } = formData;
+        const sanitizedData = { 
+            name, 
+            partNumber, 
+            description, 
+            compatibleModels, 
+            defaultCost, 
+            isConsumable, 
+            category, 
+            allowsMultiple, 
+            maxQuantity 
+        };
+        onSubmit(sanitizedData);
+    };
+
     return (
         <Modal isOpen={true} onClose={onClose} title={title} icon={<Package size={36} className='text-primary' />}>
-            <form onSubmit={(e)=>{e.preventDefault();onSubmit(formData);}} className='space-y-4'>
+            <form onSubmit={handleFormSubmit} className='space-y-4'>
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>اسم القطعة</label><input value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} className='smart-input h-12 px-5' required /></div>
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>رقم القطعة (اختياري)</label><input value={formData.partNumber||''} onChange={e=>setFormData({...formData,partNumber:e.target.value})} className='smart-input h-12 px-5 font-mono' /></div>
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>الموديلات المتوافقة</label><input placeholder='s90;d210;vx520' value={formData.compatibleModels} onChange={e=>setFormData({...formData,compatibleModels:e.target.value})} className='smart-input h-12 px-5 font-mono' /><p className='text-[10px] text-slate-400 mt-1'>افصل بين الموديلات بفاصلة منقوطة (;)</p></div>
@@ -116,9 +150,24 @@ function PartFormModal({ title, initialData, onSubmit, onClose }) {
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>التصنيف</label><input value={formData.category||''} onChange={e=>setFormData({...formData,category:e.target.value})} className='smart-input h-12 px-5' placeholder='POS, GENERAL, etc.' /></div>
                 
                 {/* allowsMultiple - يمكن استخدام أكثر من قطعة في نفس الصيانة */}
-                <div className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.allowsMultiple?'bg-success/10 border-success/30':'bg-slate-50 border-slate-100'}`} onClick={()=>setFormData({...formData,allowsMultiple:!formData.allowsMultiple, maxQuantity:!formData.allowsMultiple ? 3 : 1})}>
-                    <div className='flex items-center gap-3'><div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${formData.allowsMultiple?'bg-success text-white':'bg-slate-200 text-slate-500'}`}><Package size={18} /></div><span className='text-xs font-black text-slate-700'>يمكن تغير أكثر من قطعة</span></div>
-                    <Checkbox checked={formData.allowsMultiple} onCheckedChange={(c)=>setFormData({...formData,allowsMultiple:!!c, maxQuantity:!!c ? 3 : 1})} className='h-6 w-6 rounded-lg' />
+                <div 
+                    className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.allowsMultiple ? 'bg-success/10 border-success/30' : 'bg-slate-50 border-slate-100'}`} 
+                    onClick={() => setFormData(prev => {
+                        const nextValue = !prev.allowsMultiple;
+                        return { ...prev, allowsMultiple: nextValue, maxQuantity: nextValue ? 3 : 1 };
+                    })}
+                >
+                    <div className='flex items-center gap-3'>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${formData.allowsMultiple ? 'bg-success text-white' : 'bg-slate-200 text-slate-500'}`}>
+                            <Package size={18} />
+                        </div>
+                        <span className='text-xs font-black text-slate-700'>يمكن تغير أكثر من قطعة</span>
+                    </div>
+                    <Checkbox 
+                        checked={formData.allowsMultiple} 
+                        onCheckedChange={(v) => { /* Click on div handles this, or clicking checkbox will bubble to div */ }} 
+                        className='h-6 w-6 rounded-lg pointer-events-none' 
+                    />
                 </div>
                 
                 {/* maxQuantity - الحد الأقصى للقطع */}

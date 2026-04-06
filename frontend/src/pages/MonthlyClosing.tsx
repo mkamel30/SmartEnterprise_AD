@@ -114,12 +114,12 @@ export default function MonthlyClosing() {
         // Installments sheet
         const installRows = [
             ...(data.installments?.collected?.details || []).map((i: any) => ({
-                'الفرع': i.branchName || '-', 'الحالة': 'محصّل', 'العميل': i.customerName, 'المبلغ': i.amount,
+                'الفرع': i.branchName || '-', 'الحالة': 'محصّل', 'العميل': i.customerName, 'كود العميل': i.customerCode, 'المبلغ': i.amount,
                 'تاريخ الدفع': i.paidAt ? new Date(i.paidAt).toLocaleDateString('ar-EG') : '-',
                 'رقم الإيصال': i.receiptNumber || '-'
             })),
             ...(data.installments?.overdue?.details || []).map((i: any) => ({
-                'الفرع': i.branchName || '-', 'الحالة': 'متأخر', 'العميل': i.customerName, 'المبلغ': i.amount,
+                'الفرع': i.branchName || '-', 'الحالة': 'متأخر', 'العميل': i.customerName, 'كود العميل': i.customerCode, 'المبلغ': i.amount,
                 'تاريخ الاستحقاق': new Date(i.dueDate).toLocaleDateString('ar-EG'),
                 'أيام التأخير': i.daysOverdue
             }))
