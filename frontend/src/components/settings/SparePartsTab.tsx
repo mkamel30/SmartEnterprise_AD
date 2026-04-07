@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2, Package, Edit, Download, Upload, History, X, Briefcase, Search, Radio, Eye, Wifi, WifiOff, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
@@ -35,7 +35,7 @@ export function SparePartsTab() {
     const [newPart, setNewPart] = useState({ name: '', compatibleModels: '', defaultCost: 0, isConsumable: false, allowsMultiple: false, maxQuantity: 1, category: '' });
 
     const { data: partsData, isLoading } = useQuery({ queryKey: ['spare-parts'], queryFn: () => api.get('/spare-parts') });
-    const parts = Array.isArray(partsData) ? partsData : (partsData?.data || []);
+    const parts = useMemo(() => Array.isArray(partsData) ? partsData : (partsData?.data || []), [partsData]);
 
     const createMutation = useApiMutation({ mutationFn: (data) => api.post('/spare-parts', { ...data, userId: user?.id, userName: user?.displayName || user?.email }), successMessage: 'تم إضافة القطعة بنجاح', errorMessage: 'فشل إضافة القطعة', invalidateKeys: [['spare-parts']], onSuccess: () => { setShowAddForm(false); setNewPart({ name: '', compatibleModels: '', defaultCost: 0, isConsumable: false, allowsMultiple: false, maxQuantity: 1, category: '' }); } });
     const updateMutation = useApiMutation({ mutationFn: ({ id, data }) => api.put('/spare-parts/' + id, { ...data, userId: user?.id, userName: user?.displayName || user?.email }), successMessage: 'تم تحديث القطعة بنجاح', errorMessage: 'فشل تحديث القطعة', invalidateKeys: [['spare-parts']], onSuccess: () => { setShowEditForm(false); setSelectedPart(null); } });
@@ -44,12 +44,12 @@ export function SparePartsTab() {
     const importMutation = useApiMutation({ mutationFn: (parts) => api.post('/spare-parts/import', { parts, userId: user?.id, userName: user?.displayName || user?.email }), successMessage: 'تم استيراد البيانات بنجاح', errorMessage: 'فشل استيراد البيانات', invalidateKeys: [['spare-parts']], onSuccess: (data) => { setShowImportDialog(false); setImportData([]); if (fileInputRef.current) fileInputRef.current.value = ''; if (data?.skipped > 0) toast(`تم تخطي ${data?.skipped} عنصر مكرر`, { icon: 'ℹ️' }); } });
     const broadcastMutation = useApiMutation({ mutationFn: () => api.post('/spare-parts/broadcast'), successMessage: 'تم بث تحديثات قطع الغيار لجميع الفروع بنجاح', errorMessage: 'فشل بث التحديثات للفروع' });
 
-    const allModels = Array.from(new Set(parts.flatMap((p) => (p.compatibleModels || '').split(';').filter(Boolean).map((m) => m.trim())))).sort();
-    const filteredParts = parts.filter((p) => {
+    const allModels = useMemo(() => Array.from(new Set(parts.flatMap((p) => (p.compatibleModels || '').split(';').filter(Boolean).map((m) => m.trim())))).sort(), [parts]);
+    const filteredParts = useMemo(() => parts.filter((p) => {
         const matchesSearch = !searchTerm || (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.partNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesModel = !modelFilter || (p.compatibleModels || '').toLowerCase().split(';').map((m) => m.trim()).includes(modelFilter.toLowerCase());
         return matchesSearch && matchesModel;
-    });
+    }), [parts, searchTerm, modelFilter]);
 
     const toggleSelectAll = () => { if (selectedIds.size === parts?.length) setSelectedIds(new Set()); else setSelectedIds(new Set(parts?.map((p) => p.id))); };
     const toggleSelect = (id) => { const newSet = new Set(selectedIds); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedIds(newSet); };
@@ -243,8 +243,8 @@ function PartDetailModal({ part, onClose }) {
     const requestIdRef = useRef(`req_${Date.now()}`);
     const socketRef = useRef(null);
 
-    const { data: priceLogs } = useQuery({ queryKey: ['price-logs', part.id], queryFn: () => api.get('/spare-parts/' + part.id + '/price-logs'), enabled: true });
-    const priceLogsData = Array.isArray(priceLogs) ? priceLogs : [];
+    const { data: priceLogs } = useQuery({ queryKey: ['price-logs', part.id], queryFn: () => api.get('/spare-parts/' + part.id + '/price-logs'), enabled: !!part.id });
+    const priceLogsData = useMemo(() => Array.isArray(priceLogs) ? priceLogs : [], [priceLogs]);
 
     const queryBranchStock = useCallback(async () => {
         setIsQuerying(true);
@@ -271,8 +271,18 @@ function PartDetailModal({ part, onClose }) {
                 setIsQuerying(false); 
             });
             setTimeout(() => { if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; } setIsQuerying(false); setQueriedAt(new Date()); }, 5000);
-        } catch { toast.error('فشل التحقق من مخزون الفروع'); setIsQuerying(false); }
+        } catch (err) { 
+            console.error('Error in queryBranchStock:', err);
+            toast.error('فشل التحقق من مخزون الفروع'); 
+            setIsQuerying(false); 
+        }
     }, [part.id]);
+
+    useEffect(() => {
+        if (part.id && !isQuerying && branchStock.length === 0) {
+            queryBranchStock();
+        }
+    }, [part.id, queryBranchStock, branchStock.length, isQuerying]);
 
     useEffect(() => { return () => { if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; } }; }, []);
 

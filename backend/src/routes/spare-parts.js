@@ -103,7 +103,10 @@ router.put('/:id', async (req, res) => {
         let finalMaxQty = parseInt(maxQuantity);
         if (isNaN(finalMaxQty) || finalMaxQty < 1) finalMaxQty = 1;
 
+        console.log(`[SpareParts] Updating part ${req.params.id}:`, { name, partNumber, finalCost, finalMaxQty });
+        
         if (oldPart && oldPart.defaultCost !== finalCost) {
+            console.log(`[SpareParts] Price change detected for ${req.params.id}. Creating log...`);
             await prisma.sparePartPriceLog.create({
                 data: {
                     partId: req.params.id,
@@ -114,6 +117,7 @@ router.put('/:id', async (req, res) => {
             });
         }
 
+        console.log(`[SpareParts] Executing Prisma update for ${req.params.id}...`);
         const part = await prisma.masterSparePart.update({
             where: { id: req.params.id },
             data: { 
@@ -129,12 +133,18 @@ router.put('/:id', async (req, res) => {
             }
         });
 
+        console.log(`[SpareParts] Update successful for ${req.params.id}. Enqueuing sync...`);
         await syncQueueService.enqueueUpdate('SPARE_PART', 'UPDATE', part);
 
         res.json(part);
     } catch (error) {
-        logger.error('Failed to update master spare part:', error);
-        res.status(500).json({ error: 'Failed to update master spare part' });
+        console.error(`[SpareParts] CRITICAL ERROR during update of ${req.params.id}:`, error);
+        logger.error({ err: error.message, stack: error.stack }, 'Failed to update master spare part');
+        res.status(500).json({ 
+            error: 'Failed to update master spare part', 
+            details: error.message,
+            code: error.code
+        });
     }
 });
 
