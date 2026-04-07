@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
@@ -6,13 +6,12 @@ import {
   TrendingUp, DollarSign, RefreshCw, 
   Calendar, Building, ArrowUpRight, ArrowDownRight,
   Wrench, Package, Warehouse,
-  ArrowDownCircle, ArrowUpCircle, Download, CreditCard, FileBarChart
+  ArrowDownCircle, ArrowUpCircle, CreditCard
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   BarChart, Bar, Cell
 } from 'recharts';
-import toast from 'react-hot-toast';
 import PullReportsButton from '../components/PullReportsButton';
 
 const reportTabs = [
@@ -25,8 +24,6 @@ const reportTabs = [
   { id: 'inventory', label: 'جرد المخزون', icon: Warehouse },
   { id: 'spare-parts-inventory', label: 'قطع الغيار', icon: Package },
   { id: 'simcards', label: 'الشرائح', icon: Package },
-  { id: 'price-history', label: 'سعر القطع', icon: Package },
-  { id: 'performance', label: 'أداء الصيانة', icon: FileBarChart },
 ];
 
 const statusMap: any = {
@@ -132,12 +129,6 @@ export default function Reports() {
         enabled: activeTab === 'inventory'
     });
 
-    const { data: parts } = useQuery({
-        queryKey: ['spare-parts-list'],
-        queryFn: () => adminClient.get('/spare-parts').then(r => r.data),
-        enabled: activeTab === 'price-history'
-    });
-
     const { data: sparePartsReport } = useQuery({
         queryKey: ['spare-parts-report', filters.branchId],
         queryFn: () => {
@@ -146,13 +137,6 @@ export default function Reports() {
             return adminClient.get(`/inventory/spare-parts-report?${params}`).then(r => r.data);
         },
         enabled: activeTab === 'spare-parts-inventory'
-    });
-
-    const [selectedPartId, setSelectedPartId] = useState('');
-    const { data: priceLogs } = useQuery({
-        queryKey: ['price-logs', selectedPartId],
-        queryFn: () => adminClient.get(`/spare-parts/${selectedPartId}/price-logs`).then(r => r.data),
-        enabled: activeTab === 'price-history' && !!selectedPartId
     });
 
     const { data: sales } = useQuery({
@@ -200,43 +184,7 @@ export default function Reports() {
         enabled: activeTab === 'simcards'
     });
 
-    const fetchReports = async () => {
-        try {
-            await adminClient.get('/reports/financial-summary');
-            // setData(res.data);
-        } catch (error) {
-            toast.error('فشل في تحميل التقارير المالية');
-        }
-    };
 
-    const handleExport = async (endpoint: string) => {
-        try {
-            // setExporting(true);
-            const params = new URLSearchParams();
-            if (filters.branchId) params.append('branchId', filters.branchId);
-            if (filters.type !== 'ALL') params.append('type', filters.type);
-            if (filters.startDate) params.append('startDate', filters.startDate);
-            if (filters.endDate) params.append('endDate', filters.endDate);
-            
-            const response = await adminClient.get(`${endpoint}/export?${params}`, { responseType: 'blob' });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `${endpoint.split('/').pop()}_${new Date().toISOString().slice(0,10)}.xlsx`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success('تم تصدير البيانات بنجاح');
-        } catch (error) {
-            toast.error('فشل في تصدير البيانات');
-        } finally {
-            // setExporting(false);
-        }
-    };
-
-    useEffect(() => {
-        if (activeTab === 'financial') fetchReports();
-    }, [activeTab]);
 
     const COLORS = ['#0A2472', '#0E6BA8', '#A6E1FA', '#001D4A', '#22C55E'];
 
@@ -244,7 +192,6 @@ export default function Reports() {
     const requests = Array.isArray(maintenanceRequests?.data) ? maintenanceRequests.data : [];
     const paymentsData = Array.isArray(payments?.data) ? payments.data : [];
     const inventoryData = Array.isArray(inventory?.data) ? inventory.data : [];
-    const logs = Array.isArray(priceLogs) ? priceLogs : [];
 
     const filteredMovements = filters.search 
         ? (Array.isArray(movements) ? movements : []).filter((m: any) => m.partName?.toLowerCase().includes(filters.search.toLowerCase()) || m.branchName?.toLowerCase().includes(filters.search.toLowerCase()))
@@ -301,11 +248,7 @@ export default function Reports() {
     const renderMovements = () => (
         <div className="space-y-6">
             {renderFilters()}
-            <div className="flex justify-end">
-                <button onClick={() => handleExport('/stock-movements')} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-black text-sm hover:shadow-md">
-                    <Download size={16} /> تصدير Excel
-                </button>
-            </div>
+
             <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -354,11 +297,6 @@ export default function Reports() {
     const renderRequests = () => (
         <div className="space-y-6">
             {renderFilters()}
-            <div className="flex justify-end">
-                <button onClick={() => handleExport('/maintenance-requests')} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-black text-sm hover:shadow-md">
-                    <Download size={16} /> تصدير Excel
-                </button>
-            </div>
             <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -419,11 +357,6 @@ export default function Reports() {
                     <input type="text" className="smart-input" placeholder="بحث..." value={filters.search} onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))} />
                 </div>
             </div>
-            <div className="flex justify-end">
-                <button onClick={() => handleExport('/payments')} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-black text-sm hover:shadow-md">
-                    <Download size={16} /> تصدير Excel
-                </button>
-            </div>
             <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -472,11 +405,6 @@ export default function Reports() {
                 </div>
             </div>
             {renderFilters()}
-            <div className="flex justify-end">
-                <button onClick={() => handleExport('/inventory')} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-black text-sm hover:shadow-md">
-                    <Download size={16} /> تصدير Excel
-                </button>
-            </div>
             <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -639,53 +567,7 @@ export default function Reports() {
         );
     };
 
-    const renderPriceHistory = () => (
-        <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
-                <select className="smart-select" value={selectedPartId} onChange={(e) => setSelectedPartId(e.target.value)}>
-                    <option value="">اختر قطعة غيار</option>
-                    {parts?.map((p: any) => (<option key={p.id} value={p.id}>{p.name} - {p.partNumber}</option>))}
-                </select>
-            </div>
-            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200"><h3 className="font-black text-primary">سجل التغييرات</h3></div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السعر القديم</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السعر الجديد</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التغيير</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">بواسطة</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {!selectedPartId ? (
-                                <tr><td colSpan={5} className="p-8 text-center text-slate-400 font-bold">اختر قطعة غيار أولاً</td></tr>
-                            ) : logs.length === 0 ? (
-                                <tr><td colSpan={5} className="p-8 text-center text-slate-400 font-bold">لا توجد سجلات</td></tr>
-                            ) : (
-                                logs.map((log: any) => {
-                                    const change = log.newCost - log.oldCost;
-                                    const isIncrease = change > 0;
-                                    return (
-                                        <tr key={log.id} className="hover:bg-slate-50">
-                                            <td className="p-3 text-sm font-bold">{new Date(log.changedAt).toLocaleString('ar-EG')}</td>
-                                            <td className="p-3 text-sm font-black text-slate-500">{log.oldCost}</td>
-                                            <td className="p-3 text-sm font-black text-primary">{log.newCost}</td>
-                                            <td className="p-3"><span className={`font-black text-sm ${isIncrease ? 'text-red-600' : 'text-green-600'}`}>{isIncrease ? '+' : ''}{change.toFixed(2)} ج.م</span></td>
-                                            <td className="p-3 text-sm text-slate-500">{log.changedBy || '-'}</td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
+
 
     const salesData = Array.isArray(sales?.data) ? sales.data : (Array.isArray(sales) ? sales : []);
     const overdueData = Array.isArray(overdueInstallments?.data) ? overdueInstallments.data : (Array.isArray(overdueInstallments) ? overdueInstallments : []);
@@ -877,15 +759,8 @@ export default function Reports() {
         </div>
     );
 
-    const renderPerformance = () => (
-        <div className="flex items-center justify-center h-64 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold">
-            جاري العمل على تقرير أداء الصيانة...
-        </div>
-    );
-
     const renderContent = () => {
         switch (activeTab) {
-            case 'performance': return renderPerformance();
             case 'movements': return renderMovements();
             case 'requests': return renderRequests();
             case 'payments': return renderPayments();
@@ -894,7 +769,6 @@ export default function Reports() {
             case 'inventory': return renderInventory();
             case 'spare-parts-inventory': return renderSparePartsInventory();
             case 'simcards': return renderSimCards();
-            case 'price-history': return renderPriceHistory();
             default: return renderFinancial();
         }
     };

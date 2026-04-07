@@ -6,92 +6,9 @@ const logger = require('../../utils/logger');
 
 router.use(adminAuth);
 
-router.get('/financial-summary', async (req, res) => {
-    try {
-        const branches = await prisma.branch.findMany({
-            select: {
-                id: true,
-                name: true,
-                _count: {
-                    select: {
-                        requests: true,
-                        users: true,
-                        customers: true,
-                        posMachines: true,
-                        warehouseMachines: true
-                    }
-                }
-            }
-        });
 
-        const paymentAgg = await prisma.payment.groupBy({
-            by: ['branchId'],
-            _sum: { amount: true },
-            _count: true
-        });
-        const paymentMap = {};
-        paymentAgg.forEach(p => { paymentMap[p.branchId] = { total: p._sum.amount || 0, count: p._count }; });
 
-        const summary = branches.map(b => ({
-            branchId: b.id,
-            branchName: b.name,
-            revenue: paymentMap[b.id]?.total || 0,
-            paymentCount: paymentMap[b.id]?.count || 0,
-            requestCount: b._count.requests,
-            userCount: b._count.users,
-            customerCount: b._count.customers,
-            machineCount: b._count.posMachines,
-            stockCount: b._count.warehouseMachines
-        }));
 
-        const dailyRevenue = await prisma.payment.groupBy({
-            by: ['createdAt'],
-            _sum: { amount: true },
-            where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
-            orderBy: { createdAt: 'asc' }
-        });
-
-        res.json({
-            branchBreakdown: summary,
-            dailyRevenue,
-            totalEnterpriseRevenue: summary.reduce((sum, b) => sum + b.revenue, 0)
-        });
-    } catch (error) {
-        logger.error({ err: error.message }, 'Financial summary failed');
-        res.status(500).json({ error: 'فشل في تحميل الملخص المالي' });
-    }
-});
-
-router.get('/rankings', async (req, res) => {
-    try {
-        const branches = await prisma.branch.findMany({
-            select: {
-                id: true,
-                name: true,
-                _count: { select: { requests: true } }
-            }
-        });
-
-        const paymentAgg = await prisma.payment.groupBy({
-            by: ['branchId'],
-            _sum: { amount: true }
-        });
-        const paymentMap = {};
-        paymentAgg.forEach(p => { paymentMap[p.branchId] = p._sum.amount || 0; });
-
-        const rankings = branches.map(b => ({
-            id: b.id,
-            name: b.name,
-            totalRevenue: paymentMap[b.id] || 0,
-            requestCount: b._count.requests
-        })).sort((a, b) => b.totalRevenue - a.totalRevenue);
-
-        res.json(rankings);
-    } catch (error) {
-        logger.error({ err: error.message }, 'Rankings failed');
-        res.status(500).json({ error: 'فشل في تحميل الترتيب' });
-    }
-});
 
 router.get('/inventory-valuation', async (req, res) => {
     try {
@@ -208,30 +125,7 @@ router.get('/performance', async (req, res) => {
     }
 });
 
-router.get('/executive', async (req, res) => {
-    try {
-        const { branchId, startDate, endDate } = req.query;
-        const where = branchId ? { branchId } : {};
 
-        const [branches, totalRevenue, totalRequests, totalCustomers] = await Promise.all([
-            prisma.branch.findMany({ where: { isActive: true }, select: { id: true, code: true, name: true, status: true } }),
-            prisma.payment.aggregate({ where, _sum: { amount: true }, _count: true }),
-            prisma.maintenanceRequest.count(where),
-            prisma.customer.count(where)
-        ]);
-
-        res.json({
-            success: true,
-            branches,
-            totalRevenue: totalRevenue._sum.amount || 0,
-            totalRequests,
-            totalCustomers
-        });
-    } catch (error) {
-        logger.error('Executive report failed:', error);
-        res.status(500).json({ error: 'Failed to fetch executive report' });
-    }
-});
 
 router.get('/monthly-closing', async (req, res) => {
     try {

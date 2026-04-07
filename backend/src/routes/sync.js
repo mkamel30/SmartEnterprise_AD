@@ -260,16 +260,19 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
         }
 
         if (stockMovements && Array.isArray(stockMovements)) {
-            const validation = validateEntityArray(stockMovements, stockMovementSchema, 'stockMovements');
-            if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `StockMovement[${e.index}]: ${e.errors.join(', ')}`));
-            const ops = (validation.results || []).map(m => {
-                const data = cleanEntity(m);
-                return prisma.stockMovement.create({
-                    data: { ...data, branchId }
+            // Snapshot strategy: DELETE old records for this branch, then INSERT fresh data
+            try {
+                await prisma.$transaction(async (tx) => {
+                    await tx.stockMovement.deleteMany({ where: { branchId } });
+                    for (const m of stockMovements) {
+                        const data = cleanEntity(m);
+                        await tx.stockMovement.create({ data: { ...data, branchId } });
+                    }
                 });
-            });
-            if (ops.length > 0) await prisma.$transaction(ops);
-            stats.stockMovements = ops.length;
+                stats.stockMovements = stockMovements.length;
+            } catch (e) {
+                errors.push(`StockMovements snapshot: ${e.message}`);
+            }
         }
 
         if (machineSales && Array.isArray(machineSales)) {
@@ -309,16 +312,19 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
         }
 
         if (simMovements && Array.isArray(simMovements)) {
-            const validation = validateEntityArray(simMovements, simMovementSchema, 'simMovements');
-            if (validation.errors.length > 0) errors.push(...validation.errors.map(e => `SimMovement[${e.index}]: ${e.errors.join(', ')}`));
-            const ops = (validation.results || []).map(m => {
-                const data = cleanEntity(m);
-                return prisma.simMovementLog.create({
-                    data: { ...data, branchId }
+            // Snapshot strategy: DELETE old records for this branch, then INSERT fresh data
+            try {
+                await prisma.$transaction(async (tx) => {
+                    await tx.simMovementLog.deleteMany({ where: { branchId } });
+                    for (const m of simMovements) {
+                        const data = cleanEntity(m);
+                        await tx.simMovementLog.create({ data: { ...data, branchId } });
+                    }
                 });
-            });
-            if (ops.length > 0) await prisma.$transaction(ops);
-            stats.simMovements = ops.length;
+                stats.simMovements = simMovements.length;
+            } catch (e) {
+                errors.push(`SimMovements snapshot: ${e.message}`);
+            }
         }
 
         if (warehouseSims && Array.isArray(warehouseSims)) {
@@ -337,19 +343,19 @@ router.post('/push', branchAuth, validate(pushSchema), async (req, res) => {
         }
 
         if (usedPartLogs && Array.isArray(usedPartLogs)) {
-            const validation = validateEntityArray(usedPartLogs, usedPartLogSchema, 'usedPartLogs');
-            for (const log of (validation.results || [])) {
-                try {
-                    if (log.customerId) await ensureCustomerExists(log.customerId, log.customerName, log.customerBkcode, branchId);
-                    await prisma.usedPartLog.upsert({
-                        where: { id: log.id },
-                        update: { ...log, branchId },
-                        create: { ...log, branchId }
-                    });
-                    stats.usedPartLogs++;
-                } catch (e) {
-                    errors.push(`UsedPartLog ${log.id}: ${e.message}`);
-                }
+            // Snapshot strategy: DELETE old records for this branch, then INSERT fresh data
+            try {
+                await prisma.$transaction(async (tx) => {
+                    await tx.usedPartLog.deleteMany({ where: { branchId } });
+                    for (const log of usedPartLogs) {
+                        if (log.customerId) await ensureCustomerExists(log.customerId, log.customerName, log.customerBkcode, branchId);
+                        const data = cleanEntity(log);
+                        await tx.usedPartLog.create({ data: { ...data, branchId } });
+                    }
+                });
+                stats.usedPartLogs = usedPartLogs.length;
+            } catch (e) {
+                errors.push(`UsedPartLogs snapshot: ${e.message}`);
             }
         }
 
