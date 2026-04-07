@@ -230,7 +230,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </nav>
 
                     <div className="p-4 border-t border-border/50 bg-muted/20">
-                        <div className="text-[9px] text-muted-foreground/30 text-center mb-2 font-mono">v1.0.2</div>
+                        <div className="text-[9px] text-muted-foreground/30 text-center mb-2 font-mono">v1.0.3</div>
                         <div className="flex items-center gap-3 overflow-hidden whitespace-nowrap">
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/20">
                                 <UserCircle size={20} />
