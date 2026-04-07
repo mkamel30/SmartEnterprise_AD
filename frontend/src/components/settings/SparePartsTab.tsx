@@ -150,23 +150,18 @@ function PartFormModal({ title, initialData, onSubmit, onClose }) {
                 <div className='space-y-2'><label className='text-[10px] font-black text-brand-primary/60 uppercase tracking-widest'>التصنيف</label><input value={formData.category||''} onChange={e=>setFormData({...formData,category:e.target.value})} className='smart-input h-12 px-5' placeholder='POS, GENERAL, etc.' /></div>
                 
                 {/* allowsMultiple - يمكن استخدام أكثر من قطعة في نفس الصيانة */}
-                <div 
-                    className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.allowsMultiple ? 'bg-success/10 border-success/30' : 'bg-slate-50 border-slate-100'}`} 
-                    onClick={() => setFormData(prev => {
-                        const nextValue = !prev.allowsMultiple;
-                        return { ...prev, allowsMultiple: nextValue, maxQuantity: nextValue ? 3 : 1 };
-                    })}
-                >
+                <div className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${formData.allowsMultiple ? 'bg-success/10 border-success/30' : 'bg-slate-50 border-slate-100'}`}>
                     <div className='flex items-center gap-3'>
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${formData.allowsMultiple ? 'bg-success text-white' : 'bg-slate-200 text-slate-500'}`}>
                             <Package size={18} />
                         </div>
-                        <span className='text-xs font-black text-slate-700'>يمكن تغير أكثر من قطعة</span>
+                        <label htmlFor='allowsMultiple' className='text-xs font-black text-slate-700 cursor-pointer pt-1'>يمكن تغير أكثر من قطعة</label>
                     </div>
                     <Checkbox 
+                        id='allowsMultiple'
                         checked={formData.allowsMultiple} 
-                        onCheckedChange={(v) => { /* Click on div handles this, or clicking checkbox will bubble to div */ }} 
-                        className='h-6 w-6 rounded-lg pointer-events-none' 
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allowsMultiple: !!checked, maxQuantity: checked ? 3 : 1 }))} 
+                        className='h-6 w-6 rounded-lg' 
                     />
                 </div>
                 
