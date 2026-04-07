@@ -78,6 +78,7 @@ const maintenanceShipmentsRoutes = require('./src/routes/maintenance-shipments')
 const branchesLookupRoutes = require('./src/routes/branches-lookup');
 const executiveDashboardRoutes = require('./src/routes/executive-dashboard');
 const notificationsRoutes = require('./src/routes/notifications');
+const forecastRoutes = require('./src/routes/forecast');
 
 app.use('/api/auth', loginLimiter, authRoutes);
 app.use('/api/branch-setup', branchSetupRoutes);
@@ -119,6 +120,7 @@ app.use('/api/maintenance', maintenanceShipmentsRoutes);
 app.use('/api/branches-lookup', branchesLookupRoutes);
 app.use('/api/executive-dashboard', executiveDashboardRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reports/forecast', forecastRoutes);
 app.use('/api/licenses', licenseRoutes);
 app.use('/api', miscRoutes);
 

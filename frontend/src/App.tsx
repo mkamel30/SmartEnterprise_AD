@@ -19,6 +19,7 @@ import LicenseManager from './pages/LicenseManager';
 import Analytics from './pages/Analytics';
 import SyncMonitoring from './pages/SyncMonitoring';
 import MonthlyClosing from './pages/MonthlyClosing';
+import PermissionsManager from './pages/PermissionsManager';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,7 +36,7 @@ const SUPER_ADMIN_ROUTES = [
   '/reports', '/reports/financial', '/reports/movements', '/reports/requests',
   '/reports/payments', '/reports/sales', '/reports/installments',
   '/reports/inventory', '/reports/simcards', '/reports/price-history',
-  '/monthly-closing', '/version-logs', '/software-updates', '/license-manager', '/settings'
+  '/monthly-closing', '/version-logs', '/software-updates', '/license-manager', '/settings', '/permissions'
 ];
 
 const BRANCH_ADMIN_ROUTES = [
@@ -116,6 +117,7 @@ function AppRoutes() {
     { path: '/license-manager', element: <LicenseManager /> },
     { path: '/monthly-closing', element: <MonthlyClosing /> },
     { path: '/settings', element: <Settings /> },
+    { path: '/permissions', element: <PermissionsManager /> },
   ].filter(r => canAccessRoute(user?.role, r.path));
 
   return (

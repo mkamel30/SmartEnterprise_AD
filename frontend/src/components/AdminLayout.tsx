@@ -6,7 +6,7 @@ import {
     RefreshCw, Settings2, LogOut, RotateCcw,
     Menu, ChevronDown, ZoomIn, ZoomOut,
     TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package, Calendar,
-    BarChart3, UserCircle, Activity
+    BarChart3, UserCircle, Activity, ShieldCheck
 } from 'lucide-react';
 
 interface NavItem {
@@ -27,6 +27,7 @@ const navItems: NavItem[] = [
     { id: 'dashboard', name: 'لوحة التحكم', href: '/', icon: LayoutDashboard },
     { id: 'branches', name: 'الفروع', href: '/branches', icon: Building2 },
     { id: 'users', name: 'المستخدمين', href: '/users', icon: Users },
+    { id: 'permissions', name: 'الصلاحيات', href: '/permissions', icon: ShieldCheck },
     { id: 'analytics', name: 'التحليلات', href: '/analytics', icon: BarChart3 },
 ];
 
