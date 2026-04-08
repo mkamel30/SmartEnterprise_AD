@@ -286,3 +286,57 @@ router.get('/monthly-closing', async (req, res) => {
 });
 
 module.exports = router;
+
+// GET /monthly-closing/branches-status - Check which branches have sent reports for a given month
+router.get('/monthly-closing/branches-status', async (req, res) => {
+    try {
+        const { month } = req.query;
+        if (!month) return res.status(400).json({ error: 'Month is required (YYYY-MM)' });
+
+        const branches = await prisma.branch.findMany({
+            where: { isActive: true },
+            select: { id: true, code: true, name: true, status: true, lastSeen: true }
+        });
+
+        const reports = await prisma.monthlyClosingReport.findMany({
+            where: { month },
+            select: { branchId: true, status: true, receivedAt: true, sections: true }
+        });
+
+        const reportMap = {};
+        reports.forEach(r => { reportMap[r.branchId] = r; });
+
+        const result = branches.map(b => ({
+            ...b,
+            reportStatus: reportMap[b.id] ? 'RECEIVED' : 'PENDING',
+            receivedAt: reportMap[b.id]?.receivedAt || null,
+            sections: reportMap[b.id]?.sections || null
+        }));
+
+        res.json({ success: true, month, branches: result, receivedCount: reports.length, totalCount: branches.length });
+    } catch (error) {
+        logger.error('Failed to fetch branches status:', error);
+        res.status(500).json({ error: 'Failed to fetch branches status' });
+    }
+});
+
+// GET /monthly-closing/logs - Get monthly closing logs
+router.get('/monthly-closing/logs', async (req, res) => {
+    try {
+        const { month, branchId, limit = 50 } = req.query;
+        const where = {};
+        if (month) where.month = month;
+        if (branchId) where.branchId = branchId;
+
+        const logs = await prisma.monthlyClosingLog.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            take: parseInt(limit)
+        });
+
+        res.json({ success: true, data: logs });
+    } catch (error) {
+        logger.error('Failed to fetch monthly closing logs:', error);
+        res.status(500).json({ error: 'Failed to fetch monthly closing logs' });
+    }
+});

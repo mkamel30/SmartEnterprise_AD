@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
-import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2, RefreshCw } from 'lucide-react';
+import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2, RefreshCw, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '../components/ui/button';
 import PageHeader from '../components/PageHeader';
@@ -29,6 +29,7 @@ const getMonthLabel = (month: string) => {
 };
 
 export default function MonthlyClosing() {
+    const queryClient = useQueryClient();
     const [selectedMonth, setSelectedMonth] = useState(formatMonth(new Date()));
     const [selectedBranch, setSelectedBranch] = useState<string>('');
     const [activeSection, setActiveSection] = useState<'all' | 'sales' | 'installments' | 'parts' | 'inventory'>('all');
@@ -39,6 +40,11 @@ export default function MonthlyClosing() {
     const { data: branchesData } = useQuery({
         queryKey: ['active-branches'],
         queryFn: () => adminClient.get('/branches/active').then(res => res.data)
+    });
+
+    const { data: branchesStatus } = useQuery({
+        queryKey: ['monthly-closing-branches-status', selectedMonth],
+        queryFn: () => adminClient.get(`/reports/monthly-closing/branches-status?month=${selectedMonth}`).then(res => res.data),
     });
 
     const { data, isLoading, error } = useQuery({
@@ -304,6 +310,32 @@ export default function MonthlyClosing() {
                     <ChildBranchReport childBranches={data.childBranches} month={selectedMonth} />
                 )}
             </div>
+
+            {/* Branch Report Status */}
+            {branchesStatus?.branches && branchesStatus.branches.length > 0 && (
+                <div className="bg-white rounded-2xl p-6 border-2 border-primary/10 shadow-sm">
+                    <h3 className="text-lg font-black text-primary mb-4">حالة تقارير الفروع لشهر {getMonthLabel(selectedMonth)}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {branchesStatus.branches.map((b: any) => (
+                            <div key={b.id} className={`flex items-center gap-3 p-3 rounded-xl border ${b.reportStatus === 'RECEIVED' ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+                                {b.reportStatus === 'RECEIVED' 
+                                    ? <CheckCircle size={20} className="text-green-600 shrink-0" />
+                                    : <Clock size={20} className="text-amber-500 shrink-0" />
+                                }
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold text-slate-800 truncate">{b.name}</p>
+                                    <p className="text-xs text-slate-500">
+                                        {b.reportStatus === 'RECEIVED' 
+                                            ? `تم الاستلام ${b.receivedAt ? new Date(b.receivedAt).toLocaleDateString('ar-EG') : ''}`
+                                            : 'بانتظار التقرير'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -842,6 +842,96 @@ module.exports = (io) => {
             }
         });
 
+        socket.on('monthly_closing_push', async (data) => {
+            const { branchCode, month, sections, data: reportData, timestamp } = data;
+            if (!socket.isBranch || !socket.branchId) return;
+
+            logger.info(`[Sync] Received MONTHLY CLOSING push from branch ${branchCode || socket.branchCode} for month ${month}`);
+
+            try {
+                const existing = await prisma.monthlyClosingReport.findUnique({
+                    where: { branchId_month: { branchId: socket.branchId, month } }
+                });
+
+                if (existing) {
+                    await prisma.monthlyClosingReport.update({
+                        where: { id: existing.id },
+                        data: {
+                            data: reportData,
+                            sections: sections || 'all',
+                            status: 'RECEIVED',
+                            receivedAt: new Date(),
+                            sentAt: timestamp ? new Date(timestamp) : new Date()
+                        }
+                    });
+                } else {
+                    await prisma.monthlyClosingReport.create({
+                        data: {
+                            branchId: socket.branchId,
+                            branchCode: branchCode || socket.branchCode,
+                            branchName: socket.branchName || branchCode || 'Unknown',
+                            month,
+                            data: reportData,
+                            sections: sections || 'all',
+                            status: 'RECEIVED',
+                            sentAt: timestamp ? new Date(timestamp) : new Date(),
+                            receivedAt: new Date()
+                        }
+                    });
+                }
+
+                await prisma.monthlyClosingLog.create({
+                    data: {
+                        branchId: socket.branchId,
+                        branchCode: branchCode || socket.branchCode,
+                        branchName: socket.branchName || branchCode || 'Unknown',
+                        month,
+                        direction: 'RECEIVED',
+                        sections: sections || 'all',
+                        status: 'SUCCESS',
+                        recordCount: 1,
+                        notes: `Monthly closing report received for ${month}`
+                    }
+                });
+
+                const admins = await prisma.user.findMany({
+                    where: { role: { in: ['SUPER_ADMIN', 'ADMIN'] } },
+                    select: { id: true }
+                });
+
+                for (const admin of admins) {
+                    await prisma.notification.create({
+                        data: {
+                            userId: admin.id,
+                            branchId: socket.branchId,
+                            type: 'MONTHLY_CLOSING_RECEIVED',
+                            title: 'تقرير تقفيلة شهرية',
+                            message: `تم استلام تقرير التقفيلة الشهرية لشهر ${month} من فرع ${socket.branchName || branchCode}`,
+                            data: JSON.stringify({ month, branchId: socket.branchId, branchCode: branchCode || socket.branchCode }),
+                            isRead: false
+                        }
+                    });
+                }
+
+                io.to('admin').emit('report_received', {
+                    type: 'MONTHLY_CLOSING',
+                    branchId: socket.branchId,
+                    branchCode: branchCode || socket.branchCode,
+                    branchName: socket.branchName || branchCode,
+                    month,
+                    sections: sections || 'all',
+                    timestamp: new Date()
+                });
+
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Monthly closing report received for ${month}`);
+                socket.emit('monthly_closing_ack', { status: 'SUCCESS', month, sections });
+            } catch (err) {
+                logger.error({ err: err.message, stack: err.stack }, '[Sync] Error processing monthly closing push');
+                logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Monthly closing push failed: ${err.message}`);
+                socket.emit('monthly_closing_ack', { status: 'FAILED', error: err.message });
+            }
+        });
+
         socket.on('disconnect', async () => {
             logger.info(`[Socket] Branch Disconnected: ${socket.branchCode}`);
             if (socket.branchId && socket.isBranch) {

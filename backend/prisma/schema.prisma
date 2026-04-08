@@ -298,6 +298,9 @@ model Branch {
   warehouseSims        WarehouseSim[]
   entitySynces         BranchEntitySync[]
   summaries            BranchSummary[]
+   monthlyClosingReports MonthlyClosingReport[]
+   monthlyClosingLogs   MonthlyClosingLog[]
+   reportSyncMode       String                @default("PULL")
 }
 
 model Customer {
@@ -870,4 +873,45 @@ model SyncPolicy {
   enabled      Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model MonthlyClosingReport {
+  id              String    @id @default(cuid())
+  branchId        String
+  branchCode      String
+  branchName      String
+  month           String
+  data            Json
+  sections        String    @default("all")
+  status          String    @default("RECEIVED")
+  sentAt          DateTime?
+  receivedAt      DateTime  @default(now())
+  reviewedBy      String?
+  reviewNotes     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  branch          Branch    @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, month])
+  @@index([branchId])
+  @@index([month])
+  @@index([status])
+}
+
+model MonthlyClosingLog {
+  id              String    @id @default(cuid())
+  branchId        String
+  branchCode      String
+  branchName      String
+  month           String
+  direction       String
+  sections        String
+  status          String    @default("PENDING")
+  recordCount     Int       @default(0)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  branch          Branch    @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
+  @@index([month])
 }
