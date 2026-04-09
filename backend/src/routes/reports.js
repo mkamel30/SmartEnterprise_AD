@@ -340,3 +340,33 @@ router.get('/monthly-closing/logs', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch monthly closing logs' });
     }
 });
+
+// DELETE /monthly-closing/flush - Flush all monthly closing reports and logs (for testing)
+router.delete('/monthly-closing/flush', adminAuth, async (req, res) => {
+    try {
+        const { month, branchId } = req.query;
+        
+        const whereReport = {};
+        if (month) whereReport.month = month;
+        if (branchId) whereReport.branchId = branchId;
+
+        const whereLog = {};
+        if (month) whereLog.month = month;
+        if (branchId) whereLog.branchId = branchId;
+
+        const deletedReports = await prisma.monthlyClosingReport.deleteMany({ where: whereReport });
+        const deletedLogs = await prisma.monthlyClosingLog.deleteMany({ where: whereLog });
+
+        logger.info(`[Reports] Flushed ${deletedReports.count} reports and ${deletedLogs.count} logs` + (month ? ` for month ${month}` : '') + (branchId ? ` for branch ${branchId}` : ''));
+        
+        res.json({ 
+            success: true, 
+            message: `Flushed ${deletedReports.count} reports and ${deletedLogs.count} logs`,
+            deletedReports: deletedReports.count,
+            deletedLogs: deletedLogs.count
+        });
+    } catch (error) {
+        logger.error('Failed to flush monthly closing data:', error);
+        res.status(500).json({ error: 'Failed to flush monthly closing data' });
+    }
+});
