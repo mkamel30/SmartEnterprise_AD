@@ -301,7 +301,7 @@ router.put('/:id', async (req, res) => {
     try {
         const { name, address, authorizedHWID, status, type, phone, managerEmail, maintenanceCenterId, parentBranchId, reportSyncMode } = req.body;
         
-        const data: any = {
+        const data = {
             name,
             address,
             authorizedHWID,
