@@ -560,6 +560,16 @@ module.exports = (io) => {
 
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Data push: ${totalSynced} items`, totalSynced);
                 socket.emit('sync_ack', { status: 'SUCCESS', totalSynced, results });
+
+                io.to('admin').emit('data_updated', {
+                    branchId: socket.branchId,
+                    branchCode: socket.branchCode || socket.branchCode,
+                    branchName: socket.branchName || socket.branchCode,
+                    type: 'DATA_PUSH',
+                    entities: Object.keys(results),
+                    count: totalSynced,
+                    timestamp: new Date()
+                });
             } catch (error) {
                 logger.error('[Sync] Error processing data push:', error.message);
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Data push failed: ${error.message}`);
@@ -898,6 +908,18 @@ module.exports = (io) => {
                     results,
                     errors: Object.keys(errors).length > 0 ? Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, v.length])) : null
                 });
+
+                if (status !== 'FAILED') {
+                    io.to('admin').emit('data_updated', {
+                        branchId: socket.branchId,
+                        branchCode: socket.branchCode || branchCode,
+                        branchName: socket.branchName || branchCode,
+                        type: 'REPORT_PUSH',
+                        entities: Object.keys(results),
+                        count: totalSynced,
+                        timestamp: new Date()
+                    });
+                }
             } catch (error) {
                 logger.error({ err: error.message, stack: error.stack }, '[Sync] Error processing report push');
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Report push failed: ${error.message}`);
@@ -929,6 +951,15 @@ module.exports = (io) => {
                 await updateBranchEntitySync(socket.branchId, '_summary', Object.values(summary).length, 'SUCCESS');
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'SUCCESS', `Summary push: ${ops.length} entity counts updated`);
                 socket.emit('summary_ack', { status: 'SUCCESS', entities: ops.length });
+
+                io.to('admin').emit('data_updated', {
+                    branchId: socket.branchId,
+                    branchCode: socket.branchCode || branchCode,
+                    branchName: socket.branchName || branchCode,
+                    type: 'SUMMARY_PUSH',
+                    entities: Object.keys(summary),
+                    timestamp: new Date()
+                });
             } catch (error) {
                 logger.error({ err: error.message, stack: error.stack }, '[Sync] Error processing summary push');
                 logPortalSync(socket.branchId, socket.branchCode, socket.branchName, 'PUSH', 'FAILED', `Summary push failed: ${error.message}`);
