@@ -443,6 +443,6 @@ router.delete('/monthly-closing/flush', adminAuth, async (req, res) => {
         });
     } catch (error) {
         logger.error('Failed to flush monthly closing data:', error.message, error.stack);
-        res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Failed to flush data' : error.message });
+        res.status(500).json({ error: 'Failed to flush monthly closing data: ' + error.message });
     }
 });
