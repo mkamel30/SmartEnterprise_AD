@@ -513,9 +513,19 @@ module.exports = (io) => {
                     const existingPartIds = new Set(
                         (await prisma.masterSparePart.findMany({ select: { id: true } })).map(p => p.id)
                     );
-                    const validMovements = entities.movements.filter(mov => !mov.partId || existingPartIds.has(mov.partId));
+                    // Also get valid request IDs for FK validation
+                    const existingRequestIds = new Set(
+                        (await prisma.maintenanceRequest.findMany({ select: { id: true } })).map(r => r.id)
+                    );
+                    const validMovements = entities.movements
+                        .filter(mov => !mov.partId || existingPartIds.has(mov.partId))
+                        .filter(mov => !mov.requestId || existingRequestIds.has(mov.requestId));
                     const ops = validMovements.map(mov => {
                         const safe = pickFields(mov, ALLOWED_STOCK_MOVEMENT_FIELDS);
+                        // Clear invalid requestId to avoid FK error
+                        if (mov.requestId && !existingRequestIds.has(mov.requestId)) {
+                            safe.requestId = null;
+                        }
                         return prisma.stockMovement.upsert({
                             where: { id: mov.id },
                             update: { ...safe, branchId: socket.branchId },
