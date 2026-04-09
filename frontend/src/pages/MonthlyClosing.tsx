@@ -99,11 +99,9 @@ export default function MonthlyClosing() {
     });
 
     const flushMonthlyClosing = useMutation({
-        mutationFn: () => adminClient.delete('/reports/monthly-closing/flush', { 
-            params: { month: selectedMonth } 
-        }),
+        mutationFn: () => adminClient.delete(`/reports/monthly-closing/flush?month=${selectedMonth}`),
         onSuccess: (res: any) => {
-            toast.success(`تم مسح ${res.data?.deletedReports || 0} تقارير و ${res.data?.deletedLogs || 0} سجلات`);
+            toast.success(`تم مسح ${res.data?.deletedReports || 0} تقارير و ${res.data?.deletedLogs || 0}}`);
             queryClient.invalidateQueries({ queryKey: ['monthly-closing', selectedMonth] });
             queryClient.invalidateQueries({ queryKey: ['monthly-closing-versions', selectedMonth] });
             queryClient.invalidateQueries({ queryKey: ['monthly-closing-branches-status', selectedMonth] });
