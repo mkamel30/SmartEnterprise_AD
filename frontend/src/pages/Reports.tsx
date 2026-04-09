@@ -273,6 +273,201 @@ export default function Reports() {
     const totalCashSales = salesData.filter((s: any) => s.type === 'CASH');
     const totalInstallmentSales = salesData.filter((s: any) => ['INSTALLMENT', 'LEGACY_INSTALLMENT'].includes(s.type));
 
+    const renderMovements = () => (
+        <div className="space-y-6">
+            {renderFilters()}
+
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">النوع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الكمية</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السبب</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">بواسطة</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredMovements.length === 0 ? (
+                                <tr><td colSpan={8} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                            ) : (
+                                filteredMovements.map((m: any) => (
+                                    <tr key={m.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold">{new Date(m.date).toLocaleDateString('ar-EG')}</td>
+                                        <td className="p-3 text-sm font-bold text-primary">{m.branchName}</td>
+                                        <td className="p-3 text-sm"><div className="font-bold">{m.partName}</div><div className="text-[10px] text-slate-400 font-mono">{m.partNumber}</div></td>
+                                        <td className="p-3">
+                                            {m.type === 'IN' ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 text-green-700 font-black text-[10px] border border-green-200"><ArrowDownCircle size={12} /> دخول</span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black text-[10px] border border-red-200"><ArrowUpCircle size={12} /> خروج</span>
+                                            )}
+                                        </td>
+                                        <td className="p-3 text-lg font-black">{m.quantity}</td>
+                                        <td className="p-3 text-sm font-bold text-slate-500">{m.reason}</td>
+                                        <td className="p-3 text-sm">{m.customerName || '-'}</td>
+                                        <td className="p-3 text-sm text-slate-500">{m.performedBy}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderRequests = () => (
+        <div className="space-y-6">
+            {renderFilters()}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الماكينة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الحالة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التكلفة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفني</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredRequests.length === 0 ? (
+                                <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                            ) : (
+                                filteredRequests.map((r: any) => (
+                                    <tr key={r.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold">{new Date(r.date).toLocaleDateString('ar-EG')}</td>
+                                        <td className="p-3 text-sm font-bold text-primary">{r.branchName}</td>
+                                        <td className="p-3 text-sm"><div className="font-bold">{r.customerName}</div><div className="text-[10px] text-slate-400">{r.customerCode}</div></td>
+                                        <td className="p-3 text-sm"><div className="font-mono text-xs">{r.machineSerial}</div><div className="text-[10px] text-slate-400">{r.machineModel}</div></td>
+                                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full font-black text-[10px] border ${statusMap[r.status]?.color || 'bg-slate-100'}`}>{statusMap[r.status]?.label || r.status}</span></td>
+                                        <td className="p-3 text-lg font-black text-green-600">{r.totalCost?.toLocaleString() || 0}</td>
+                                        <td className="p-3 text-sm text-slate-500">{r.technicianName}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderPayments = () => (
+        <div className="space-y-6">
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div><p className="text-white/60 font-bold text-sm">إجمالي المدفوعات</p><p className="text-3xl font-black mt-1">{totalPaymentsAmount.toLocaleString()} ج.م</p></div>
+                    <CreditCard size={48} className="text-white/30" />
+                </div>
+            </div>
+            <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <select className="smart-select" value={filters.branchId} onChange={(e) => setFilters(f => ({ ...f, branchId: e.target.value }))}>
+                        <option value="">كل الفروع</option>
+                        {branches?.map((b: any) => (<option key={b.id} value={b.id}>{b.name}</option>))}
+                    </select>
+                    <select className="smart-select" value={filters.type} onChange={(e) => setFilters(f => ({ ...f, type: e.target.value }))}>
+                        <option value="ALL">كل الأنواع</option>
+                        {Object.entries(paymentTypeMap).map(([key, v]: any) => (<option key={key} value={key}>{v.label}</option>))}
+                    </select>
+                    <input type="date" className="smart-input" value={filters.startDate} onChange={(e) => setFilters(f => ({ ...f, startDate: e.target.value }))} />
+                    <input type="date" className="smart-input" value={filters.endDate} onChange={(e) => setFilters(f => ({ ...f, endDate: e.target.value }))} />
+                    <input type="text" className="smart-input" placeholder="بحث..." value={filters.search} onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))} />
+                </div>
+            </div>
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">النوع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">المبلغ</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السبب</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم الإيصال</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredPayments.length === 0 ? (
+                                <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                            ) : (
+                                filteredPayments.map((p: any) => (
+                                    <tr key={p.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold">{new Date(p.date).toLocaleDateString('ar-EG')}</td>
+                                        <td className="p-3 text-sm font-bold text-primary">{p.branchName}</td>
+                                        <td className="p-3 text-sm"><div className="font-bold">{p.customerName}</div><div className="text-[10px] text-slate-400">{p.customerCode}</div></td>
+                                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full font-black text-[10px] border ${paymentTypeMap[p.type]?.color || 'bg-slate-100'}`}>{paymentTypeMap[p.type]?.label || p.type}</span></td>
+                                        <td className="p-3 text-lg font-black text-green-600">{p.amount?.toLocaleString()}</td>
+                                        <td className="p-3 text-sm text-slate-500">{p.reason || '-'}</td>
+                                        <td className="p-3 text-sm font-mono text-slate-400">{p.receiptNumber || '-'}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderInventory = () => (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
+                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Package className="text-primary" size={20} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase">إجمالي القطع</p><p className="text-xl font-black text-primary">{filteredInventory.length}</p></div></div>
+                </div>
+                <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
+                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><Package className="text-green-600" size={20} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الكمية</p><p className="text-xl font-black text-green-600">{totalInventoryQty}</p></div></div>
+                </div>
+            </div>
+            {renderFilters()}
+            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التكلفة</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الكمية</th>
+                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الموقع</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredInventory.length === 0 ? (
+                                <tr><td colSpan={6} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                            ) : (
+                                filteredInventory.map((i: any) => (
+                                    <tr key={i.id} className="hover:bg-slate-50">
+                                        <td className="p-3 text-sm font-bold text-primary">{i.branchName}</td>
+                                        <td className="p-3 text-sm font-bold">{i.partName}</td>
+                                        <td className="p-3 text-sm font-mono text-slate-500">{i.partNumber}</td>
+                                        <td className="p-3 text-sm font-black text-green-600">{i.defaultCost?.toLocaleString()}</td>
+                                        <td className="p-3 text-lg font-black">{i.quantity}</td>
+                                        <td className="p-3 text-sm text-slate-500">{i.location}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderSales = () => (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
