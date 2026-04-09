@@ -159,6 +159,10 @@ module.exports = (io) => {
             syncQueueService.pushPendingToBranch(socket.branchId);
         }
 
+        if (socket.isAdmin) {
+            socket.join('admin');
+        }
+
         socket.on('ack_update', async (data) => {
             const { queueId } = data;
             if (queueId) {

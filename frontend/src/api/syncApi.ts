@@ -95,6 +95,14 @@ const syncApi = {
         return request('/sync/request-all-report-sync', { method: 'POST' });
     },
 
+    requestMonthlyClosing: (branchId: string, month: string, sections?: string): Promise<any> => {
+        return request(`/sync/request-monthly-closing/${branchId}`, { method: 'POST', body: JSON.stringify({ month, sections: sections || 'all' }) });
+    },
+
+    requestAllMonthlyClosing: (month: string, sections?: string): Promise<any> => {
+        return request('/sync/request-all-monthly-closing', { method: 'POST', body: JSON.stringify({ month, sections: sections || 'all' }) });
+    },
+
     getCleanupPolicy: (): Promise<{ success: boolean; policy: CleanupPolicy[] }> => {
         return request('/sync/cleanup-policy');
     },

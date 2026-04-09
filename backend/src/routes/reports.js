@@ -295,7 +295,7 @@ router.get('/monthly-closing/branches-status', async (req, res) => {
 
         const branches = await prisma.branch.findMany({
             where: { isActive: true },
-            select: { id: true, code: true, name: true, status: true, lastSeen: true }
+            select: { id: true, code: true, name: true, status: true, lastSeen: true, reportSyncMode: true }
         });
 
         const reports = await prisma.monthlyClosingReport.findMany({

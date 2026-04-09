@@ -463,6 +463,85 @@ router.post('/request-all-report-sync', adminAuth, async (req, res) => {
     }
 });
 
+// Request monthly closing from a specific branch
+router.post('/request-monthly-closing/:branchId', adminAuth, async (req, res) => {
+    try {
+        const { branchId } = req.params;
+        const { month, sections } = req.body;
+
+        if (!month) {
+            return res.status(400).json({ error: 'Month is required (YYYY-MM)' });
+        }
+
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+        if (!branch) {
+            return res.status(404).json({ error: 'Branch not found' });
+        }
+
+        if (branch.status !== 'ONLINE') {
+            return res.status(200).json({ success: false, error: 'Branch is offline' });
+        }
+
+        const sectionsToRequest = sections || 'all';
+        const syncMode = branch.reportSyncMode || 'PULL';
+        const action = syncMode === 'REQUEST' ? 'REQUEST_MONTHLY_CLOSING' : 'PULL_MONTHLY_CLOSING';
+
+        if (io) {
+            io.to(`branch_${branchId}`).emit('SYSTEM_DIRECTIVE', {
+                action,
+                branchId,
+                month,
+                sections: sectionsToRequest
+            });
+            logger.info(`[Sync] Sent ${action} to branch ${branch.code} for month ${month} (mode: ${syncMode})`);
+        }
+
+        await logPortalSync(branch.id, branch.code, branch.name, 'PULL', 'SUCCESS', `Requested monthly closing for ${month} from ${branch.code} (mode: ${syncMode})`);
+        res.json({ success: true, message: `Monthly closing requested (${syncMode} mode)`, mode: syncMode, branch: { code: branch.code, name: branch.name } });
+    } catch (error) {
+        logger.error('Failed to request monthly closing:', error);
+        res.status(500).json({ error: 'Failed to request monthly closing' });
+    }
+});
+
+// Request monthly closing from all online branches
+router.post('/request-all-monthly-closing', adminAuth, async (req, res) => {
+    try {
+        const { month, sections } = req.body;
+
+        if (!month) {
+            return res.status(400).json({ error: 'Month is required (YYYY-MM)' });
+        }
+
+        const branches = await prisma.branch.findMany({ where: { isActive: true } });
+        const results = [];
+        const sectionsToRequest = sections || 'all';
+
+        for (const branch of branches) {
+            const syncMode = branch.reportSyncMode || 'PULL';
+            const action = syncMode === 'REQUEST' ? 'REQUEST_MONTHLY_CLOSING' : 'PULL_MONTHLY_CLOSING';
+
+            if (branch.status === 'ONLINE' && io) {
+                io.to(`branch_${branch.id}`).emit('SYSTEM_DIRECTIVE', {
+                    action,
+                    branchId: branch.id,
+                    month,
+                    sections: sectionsToRequest
+                });
+                results.push({ branchId: branch.id, code: branch.code, name: branch.name, status: 'REQUESTED', mode: syncMode });
+            } else {
+                results.push({ branchId: branch.id, code: branch.code, name: branch.name, status: branch.status === 'ONLINE' ? 'NO_SOCKET' : 'OFFLINE', mode: syncMode });
+            }
+        }
+
+        await logPortalSync(null, 'SYSTEM', 'System', 'PULL', 'SUCCESS', `Requested monthly closing for ${month} from ${branches.length} branches`);
+        res.json({ success: true, message: `Monthly closing requested for ${month}`, results });
+    } catch (error) {
+        logger.error('Failed to request all monthly closing:', error);
+        res.status(500).json({ error: 'Failed to request monthly closing' });
+    }
+});
+
 router.get('/status', adminAuth, async (req, res) => {
     try {
         const branches = await prisma.branch.findMany({
@@ -728,6 +807,32 @@ router.put('/policies/:entityType', adminAuth, async (req, res) => {
             update: { syncLevel, enabled },
             create: { entityType, syncLevel, enabled }
         });
+
+        if (io) {
+            const allPolicies = await prisma.syncPolicy.findMany({ orderBy: { entityType: 'asc' } });
+            const defaults = [
+                { entityType: 'payments', syncLevel: 'FULL', enabled: true },
+                { entityType: 'sales', syncLevel: 'FULL', enabled: true },
+                { entityType: 'customers', syncLevel: 'COUNT_ONLY', enabled: true },
+                { entityType: 'requests', syncLevel: 'FULL', enabled: true },
+                { entityType: 'stockMovements', syncLevel: 'SUMMARY', enabled: true },
+                { entityType: 'installments', syncLevel: 'FULL', enabled: true },
+                { entityType: 'simMovements', syncLevel: 'SUMMARY', enabled: true },
+                { entityType: 'posMachines', syncLevel: 'COUNT_ONLY', enabled: true },
+                { entityType: 'simCards', syncLevel: 'FULL', enabled: true },
+                { entityType: 'warehouseMachines', syncLevel: 'FULL', enabled: true },
+                { entityType: 'warehouseSims', syncLevel: 'FULL', enabled: true }
+            ];
+            const merged = defaults.map(def => {
+                const dbP = allPolicies.find(p => p.entityType === def.entityType);
+                return {
+                    ...def,
+                    ...(dbP ? { syncLevel: dbP.syncLevel, enabled: dbP.enabled } : {})
+                };
+            });
+            io.emit('SYSTEM_DIRECTIVE', { action: 'POLICY_UPDATE', policies: merged });
+            logger.info(`[Sync] Broadcast POLICY_UPDATE to all branches for ${entityType}`);
+        }
 
         res.json({ success: true, message: `Sync policy updated for ${entityType}` });
     } catch (error) {

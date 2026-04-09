@@ -299,21 +299,24 @@ router.post('/', async (req, res) => {
 // Update branch
 router.put('/:id', async (req, res) => {
     try {
-        const { name, address, authorizedHWID, status, type, phone, managerEmail, maintenanceCenterId, parentBranchId } = req.body;
+        const { name, address, authorizedHWID, status, type, phone, managerEmail, maintenanceCenterId, parentBranchId, reportSyncMode } = req.body;
         
+        const data: any = {
+            name,
+            address,
+            authorizedHWID,
+            type,
+            phone,
+            managerEmail,
+            maintenanceCenterId,
+            parentBranchId,
+            status
+        };
+        if (reportSyncMode !== undefined) data.reportSyncMode = reportSyncMode;
+
         const branch = await prisma.branch.update({
             where: { id: req.params.id },
-            data: {
-                name,
-                address,
-                authorizedHWID,
-                type,
-                phone,
-                managerEmail,
-                maintenanceCenterId,
-                parentBranchId,
-                status
-            }
+            data
         });
         
         res.json(branch);

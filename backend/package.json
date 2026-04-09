@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prestart": "node scripts/killPort.js",
     "start": "node server.js",
+    "predev": "node scripts/killPort.js",
     "dev": "nodemon server.js",
     "db:push": "prisma db push --accept-data-loss",
     "generate": "prisma generate",

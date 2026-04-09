@@ -1,13 +1,16 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useState } from 'react';
+import { useSocket } from '../context/SocketContext';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     LayoutDashboard, Building2, Users,
     RefreshCw, Settings2, LogOut, RotateCcw,
     Menu, ChevronDown, ZoomIn, ZoomOut,
     TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package, Calendar,
-    BarChart3, UserCircle, Activity, ShieldCheck
+    BarChart3, UserCircle, Activity, ShieldCheck, Bell
 } from 'lucide-react';
+import adminClient from '../api/adminClient';
 
 interface NavItem {
     id: string;
@@ -82,8 +85,51 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [expandedGroups, setExpandedGroups] = useState<string[]>(['financial-reports']);
     const [zoomLevel, setZoomLevel] = useState(100);
+    const notifRef = useRef<HTMLDivElement>(null);
+    const queryClient = useQueryClient();
+
+    const { data: notifCount } = useQuery({
+        queryKey: ['notification-count'],
+        queryFn: () => adminClient.get('/notifications/count').then(r => r.data),
+        refetchInterval: 30000,
+    });
+
+    const { data: notifications } = useQuery({
+        queryKey: ['notifications', isNotifOpen],
+        queryFn: () => adminClient.get('/notifications?limit=10').then(r => r.data?.data || r.data || []),
+        enabled: isNotifOpen,
+    });
+
+    const { socket } = useSocket();
+
+    const invalidateNotifications = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ['notification-count'] });
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    }, [queryClient]);
+
+    useEffect(() => {
+        if (!socket) return;
+        const handleReportReceived = () => {
+            invalidateNotifications();
+        };
+        socket.on('report_received', handleReportReceived);
+        return () => {
+            socket.off('report_received', handleReportReceived);
+        };
+    }, [socket, invalidateNotifications]);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+                setIsNotifOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const toggleGroup = (id: string) => {
         setExpandedGroups(prev =>
@@ -269,6 +315,61 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
 
                     <div className="flex items-center gap-2 lg:gap-3 ml-auto">
+                        <div className="relative" ref={notifRef}>
+                            <button
+                                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                                className="relative p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                            >
+                                <Bell size={18} />
+                                {notifCount?.count > 0 && (
+                                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                                        {notifCount.count > 9 ? '9+' : notifCount.count}
+                                    </span>
+                                )}
+                            </button>
+                            {isNotifOpen && (
+                                <div className="absolute right-0 top-12 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden" dir="rtl">
+                                    <div className="flex items-center justify-between p-3 border-b border-slate-100">
+                                        <span className="text-sm font-black text-slate-700">الإشعارات</span>
+                                        <button
+                                            onClick={async () => {
+                                                await adminClient.put('/notifications/read-all', {});
+                                                invalidateNotifications();
+                                                setIsNotifOpen(false);
+                                            }}
+                                            className="text-[10px] font-bold text-primary hover:text-primary/70"
+                                        >
+                                            تعيين الكل كمقروء
+                                        </button>
+                                    </div>
+                                    <div className="max-h-80 overflow-y-auto">
+                                        {notifications?.length === 0 && (
+                                            <div className="p-6 text-center text-sm text-slate-400">لا توجد إشعارات</div>
+                                        )}
+                                        {notifications?.map((n: any) => (
+                                            <div
+                                                key={n.id}
+                                                onClick={async () => {
+                                                    if (!n.isRead) {
+                                                        await adminClient.put(`/notifications/${n.id}/read`);
+                                                        invalidateNotifications();
+                                                    }
+                                                }}
+                                                className={`flex items-start gap-3 p-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer ${n.isRead ? 'opacity-60' : ''}`}
+                                            >
+                                                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.isRead ? 'bg-slate-300' : 'bg-blue-500'}`} />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-xs font-bold text-slate-800 truncate">{n.title}</p>
+                                                    <p className="text-[11px] text-slate-500 line-clamp-2">{n.message}</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString('ar-EG')}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex items-center gap-1">
                             <button onClick={handleZoomOut} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
                                 <ZoomOut size={14} />

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
-import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2, RefreshCw, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2, RefreshCw, Send, CheckCircle, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '../components/ui/button';
 import PageHeader from '../components/PageHeader';
@@ -69,6 +69,30 @@ export default function MonthlyClosing() {
             setIsSyncing(false);
         }
     };
+
+    const requestMonthlyClosing = useMutation({
+        mutationFn: () => adminClient.post('/sync/request-all-monthly-closing', { month: selectedMonth, sections: 'all' }),
+        onSuccess: (res: any) => {
+            const requested = res.data?.results?.filter((r: any) => r.status === 'REQUESTED')?.length || 0;
+            toast.success(`تم طلب تقرير التقفيلة لشهر ${getMonthLabel(selectedMonth)} من ${requested} فروع`);
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing-branches-status', selectedMonth] });
+        },
+        onError: () => {
+            toast.error('فشل في طلب تقرير التقفيلة');
+        }
+    });
+
+    const updateSyncMode = useMutation({
+        mutationFn: ({ branchId, mode }: { branchId: string; mode: string }) =>
+            adminClient.put(`/branches/${branchId}`, { reportSyncMode: mode }),
+        onSuccess: () => {
+            toast.success('تم تحديث وضع المزامنة');
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing-branches-status', selectedMonth] });
+        },
+        onError: () => {
+            toast.error('فشل في تحديث وضع المزامنة');
+        }
+    });
 
     // Month navigation
     const navigateMonth = (dir: number) => {
@@ -236,15 +260,14 @@ export default function MonthlyClosing() {
                 <button onClick={() => navigateMonth(1)} className="text-slate-400 hover:text-[var(--color-navy)] transition-colors font-bold text-lg px-1">←</button>
             </div>
 
-            <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSyncAllBranches} 
-                disabled={isSyncing}
-                className="gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-            >
+            <Button variant="outline" size="sm" onClick={handleSyncAllBranches} disabled={isSyncing} className="gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50">
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                <span className="hidden md:inline">سحب بيانات الفروع</span>
+                <span className="hidden md:inline">سحب بيانات</span>
+            </Button>
+
+            <Button size="sm" onClick={() => requestMonthlyClosing.mutate()} disabled={requestMonthlyClosing.isPending} className="gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+                {requestMonthlyClosing.isPending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
+                <span className="hidden md:inline">طلب تقفيلة شهرية</span>
             </Button>
 
             <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-2 rounded-xl">
@@ -322,7 +345,7 @@ export default function MonthlyClosing() {
                                     ? <CheckCircle size={20} className="text-green-600 shrink-0" />
                                     : <Clock size={20} className="text-amber-500 shrink-0" />
                                 }
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                     <p className="text-sm font-bold text-slate-800 truncate">{b.name}</p>
                                     <p className="text-xs text-slate-500">
                                         {b.reportStatus === 'RECEIVED' 
@@ -331,6 +354,14 @@ export default function MonthlyClosing() {
                                         }
                                     </p>
                                 </div>
+                                <select
+                                    value={b.reportSyncMode || 'PULL'}
+                                    onChange={(e) => updateSyncMode.mutate({ branchId: b.id, mode: e.target.value })}
+                                    className="text-[10px] font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-600 cursor-pointer hover:border-primary/30 transition-colors"
+                                >
+                                    <option value="PULL">سحب تلقائي</option>
+                                    <option value="REQUEST">طلب تأكيد</option>
+                                </select>
                             </div>
                         ))}
                     </div>

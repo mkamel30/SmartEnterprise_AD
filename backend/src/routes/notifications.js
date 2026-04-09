@@ -9,19 +9,20 @@ router.use(adminAuth);
 // Get notifications
 router.get('/', async (req, res) => {
     try {
-        const { branchId, userId, unreadOnly } = req.query;
+        const { branchId, userId, unreadOnly, limit } = req.query;
         const where = {};
         if (branchId) where.branchId = branchId;
-        if (unreadOnly === 'true') where.read = false;
+        if (userId) where.userId = userId;
+        if (unreadOnly === 'true') where.isRead = false;
 
         const notifications = await prisma.notification.findMany({
             where,
-            include: { branch: { select: { id: true, name: true } } },
+            include: { branch: { select: { id: true, name: true, code: true } } },
             orderBy: { createdAt: 'desc' },
-            take: 100
+            take: parseInt(limit as string) || 50
         });
 
-        res.json(notifications);
+        res.json({ success: true, data: notifications });
     } catch (error) {
         logger.error('Failed to fetch notifications:', error);
         res.status(500).json({ error: 'Failed to fetch notifications' });
@@ -32,8 +33,9 @@ router.get('/', async (req, res) => {
 router.get('/count', async (req, res) => {
     try {
         const { branchId, userId } = req.query;
-        const where = { read: false };
+        const where = { isRead: false };
         if (branchId) where.branchId = branchId;
+        if (userId) where.userId = userId;
 
         const count = await prisma.notification.count({ where });
         res.json({ count });
@@ -48,7 +50,7 @@ router.put('/:id/read', async (req, res) => {
     try {
         await prisma.notification.update({
             where: { id: req.params.id },
-            data: { read: true }
+            data: { isRead: true }
         });
         res.json({ success: true });
     } catch (error) {
@@ -61,10 +63,11 @@ router.put('/:id/read', async (req, res) => {
 router.put('/read-all', async (req, res) => {
     try {
         const { branchId, userId } = req.body;
-        const where = { read: false };
+        const where = { isRead: false };
         if (branchId) where.branchId = branchId;
+        if (userId) where.userId = userId;
 
-        await prisma.notification.updateMany({ where, data: { read: true } });
+        await prisma.notification.updateMany({ where, data: { isRead: true } });
         res.json({ success: true });
     } catch (error) {
         logger.error('Failed to mark all read:', error);
