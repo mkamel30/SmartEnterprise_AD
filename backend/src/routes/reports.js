@@ -234,14 +234,28 @@ router.get('/monthly-closing', async (req, res) => {
                             combined.summary.totalPartsValue += d.summary.totalPartsValue || 0;
                         }
 
-                        // Add as child branch
-                        combined.childBranches.push({
-                            branchId: snap.branchId,
-                            branchName: snap.branchName,
-                            branchCode: snap.branchCode,
-                            receivedAt: snap.receivedAt,
-                            ...(d.summary || {})
-                        });
+                        // Add as child branch (use childBranches from snapshot, or summary fallback)
+                        if (d.childBranches && d.childBranches.length > 0) {
+                            combined.childBranches.push(...d.childBranches.map(cb => ({
+                                branchId: cb.branchId || snap.branchId,
+                                branchName: cb.branchName || cb.branchCode || snap.branchName,
+                                branchCode: cb.branchCode || snap.branchCode,
+                                receivedAt: snap.receivedAt,
+                                sales: cb.sales || { count: 0, totalPrice: 0, paidAmount: 0 },
+                                installmentsCollected: cb.installmentsCollected || { count: 0, amount: 0 },
+                                partsOut: cb.partsOut || 0
+                            })));
+                        } else {
+                            combined.childBranches.push({
+                                branchId: snap.branchId,
+                                branchName: snap.branchName,
+                                branchCode: snap.branchCode,
+                                receivedAt: snap.receivedAt,
+                                sales: { count: d.sales?.cash?.count + d.sales?.installment?.count || 0, totalPrice: d.sales?.cash?.totalPrice + d.sales?.installment?.totalPrice || 0, paidAmount: d.sales?.cash?.paidAmount + d.sales?.installment?.paidAmount || 0 },
+                                installmentsCollected: d.installments?.collected || { count: 0, amount: 0 },
+                                partsOut: (d.spareParts?.paid?.count || 0) + (d.spareParts?.free?.count || 0)
+                            });
+                        }
                     }
 
                     return res.json({
