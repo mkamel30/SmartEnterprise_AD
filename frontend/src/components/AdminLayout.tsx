@@ -8,7 +8,7 @@ import {
     RefreshCw, Settings2, LogOut, RotateCcw,
     Menu, ChevronDown, ZoomIn, ZoomOut,
     TrendingUp, Github, Key, Wrench, DollarSign, Warehouse, Package, Calendar,
-    BarChart3, UserCircle, Activity, ShieldCheck, Bell
+    BarChart3, UserCircle, Activity, ShieldCheck, Bell, CreditCard, Smartphone
 } from 'lucide-react';
 import adminClient from '../api/adminClient';
 
@@ -30,7 +30,7 @@ const navItems: NavItem[] = [
     { id: 'dashboard', name: 'لوحة التحكم', href: '/', icon: LayoutDashboard },
     { id: 'branches', name: 'الفروع', href: '/branches', icon: Building2 },
     { id: 'users', name: 'المستخدمين', href: '/users', icon: Users },
-    { id: 'permissions', name: 'الصلاحيات', href: '/permissions', icon: ShieldCheck },
+    { id: 'permissions', name: 'صلاحيات الإدارة', href: '/permissions', icon: ShieldCheck },
     { id: 'analytics', name: 'التحليلات', href: '/analytics', icon: BarChart3 },
 ];
 
@@ -41,8 +41,8 @@ const reportGroups: NavGroup[] = [
         icon: DollarSign,
         children: [
             { id: 'financial', name: 'التدقيق المالي', href: '/reports', icon: DollarSign },
-            { id: 'payments', name: 'المدفوعات', href: '/reports/payments', icon: DollarSign },
-            { id: 'sales', name: 'المبيعات', href: '/reports/sales', icon: DollarSign },
+            { id: 'payments', name: 'المدفوعات', href: '/reports/payments', icon: CreditCard },
+            { id: 'sales', name: 'المبيعات', href: '/reports/sales', icon: TrendingUp },
             { id: 'installments', name: 'الأقساط', href: '/reports/installments', icon: Calendar },
             { id: 'monthly-closing', name: 'التقفيلة المالية', href: '/monthly-closing', icon: BarChart3 },
         ]
@@ -62,7 +62,7 @@ const reportGroups: NavGroup[] = [
         name: 'الأصول',
         icon: Package,
         children: [
-            { id: 'simcards', name: 'الشرائح', href: '/reports/simcards', icon: Package },
+            { id: 'simcards', name: 'الشرائح', href: '/reports/simcards', icon: Smartphone },
             { id: 'spare-parts', name: 'قطع الغيار', href: '/reports/spare-parts', icon: Package },
             { id: 'price-history', name: 'سعر القطع', href: '/reports/price-history', icon: TrendingUp },
         ]
@@ -72,7 +72,6 @@ const reportGroups: NavGroup[] = [
 const utilityItems: NavItem[] = [
     { id: 'software-updates', name: 'التحديثات', href: '/software-updates', icon: Github },
     { id: 'license-manager', name: 'التراخيص', href: '/license-manager', icon: Key },
-    { id: 'sync-status', name: 'المزامنة', href: '/sync-status', icon: RefreshCw },
     { id: 'sync-monitoring', name: 'مراقبة المزامنة', href: '/sync-monitoring', icon: Activity },
     { id: 'version-logs', name: 'الإصدارات', href: '/version-logs', icon: RotateCcw },
     { id: 'settings', name: 'الإعدادات', href: '/settings', icon: Settings2 },

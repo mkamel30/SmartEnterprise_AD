@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
@@ -22,8 +22,9 @@ const reportTabs = [
   { id: 'sales', label: 'المبيعات', icon: DollarSign },
   { id: 'installments', label: 'الأقساط المتأخرة', icon: Calendar },
   { id: 'inventory', label: 'جرد المخزون', icon: Warehouse },
-  { id: 'spare-parts-inventory', label: 'قطع الغيار', icon: Package },
+  { id: 'spare-parts', label: 'قطع الغيار', icon: Package },
   { id: 'simcards', label: 'الشرائح', icon: Package },
+  { id: 'price-history', label: 'سجل أسعار القطع', icon: TrendingUp },
 ];
 
 const statusMap: any = {
@@ -136,7 +137,23 @@ export default function Reports() {
             if (filters.branchId) params.append('branchId', filters.branchId);
             return adminClient.get(`/inventory/spare-parts-report?${params}`).then(r => r.data);
         },
-        enabled: activeTab === 'spare-parts-inventory'
+        enabled: activeTab === 'spare-parts'
+    });
+
+    const { data: additionsLog } = useQuery({
+        queryKey: ['spare-parts-additions', filters.branchId],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters.branchId) params.append('branchId', filters.branchId);
+            return adminClient.get(`/spare-parts/additions-log?${params}`).then(r => r.data?.data || r.data || []);
+        },
+        enabled: activeTab === 'spare-parts'
+    });
+
+    const { data: priceHistory } = useQuery({
+        queryKey: ['price-history', filters.branchId],
+        queryFn: () => adminClient.get('/spare-parts/price-logs').then(r => r.data?.data || r.data || []),
+        enabled: activeTab === 'price-history'
     });
 
     const { data: sales } = useQuery({
@@ -244,328 +261,6 @@ export default function Reports() {
             </div>
         </div>
     );
-
-    const renderMovements = () => (
-        <div className="space-y-6">
-            {renderFilters()}
-
-            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">النوع</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الكمية</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السبب</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">بواسطة</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredMovements.length === 0 ? (
-                                <tr><td colSpan={8} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
-                            ) : (
-                                filteredMovements.map((m: any) => (
-                                    <tr key={m.id} className="hover:bg-slate-50">
-                                        <td className="p-3 text-sm font-bold">{new Date(m.date).toLocaleDateString('ar-EG')}</td>
-                                        <td className="p-3 text-sm font-bold text-primary">{m.branchName}</td>
-                                        <td className="p-3 text-sm"><div className="font-bold">{m.partName}</div><div className="text-[10px] text-slate-400 font-mono">{m.partNumber}</div></td>
-                                        <td className="p-3">
-                                            {m.type === 'IN' ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 text-green-700 font-black text-[10px] border border-green-200"><ArrowDownCircle size={12} /> دخول</span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 font-black text-[10px] border border-red-200"><ArrowUpCircle size={12} /> خروج</span>
-                                            )}
-                                        </td>
-                                        <td className="p-3 text-lg font-black">{m.quantity}</td>
-                                        <td className="p-3 text-sm font-bold text-slate-500">{m.reason}</td>
-                                        <td className="p-3 text-sm">{m.customerName || '-'}</td>
-                                        <td className="p-3 text-sm text-slate-500">{m.performedBy}</td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderRequests = () => (
-        <div className="space-y-6">
-            {renderFilters()}
-            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الماكينة</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الحالة</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التكلفة</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفني</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredRequests.length === 0 ? (
-                                <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
-                            ) : (
-                                filteredRequests.map((r: any) => (
-                                    <tr key={r.id} className="hover:bg-slate-50">
-                                        <td className="p-3 text-sm font-bold">{new Date(r.date).toLocaleDateString('ar-EG')}</td>
-                                        <td className="p-3 text-sm font-bold text-primary">{r.branchName}</td>
-                                        <td className="p-3 text-sm"><div className="font-bold">{r.customerName}</div><div className="text-[10px] text-slate-400">{r.customerCode}</div></td>
-                                        <td className="p-3 text-sm"><div className="font-mono text-xs">{r.machineSerial}</div><div className="text-[10px] text-slate-400">{r.machineModel}</div></td>
-                                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full font-black text-[10px] border ${statusMap[r.status]?.color || 'bg-slate-100'}`}>{statusMap[r.status]?.label || r.status}</span></td>
-                                        <td className="p-3 text-lg font-black text-green-600">{r.totalCost?.toLocaleString() || 0}</td>
-                                        <td className="p-3 text-sm text-slate-500">{r.technicianName}</td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderPayments = () => (
-        <div className="space-y-6">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
-                <div className="flex items-center justify-between">
-                    <div><p className="text-white/60 font-bold text-sm">إجمالي المدفوعات</p><p className="text-3xl font-black mt-1">{totalPaymentsAmount.toLocaleString()} ج.م</p></div>
-                    <CreditCard size={48} className="text-white/30" />
-                </div>
-            </div>
-            <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <select className="smart-select" value={filters.branchId} onChange={(e) => setFilters(f => ({ ...f, branchId: e.target.value }))}>
-                        <option value="">كل الفروع</option>
-                        {branches?.map((b: any) => (<option key={b.id} value={b.id}>{b.name}</option>))}
-                    </select>
-                    <select className="smart-select" value={filters.type} onChange={(e) => setFilters(f => ({ ...f, type: e.target.value }))}>
-                        <option value="ALL">كل الأنواع</option>
-                        {Object.entries(paymentTypeMap).map(([key, v]: any) => (<option key={key} value={key}>{v.label}</option>))}
-                    </select>
-                    <input type="date" className="smart-input" value={filters.startDate} onChange={(e) => setFilters(f => ({ ...f, startDate: e.target.value }))} />
-                    <input type="date" className="smart-input" value={filters.endDate} onChange={(e) => setFilters(f => ({ ...f, endDate: e.target.value }))} />
-                    <input type="text" className="smart-input" placeholder="بحث..." value={filters.search} onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))} />
-                </div>
-            </div>
-            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">النوع</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">المبلغ</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">السبب</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم الإيصال</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredPayments.length === 0 ? (
-                                <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
-                            ) : (
-                                filteredPayments.map((p: any) => (
-                                    <tr key={p.id} className="hover:bg-slate-50">
-                                        <td className="p-3 text-sm font-bold">{new Date(p.date).toLocaleDateString('ar-EG')}</td>
-                                        <td className="p-3 text-sm font-bold text-primary">{p.branchName}</td>
-                                        <td className="p-3 text-sm"><div className="font-bold">{p.customerName}</div><div className="text-[10px] text-slate-400">{p.customerCode}</div></td>
-                                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full font-black text-[10px] border ${paymentTypeMap[p.type]?.color || 'bg-slate-100'}`}>{paymentTypeMap[p.type]?.label || p.type}</span></td>
-                                        <td className="p-3 text-lg font-black text-green-600">{p.amount?.toLocaleString()}</td>
-                                        <td className="p-3 text-sm text-slate-500">{p.reason || '-'}</td>
-                                        <td className="p-3 text-sm font-mono text-slate-400">{p.receiptNumber || '-'}</td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderInventory = () => (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
-                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Package className="text-primary" size={20} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase">إجمالي القطع</p><p className="text-xl font-black text-primary">{filteredInventory.length}</p></div></div>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
-                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><Package className="text-green-600" size={20} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الكمية</p><p className="text-xl font-black text-green-600">{totalInventoryQty}</p></div></div>
-                </div>
-            </div>
-            {renderFilters()}
-            <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">التكلفة</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الكمية</th>
-                                <th className="p-3 text-xs font-black text-slate-500 uppercase">الموقع</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredInventory.length === 0 ? (
-                                <tr><td colSpan={6} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
-                            ) : (
-                                filteredInventory.map((i: any) => (
-                                    <tr key={i.id} className="hover:bg-slate-50">
-                                        <td className="p-3 text-sm font-bold text-primary">{i.branchName}</td>
-                                        <td className="p-3 text-sm font-bold">{i.partName}</td>
-                                        <td className="p-3 text-sm font-mono text-slate-500">{i.partNumber}</td>
-                                        <td className="p-3 text-sm font-black text-green-600">{i.defaultCost?.toLocaleString()}</td>
-                                        <td className="p-3 text-lg font-black">{i.quantity}</td>
-                                        <td className="p-3 text-sm text-slate-500">{i.location}</td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderSparePartsInventory = () => {
-        const currentStock = sparePartsReport?.currentStock || { totalItems: 0, totalQuantity: 0, items: [] };
-        const outgoingItems = sparePartsReport?.outgoingItems || { total: 0, items: [] };
-
-        return (
-            <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                                <Package className="text-blue-600" size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الأصناف</p>
-                                <p className="text-xl font-black text-blue-600">{currentStock.totalItems}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-2xl p-4 border-2 border-green-500/10 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                                <Package className="text-green-600" size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الكمية</p>
-                                <p className="text-xl font-black text-green-600">{currentStock.totalQuantity}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-2xl p-4 border-2 border-amber-500/10 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                                <Package className="text-amber-600" size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase">مخرج (خارج)</p>
-                                <p className="text-xl font-black text-amber-600">{outgoingItems.total}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {renderFilters()}
-
-                <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-slate-200">
-                        <h3 className="font-black text-primary">المخزون الحالي (الكمية &gt; 0)</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الكمية</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {currentStock.items.length === 0 ? (
-                                    <tr><td colSpan={4} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
-                                ) : (
-                                    currentStock.items.map((i: any) => (
-                                        <tr key={i.id} className="hover:bg-slate-50">
-                                            <td className="p-3 text-sm font-bold text-primary">{i.branchName}</td>
-                                            <td className="p-3 text-sm font-mono text-slate-500">{i.partCode}</td>
-                                            <td className="p-3 text-sm font-bold">{i.partName}</td>
-                                            <td className="p-3 text-lg font-black text-green-600 text-right">{i.quantity}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border-2 border-amber-500/10 shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-slate-200">
-                        <h3 className="font-black text-amber-600">قطع غيار خارج (مستهلكة)</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">كود العميل</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">الجهاز</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الكمية</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">مدفوع</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">مكان الدفع</th>
-                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم إيصال</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {outgoingItems.items.length === 0 ? (
-                                    <tr><td colSpan={10} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
-                                ) : (
-                                    outgoingItems.items.map((i: any) => (
-                                        <tr key={i.id} className="hover:bg-slate-50">
-                                            <td className="p-3 text-sm">{i.date ? new Date(i.date).toLocaleDateString('ar-EG') : '-'}</td>
-                                            <td className="p-3 text-sm font-bold">{i.clientName}</td>
-                                            <td className="p-3 text-sm font-mono text-slate-500">{i.clientCode}</td>
-                                            <td className="p-3 text-sm font-mono text-slate-500">{i.terminalSerial}</td>
-                                            <td className="p-3 text-sm font-mono text-slate-500">{i.partCode}</td>
-                                            <td className="p-3 text-sm font-bold">{i.partName}</td>
-                                            <td className="p-3 text-sm font-black text-right">{i.quantity}</td>
-                                            <td className="p-3">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${i.isPaid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {i.isPaid ? 'نعم' : 'لا'}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-sm">{i.paymentPlace}</td>
-                                            <td className="p-3 text-sm font-mono text-slate-500">{i.receiptNumber}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
 
 
@@ -759,6 +454,230 @@ export default function Reports() {
         </div>
     );
 
+    const renderSparePartsInventory = () => {
+        const currentStock = sparePartsReport?.currentStock || { totalItems: 0, totalQuantity: 0, items: [] };
+        const outgoingItems = sparePartsReport?.outgoingItems || { total: 0, items: [] };
+
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-2xl p-4 border-2 border-primary/10 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <Package className="text-blue-600" size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الأصناف</p>
+                                <p className="text-xl font-black text-blue-600">{currentStock.totalItems}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-4 border-2 border-green-500/10 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                                <Package className="text-green-600" size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي الكمية</p>
+                                <p className="text-xl font-black text-green-600">{currentStock.totalQuantity}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-4 border-2 border-amber-500/10 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                <Package className="text-amber-600" size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">مخرج (خارج)</p>
+                                <p className="text-xl font-black text-amber-600">{outgoingItems.total}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {renderFilters()}
+
+                <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-200">
+                        <h3 className="font-black text-primary">المخزون الحالي (الكمية &gt; 0)</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الكمية</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {currentStock.items.length === 0 ? (
+                                    <tr><td colSpan={4} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                                ) : (
+                                    currentStock.items.map((i: any) => (
+                                        <tr key={i.id} className="hover:bg-slate-50">
+                                            <td className="p-3 text-sm font-bold text-primary">{i.branchName}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.partCode}</td>
+                                            <td className="p-3 text-sm font-bold">{i.partName}</td>
+                                            <td className="p-3 text-lg font-black text-green-600 text-right">{i.quantity}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border-2 border-amber-500/10 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-200">
+                        <h3 className="font-black text-amber-600">قطع غيار خارج (مستهلكة)</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">العميل</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">كود العميل</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">الجهاز</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الكمية</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">مدفوع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">مكان الدفع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم إيصال</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {outgoingItems.items.length === 0 ? (
+                                    <tr><td colSpan={10} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                                ) : (
+                                    outgoingItems.items.map((i: any) => (
+                                        <tr key={i.id} className="hover:bg-slate-50">
+                                            <td className="p-3 text-sm">{i.date ? new Date(i.date).toLocaleDateString('ar-EG') : '-'}</td>
+                                            <td className="p-3 text-sm font-bold">{i.clientName}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.clientCode}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.terminalSerial}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.partCode}</td>
+                                            <td className="p-3 text-sm font-bold">{i.partName}</td>
+                                            <td className="p-3 text-sm font-black text-right">{i.quantity}</td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${i.isPaid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {i.isPaid ? 'نعم' : 'لا'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-sm">{i.paymentPlace}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{i.receiptNumber}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border-2 border-green-500/10 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-200">
+                        <h3 className="font-black text-green-600">إضافات القطع من الفروع</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">الفرع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الكمية</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">النوع</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">بواسطة</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {(!additionsLog || additionsLog.length === 0) ? (
+                                    <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">لا توجد بيانات</td></tr>
+                                ) : (
+                                    additionsLog.map((a: any) => (
+                                        <tr key={a.id} className="hover:bg-slate-50">
+                                            <td className="p-3 text-sm">{new Date(a.date).toLocaleDateString('ar-EG')}</td>
+                                            <td className="p-3 text-sm font-bold text-primary">{a.branchName || '-'}</td>
+                                            <td className="p-3 text-sm font-bold">{a.partName || '-'}</td>
+                                            <td className="p-3 text-sm font-mono text-slate-500">{a.partCode || '-'}</td>
+                                            <td className="p-3 text-sm font-black text-right">{a.quantity}</td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${a.type === 'TRANSFER_IN' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                                    {a.type === 'TRANSFER_IN' ? 'تحويل وارد' : 'إدخال'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-sm text-slate-500">{a.performedBy || '-'}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderPriceHistory = () => {
+        const logs = Array.isArray(priceHistory) ? priceHistory : [];
+
+        return (
+            <div className="space-y-6">
+                {renderFilters()}
+                <div className="bg-white rounded-2xl border-2 border-primary/10 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+                        <h3 className="font-black text-primary">سجل تغييرات الأسعار</h3>
+                        <span className="text-xs text-slate-400 font-bold">{logs.length} سجل</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">التاريخ</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">اسم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">رقم القطعة</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">السعر القديم</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">السعر الجديد</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase text-right">الفرق</th>
+                                    <th className="p-3 text-xs font-black text-slate-500 uppercase">بواسطة</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {logs.length === 0 ? (
+                                    <tr><td colSpan={7} className="p-8 text-center text-slate-400 font-bold">لا توجد سجلات تغيير أسعار</td></tr>
+                                ) : (
+                                    logs.map((log: any) => {
+                                        const diff = (log.newCost || 0) - (log.oldCost || 0);
+                                        return (
+                                            <tr key={log.id} className="hover:bg-slate-50">
+                                                <td className="p-3 text-sm">{new Date(log.changedAt).toLocaleDateString('ar-EG')}</td>
+                                                <td className="p-3 text-sm font-bold">{log.part?.name || '-'}</td>
+                                                <td className="p-3 text-sm font-mono text-slate-500">{log.part?.partNumber || '-'}</td>
+                                                <td className="p-3 text-sm text-right">{(log.oldCost || 0).toLocaleString()} ج.م</td>
+                                                <td className="p-3 text-sm font-black text-right">{(log.newCost || 0).toLocaleString()} ج.م</td>
+                                                <td className="p-3 text-sm font-black text-right">
+                                                    <span className={diff > 0 ? 'text-red-600' : diff < 0 ? 'text-green-600' : 'text-slate-500'}>
+                                                        {diff > 0 ? '+' : ''}{diff.toLocaleString()} ج.م
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 text-sm text-slate-500">{log.changedBy || '-'}</td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderContent = () => {
         switch (activeTab) {
             case 'movements': return renderMovements();
@@ -767,8 +686,9 @@ export default function Reports() {
             case 'sales': return renderSales();
             case 'installments': return renderInstallments();
             case 'inventory': return renderInventory();
-            case 'spare-parts-inventory': return renderSparePartsInventory();
+            case 'spare-parts': return renderSparePartsInventory();
             case 'simcards': return renderSimCards();
+            case 'price-history': return renderPriceHistory();
             default: return renderFinancial();
         }
     };

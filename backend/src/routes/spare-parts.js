@@ -148,6 +148,63 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// Get all price logs (admin-level, with part details)
+router.get('/price-logs', async (req, res) => {
+    try {
+        const { limit = 100, offset = 0 } = req.query;
+        const logs = await prisma.sparePartPriceLog.findMany({
+            include: { part: { select: { id: true, name: true, partNumber: true, defaultCost: true } } },
+            orderBy: { changedAt: 'desc' },
+            take: parseInt(limit),
+            skip: parseInt(offset)
+        });
+        const total = await prisma.sparePartPriceLog.count();
+        res.json({ success: true, data: logs, total });
+    } catch (error) {
+        logger.error('Failed to fetch all price logs:', error);
+        res.status(500).json({ error: 'Failed to fetch price logs' });
+    }
+});
+
+// Get spare parts additions log (IN / TRANSFER_IN movements)
+router.get('/additions-log', async (req, res) => {
+    try {
+        const { branchId, limit = 100, offset = 0 } = req.query;
+        const where = { type: { in: ['IN', 'TRANSFER_IN'] } };
+        if (branchId) where.branchId = branchId;
+
+        const movements = await prisma.stockMovement.findMany({
+            where,
+            include: {
+                branch: { select: { id: true, code: true, name: true } },
+                part: { select: { id: true, name: true, partNumber: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: parseInt(limit),
+            skip: parseInt(offset)
+        });
+
+        const total = await prisma.stockMovement.count({ where });
+
+        const data = movements.map(m => ({
+            id: m.id,
+            date: m.createdAt,
+            branchName: m.branch?.name || '-',
+            branchCode: m.branch?.code || '-',
+            partName: m.part?.name || '-',
+            partCode: m.part?.partNumber || '-',
+            quantity: m.quantity,
+            type: m.type,
+            performedBy: m.performedBy || '-'
+        }));
+
+        res.json({ success: true, data, total });
+    } catch (error) {
+        logger.error('Failed to fetch additions log:', error);
+        res.status(500).json({ error: 'Failed to fetch additions log' });
+    }
+});
+
 // Get price change logs for a spare part
 router.get('/:id/price-logs', async (req, res) => {
     try {

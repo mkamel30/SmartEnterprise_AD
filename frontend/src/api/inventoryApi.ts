@@ -64,5 +64,20 @@ export const inventoryApi = {
     getSparePartsReport: (params?: { branchId?: string }): Promise<any> => {
         const query = params?.branchId ? `?branchId=${params.branchId}` : '';
         return request(`/inventory/spare-parts-report${query}`);
+    },
+
+    getPriceLogs: (params?: { limit?: number; offset?: number }): Promise<any> => {
+        const query = new URLSearchParams();
+        if (params?.limit) query.append('limit', params.limit.toString());
+        if (params?.offset) query.append('offset', params.offset.toString());
+        return request(`/spare-parts/price-logs?${query.toString()}`);
+    },
+
+    getAdditionsLog: (params?: { branchId?: string; limit?: number; offset?: number }): Promise<any> => {
+        const query = new URLSearchParams();
+        if (params?.branchId) query.append('branchId', params.branchId);
+        if (params?.limit) query.append('limit', params.limit.toString());
+        if (params?.offset) query.append('offset', params.offset.toString());
+        return request(`/spare-parts/additions-log?${query.toString()}`);
     }
 };
