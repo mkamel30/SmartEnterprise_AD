@@ -452,6 +452,7 @@ model StockMovement {
   receiptNumber String?
   customerId    String?
   customerName  String?
+  customerBkcode String?
   machineSerial String?
   machineModel  String?
   paymentPlace  String?
@@ -470,6 +471,7 @@ model Payment {
   id            String              @id @default(cuid())
   customerId    String?
   customerName  String?
+  customerBkcode String?
   requestId     String?
   amount        Float
   type          String?

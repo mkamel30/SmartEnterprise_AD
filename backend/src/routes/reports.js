@@ -129,9 +129,27 @@ router.get('/performance', async (req, res) => {
 
 router.get('/monthly-closing', async (req, res) => {
     try {
-        const { month, branchId } = req.query;
+        const { month, branchId, mode } = req.query;
         if (!month || !/^\d{4}-\d{2}$/.test(month)) {
             return res.status(400).json({ error: 'الشهر مطلوب بصيغة YYYY-MM' });
+        }
+
+        if (branchId && mode !== 'live') {
+            const snapshot = await prisma.monthlyClosingReport.findUnique({
+                where: { branchId_month: { branchId, month } }
+            });
+            if (snapshot && snapshot.data) {
+                logger.info(`[Reports] Returning snapshot data for branch ${branchId}, month ${month}`);
+                return res.json({
+                    success: true,
+                    source: 'snapshot',
+                    month,
+                    branch: { id: snapshot.branchId, name: snapshot.branchName, code: snapshot.branchCode },
+                    receivedAt: snapshot.receivedAt,
+                    sections: snapshot.sections,
+                    ...snapshot.data
+                });
+            }
         }
 
         const [year, mon] = month.split('-').map(Number);
@@ -263,7 +281,7 @@ router.get('/monthly-closing', async (req, res) => {
         const topParts = Object.values(partFrequencyMap).sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 15);
 
         res.json({
-            success: true, month, branch: branchInfo, hasChildBranches: childBranchesList.length > 0,
+            success: true, source: 'live', month, branch: branchInfo, hasChildBranches: childBranchesList.length > 0,
             sales: {
                 cash: { count: cashSales.length, totalPrice: cashTotal, paidAmount: cashPaid, remaining: cashTotal - cashPaid, details: cashSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: getDisplayName(s.customer), customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },
                 installment: { count: installmentSales.length, totalPrice: installmentTotal, paidAmount: installmentPaid, remaining: installmentTotal - installmentPaid, details: installmentSales.map(s => ({ id: s.id, serialNumber: s.serialNumber, customerName: getDisplayName(s.customer), customerCode: s.customer?.bkcode, saleDate: s.saleDate, totalPrice: s.totalPrice, paidAmount: s.paidAmount, status: s.status, branchName: s.branch?.name })) },

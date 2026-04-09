@@ -408,6 +408,23 @@ export default function MonthlyClosing() {
             {versionSelector}
             {flushConfirmDialog}
 
+            {/* Data source indicator */}
+            {data?.source && (
+                <div className="flex items-center gap-2">
+                    {data.source === 'snapshot' ? (
+                        <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
+                            <CheckCircle size={14} />
+                            تقرير من الفرع — استلام {data.receivedAt ? new Date(data.receivedAt).toLocaleString('ar-EG') : ''}
+                        </div>
+                    ) : (
+                        <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
+                            <Clock size={14} />
+                            بيانات مباشرة — محسوبة من قاعدة البيانات
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Section Tabs */}
             <div className="flex flex-wrap items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-2xl border border-slate-200 shadow-sm print:hidden">
                 {sections.map(s => (

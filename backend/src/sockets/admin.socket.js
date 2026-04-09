@@ -21,7 +21,7 @@ const {
 const ALLOWED_WAREHOUSE_MACHINE_FIELDS = ['serialNumber', 'model', 'manufacturer', 'status', 'resolution', 'notes', 'complaint', 'importDate', 'updatedAt', 'originalOwnerId', 'readyForPickup', 'requestId', 'customerId', 'customerName', 'customerBkcode'];
 const ALLOWED_MACHINE_SALE_FIELDS = ['serialNumber', 'customerId', 'customerName', 'customerBkcode', 'saleDate', 'type', 'totalPrice', 'paidAmount', 'status', 'notes'];
 const ALLOWED_WAREHOUSE_SIM_FIELDS = ['serialNumber', 'type', 'networkType', 'status', 'notes', 'importDate', 'updatedAt'];
-const ALLOWED_STOCK_MOVEMENT_FIELDS = ['id', 'partId', 'type', 'quantity', 'reason', 'requestId', 'userId', 'performedBy', 'isPaid', 'paidAmount', 'receiptNumber', 'customerId', 'customerName', 'machineSerial', 'machineModel', 'paymentPlace', 'createdAt'];
+const ALLOWED_STOCK_MOVEMENT_FIELDS = ['id', 'partId', 'type', 'quantity', 'reason', 'requestId', 'userId', 'performedBy', 'isPaid', 'paidAmount', 'receiptNumber', 'customerId', 'customerName', 'customerBkcode', 'machineSerial', 'machineModel', 'paymentPlace', 'createdAt'];
 const ALLOWED_PAYMENT_FIELDS = ['customerId', 'customerName', 'customerBkcode', 'requestId', 'amount', 'type', 'reason', 'paymentPlace', 'paymentMethod', 'receiptNumber', 'notes', 'userId', 'userName'];
 const ALLOWED_MAINTENANCE_REQUEST_FIELDS = ['customerId', 'posMachineId', 'customerName', 'customerBkcode', 'machineModel', 'machineManufacturer', 'serialNumber', 'status', 'technicianId', 'technician', 'type', 'description', 'createdBy', 'notes', 'complaint', 'actionTaken', 'closingUserId', 'closingUserName', 'closingTimestamp', 'usedParts', 'receiptNumber', 'totalCost'];
 const ALLOWED_INSTALLMENT_FIELDS = ['saleId', 'dueDate', 'amount', 'isPaid', 'paidAt', 'description', 'paidAmount', 'paymentPlace', 'receiptNumber'];
@@ -766,6 +766,7 @@ module.exports = (io) => {
                         const validation = validateEntityArray(entities.stockMovements, stockMovementSchema, 'stockMovements');
                         if (validation.results.length > 0) {
                             for (const r of validation.results) {
+                                if (r.customerId) await ensureCustomerExists(r.customerId, r.customerName, r.customerBkcode, socket.branchId);
                                 await prisma.stockMovement.upsert({
                                     where: { id: r.id },
                                     update: { ...r, branchId: socket.branchId },

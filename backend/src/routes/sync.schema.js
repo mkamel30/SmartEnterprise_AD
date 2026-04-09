@@ -9,7 +9,8 @@ const requestSyncSchema = z.object({
 const paymentItemSchema = z.object({
     id: z.string().min(1),
     customerId: z.string().optional().nullable(),
-    customerName: z.string().optional().nullable(),
+    customerName: z.string().max(200).optional().nullable(),
+    customerBkcode: z.string().max(50).optional().nullable(),
     requestId: z.string().optional().nullable(),
     amount: z.number().positive(),
     type: z.string().max(50).optional().nullable(),
@@ -61,6 +62,7 @@ const stockMovementSchema = z.object({
     receiptNumber: z.string().max(100).optional().nullable(),
     customerId: z.string().optional().nullable(),
     customerName: z.string().max(200).optional().nullable(),
+    customerBkcode: z.string().max(50).optional().nullable(),
     machineSerial: z.string().max(100).optional().nullable(),
     machineModel: z.string().max(100).optional().nullable(),
     paymentPlace: z.string().max(100).optional().nullable(),
