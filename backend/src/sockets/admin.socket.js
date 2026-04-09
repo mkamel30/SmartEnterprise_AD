@@ -578,6 +578,104 @@ module.exports = (io) => {
                 const results = {};
                 const errors = {};
 
+                // FULL REPLACE: Delete all existing data for this branch first, then insert fresh
+                // Order matters due to foreign key constraints
+                logger.info(`[Sync] Full replace: deleting existing data for branch ${socket.branchId}`);
+                const deleteCounts = await prisma.$transaction(async (tx) => {
+                    // Delete in FK-safe order (children before parents)
+                    await tx.installment.deleteMany({ where: { sale: { branchId: socket.branchId } } });
+                    await tx.payment.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.stockMovement.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.usedPartLog.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.machineSale.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.maintenanceRequest.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.posMachine.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.simMovementLog.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.simCard.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.warehouseMachine.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.warehouseSim.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.machineMovementLog.deleteMany({ where: { branchId: socket.branchId } });
+                    await tx.branchSparePart.deleteMany({ where: { branchId: socket.branchId } });
+
+                    // Count remaining after delete for logging
+                    const counts = {
+                        sales: await tx.machineSale.count({ where: { branchId: socket.branchId } }),
+                        installments: await tx.installment.count({ where: { sale: { branchId: socket.branchId } } }),
+                        payments: await tx.payment.count({ where: { branchId: socket.branchId } }),
+                        stockMovements: await tx.stockMovement.count({ where: { branchId: socket.branchId } }),
+                        usedPartLogs: await tx.usedPartLog.count({ where: { branchId: socket.branchId } }),
+                        maintenanceRequests: await tx.maintenanceRequest.count({ where: { branchId: socket.branchId } }),
+                    };
+                    return counts;
+                });
+                logger.info(`[Sync] Full replace: deleted existing data for branch ${socket.branchId}`, deleteCounts);
+
+                // Now insert fresh data from the branch
+
+                // 1. Customers first (upsert since they may be referenced by other entities across branches)
+                if (entities.customers && Array.isArray(entities.customers)) {
+                    const validation = validateEntityArray(entities.customers, customerSchema, 'customers');
+                    if (validation.errors.length > 0) {
+                        errors.customers = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        for (const r of validation.results) {
+                            await prisma.customer.upsert({
+                                where: { id: r.id },
+                                update: { ...r, branchId: socket.branchId },
+                                create: { ...r, branchId: socket.branchId }
+                            });
+                        }
+                    }
+                    results.customers = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
+                // 2. MasterSparePart (global, upsert only)
+                if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
+                    for (const m of entities.stockMovements) {
+                        if (m.partId && (m.partNumber || m.partName)) {
+                            await prisma.masterSparePart.upsert({
+                                where: { id: m.partId },
+                                update: { name: m.partName || undefined, partNumber: m.partNumber || undefined },
+                                create: { id: m.partId, name: m.partName || 'Unknown', partNumber: m.partNumber || m.partId }
+                            });
+                        }
+                    }
+                }
+                if (entities.inventory && Array.isArray(entities.inventory)) {
+                    for (const inv of entities.inventory) {
+                        if (inv.partId && (inv.partNumber || inv.partName)) {
+                            await prisma.masterSparePart.upsert({
+                                where: { id: inv.partId },
+                                update: { name: inv.partName || undefined, partNumber: inv.partNumber || undefined },
+                                create: { id: inv.partId, name: inv.partName || 'Unknown', partNumber: inv.partNumber || inv.partId }
+                            });
+                        }
+                    }
+                }
+
+                // 3. PosMachines (referenced by maintenanceRequests)
+                if (entities.posMachines && Array.isArray(entities.posMachines)) {
+                    const validation = validateEntityArray(entities.posMachines, posMachineSchema, 'posMachines');
+                    if (validation.errors.length > 0) {
+                        errors.posMachines = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        for (const r of validation.results) {
+                            if (r.customerId) await ensureCustomerExists(r.customerId, r.customerName, r.customerBkcode, socket.branchId);
+                            await prisma.posMachine.upsert({
+                                where: { id: r.id },
+                                update: { ...r, branchId: socket.branchId },
+                                create: { ...r, branchId: socket.branchId }
+                            });
+                        }
+                    }
+                    results.posMachines = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
+                // 4. MaintenanceRequests (referenced by payments, stockMovements, usedPartLogs)
                 if (entities.maintenanceRequests && Array.isArray(entities.maintenanceRequests)) {
                     try {
                         const validation = validateEntityArray(entities.maintenanceRequests, maintenanceRequestSchema, 'maintenanceRequests');
@@ -596,50 +694,7 @@ module.exports = (io) => {
                     } catch (e) { logger.error({ err: e.message }, '[Sync] Blocked on maintenanceRequests'); }
                 }
 
-                if (entities.payments && Array.isArray(entities.payments)) {
-                    try {
-                        const validation = validateEntityArray(entities.payments, paymentItemSchema, 'payments');
-                        if (validation.results.length > 0) {
-                            for (const r of validation.results) {
-                                await prisma.payment.upsert({
-                                    where: { id: r.id },
-                                    update: { ...r, branchId: socket.branchId },
-                                    create: { ...r, branchId: socket.branchId }
-                                });
-                            }
-                        }
-                        results.payments = validation.results.length;
-                        totalSynced += validation.results.length;
-                    } catch (e) { logger.error({ err: e.message }, '[Sync] Blocked on payments'); }
-                }
-
-                if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
-                    try {
-                        // Pre-process: ensure all parts mentioned in movements exist in master list
-                        for (const m of entities.stockMovements) {
-                            if (m.partId && (m.partNumber || m.partName)) {
-                                await prisma.masterSparePart.upsert({
-                                    where: { id: m.partId },
-                                    update: { name: m.partName || undefined, partNumber: m.partNumber || undefined },
-                                    create: { id: m.partId, name: m.partName || 'Unknown', partNumber: m.partNumber || m.partId }
-                                });
-                            }
-                        }
-
-                        const validation = validateEntityArray(entities.stockMovements, stockMovementSchema, 'stockMovements');
-                        if (validation.results.length > 0) {
-                            const ops = validation.results.map(r => prisma.stockMovement.upsert({
-                                where: { id: r.id },
-                                update: { ...r, branchId: socket.branchId },
-                                create: { ...r, branchId: socket.branchId }
-                            }));
-                            await prisma.$transaction(ops);
-                        }
-                        results.stockMovements = validation.results.length;
-                        totalSynced += validation.results.length;
-                    } catch (e) { logger.error({ err: e.message }, '[Sync] stockMovements failed'); }
-                }
-
+                // 5. MachineSales (referenced by installments)
                 if (entities.machineSales && Array.isArray(entities.machineSales)) {
                     try {
                         const validation = validateEntityArray(entities.machineSales, machineSaleSchema, 'machineSales');
@@ -658,152 +713,62 @@ module.exports = (io) => {
                     } catch (e) { logger.error({ err: e.message }, '[Sync] machineSales failed'); }
                 }
 
+                // 6. Installments (depends on machineSales)
                 if (entities.installments && Array.isArray(entities.installments)) {
                     try {
                         const validation = validateEntityArray(entities.installments, installmentSchema, 'installments');
                         if (validation.results.length > 0) {
-                            const ops = validation.results.map(r => prisma.installment.upsert({
-                                where: { id: r.id },
-                                update: { ...r, branchId: socket.branchId },
-                                create: { ...r, branchId: socket.branchId }
-                            }));
-                            await prisma.$transaction(ops);
+                            for (const r of validation.results) {
+                                await prisma.installment.upsert({
+                                    where: { id: r.id },
+                                    update: { ...r, branchId: socket.branchId },
+                                    create: { ...r, branchId: socket.branchId }
+                                });
+                            }
                         }
                         results.installments = validation.results.length;
                         totalSynced += validation.results.length;
                     } catch (e) { logger.error({ err: e.message }, '[Sync] installments failed'); }
                 }
 
-                if (entities.simCards && Array.isArray(entities.simCards)) {
-                    const validation = validateEntityArray(entities.simCards, simCardSchema, 'simCards');
-                    if (validation.errors.length > 0) {
-                        errors.simCards = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.simCard.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.simCards = validation.results.length;
-                    totalSynced += validation.results.length;
-                }
-
-                if (entities.simMovements && Array.isArray(entities.simMovements)) {
-                    const validation = validateEntityArray(entities.simMovements, simMovementSchema, 'simMovements');
-                    if (validation.errors.length > 0) {
-                        errors.simMovements = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.simMovementLog.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.simMovements = validation.results.length;
-                    totalSynced += validation.results.length;
-                }
-
-                if (entities.warehouseMachines && Array.isArray(entities.warehouseMachines)) {
-                    const validation = validateEntityArray(entities.warehouseMachines, warehouseMachineSchema, 'warehouseMachines');
-                    if (validation.errors.length > 0) {
-                        errors.warehouseMachines = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.warehouseMachine.upsert({
-                            where: { serialNumber: r.serialNumber },
-                            update: { ...r, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.warehouseMachines = validation.results.length;
-                    totalSynced += validation.results.length;
-                }
-
-                if (entities.warehouseSims && Array.isArray(entities.warehouseSims)) {
-                    const validation = validateEntityArray(entities.warehouseSims, warehouseSimSchema, 'warehouseSims');
-                    if (validation.errors.length > 0) {
-                        errors.warehouseSims = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.warehouseSim.upsert({
-                            where: { serialNumber: r.serialNumber },
-                            update: { ...r, branchId: socket.branchId, updatedAt: new Date() },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.warehouseSims = validation.results.length;
-                    totalSynced += validation.results.length;
-                }
-
-                if (entities.posMachines && Array.isArray(entities.posMachines)) {
-                    const validation = validateEntityArray(entities.posMachines, posMachineSchema, 'posMachines');
-                    if (validation.errors.length > 0) {
-                        errors.posMachines = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.posMachine.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.posMachines = validation.results.length;
-                    totalSynced += validation.results.length;
-                }
-
-                if (entities.customers && Array.isArray(entities.customers)) {
-                    const validation = validateEntityArray(entities.customers, customerSchema, 'customers');
-                    if (validation.errors.length > 0) {
-                        errors.customers = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.customer.upsert({
-                            where: { id: r.id },
-                            update: { ...r, branchId: socket.branchId },
-                            create: { ...r, branchId: socket.branchId }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.customers = validation.results.length;
-                    totalSynced += validation.results.length;
-                }
-
-                if (entities.inventory && Array.isArray(entities.inventory)) {
-                    // Pre-process: ensure all parts in inventory exist in master list
-                    for (const inv of entities.inventory) {
-                        if (inv.partId && (inv.partNumber || inv.partName)) {
-                            await prisma.masterSparePart.upsert({
-                                where: { id: inv.partId },
-                                update: { name: inv.partName || undefined, partNumber: inv.partNumber || undefined },
-                                create: { id: inv.partId, name: inv.partName || 'Unknown', partNumber: inv.partNumber || inv.partId }
-                            });
+                // 7. Payments (depends on customers, maintenanceRequests)
+                if (entities.payments && Array.isArray(entities.payments)) {
+                    try {
+                        const validation = validateEntityArray(entities.payments, paymentItemSchema, 'payments');
+                        if (validation.results.length > 0) {
+                            for (const r of validation.results) {
+                                if (r.customerId) await ensureCustomerExists(r.customerId, r.customerName, r.customerBkcode, socket.branchId);
+                                await prisma.payment.upsert({
+                                    where: { id: r.id },
+                                    update: { ...r, branchId: socket.branchId },
+                                    create: { ...r, branchId: socket.branchId }
+                                });
+                            }
                         }
-                    }
-
-                    const validation = validateEntityArray(entities.inventory, inventorySchema, 'inventory');
-                    if (validation.errors.length > 0) {
-                        errors.inventory = validation.errors;
-                    }
-                    if (validation.results.length > 0) {
-                        const ops = validation.results.map(r => prisma.branchSparePart.upsert({
-                            where: { branchId_partId: { branchId: socket.branchId, partId: r.partId } },
-                            update: { quantity: r.quantity, lastUpdated: new Date() },
-                            create: { branchId: socket.branchId, partId: r.partId, quantity: r.quantity }
-                        }));
-                        await prisma.$transaction(ops);
-                    }
-                    results.inventory = validation.results.length;
-                    totalSynced += validation.results.length;
+                        results.payments = validation.results.length;
+                        totalSynced += validation.results.length;
+                    } catch (e) { logger.error({ err: e.message }, '[Sync] Blocked on payments'); }
                 }
 
+                // 8. StockMovements (depends on masterSparePart, maintenanceRequests)
+                if (entities.stockMovements && Array.isArray(entities.stockMovements)) {
+                    try {
+                        const validation = validateEntityArray(entities.stockMovements, stockMovementSchema, 'stockMovements');
+                        if (validation.results.length > 0) {
+                            for (const r of validation.results) {
+                                await prisma.stockMovement.upsert({
+                                    where: { id: r.id },
+                                    update: { ...r, branchId: socket.branchId },
+                                    create: { ...r, branchId: socket.branchId }
+                                });
+                            }
+                        }
+                        results.stockMovements = validation.results.length;
+                        totalSynced += validation.results.length;
+                    } catch (e) { logger.error({ err: e.message }, '[Sync] stockMovements failed'); }
+                }
+
+                // 9. UsedPartLogs (depends on maintenanceRequests, customers)
                 if (entities.usedPartLogs && Array.isArray(entities.usedPartLogs)) {
                     const validation = validateEntityArray(entities.usedPartLogs, usedPartLogSchema, 'usedPartLogs');
                     if (validation.results.length > 0) {
@@ -817,6 +782,100 @@ module.exports = (io) => {
                         }
                     }
                     results.usedPartLogs = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
+                // 10. SimCards (depends on customers)
+                if (entities.simCards && Array.isArray(entities.simCards)) {
+                    const validation = validateEntityArray(entities.simCards, simCardSchema, 'simCards');
+                    if (validation.errors.length > 0) {
+                        errors.simCards = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        for (const r of validation.results) {
+                            await prisma.simCard.upsert({
+                                where: { id: r.id },
+                                update: { ...r, branchId: socket.branchId },
+                                create: { ...r, branchId: socket.branchId }
+                            });
+                        }
+                    }
+                    results.simCards = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
+                // 11. SimMovementLogs (independent)
+                if (entities.simMovements && Array.isArray(entities.simMovements)) {
+                    const validation = validateEntityArray(entities.simMovements, simMovementSchema, 'simMovements');
+                    if (validation.errors.length > 0) {
+                        errors.simMovements = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        for (const r of validation.results) {
+                            await prisma.simMovementLog.upsert({
+                                where: { id: r.id },
+                                update: { ...r, branchId: socket.branchId },
+                                create: { ...r, branchId: socket.branchId }
+                            });
+                        }
+                    }
+                    results.simMovements = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
+                // 12. WarehouseMachines (independent, keyed by serialNumber)
+                if (entities.warehouseMachines && Array.isArray(entities.warehouseMachines)) {
+                    const validation = validateEntityArray(entities.warehouseMachines, warehouseMachineSchema, 'warehouseMachines');
+                    if (validation.errors.length > 0) {
+                        errors.warehouseMachines = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        for (const r of validation.results) {
+                            await prisma.warehouseMachine.upsert({
+                                where: { serialNumber: r.serialNumber },
+                                update: { ...r, branchId: socket.branchId, updatedAt: new Date() },
+                                create: { ...r, branchId: socket.branchId }
+                            });
+                        }
+                    }
+                    results.warehouseMachines = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
+                // 13. WarehouseSims (independent, keyed by serialNumber)
+                if (entities.warehouseSims && Array.isArray(entities.warehouseSims)) {
+                    const validation = validateEntityArray(entities.warehouseSims, warehouseSimSchema, 'warehouseSims');
+                    if (validation.errors.length > 0) {
+                        errors.warehouseSims = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        for (const r of validation.results) {
+                            await prisma.warehouseSim.upsert({
+                                where: { serialNumber: r.serialNumber },
+                                update: { ...r, branchId: socket.branchId, updatedAt: new Date() },
+                                create: { ...r, branchId: socket.branchId }
+                            });
+                        }
+                    }
+                    results.warehouseSims = validation.results.length;
+                    totalSynced += validation.results.length;
+                }
+
+                // 14. Inventory (branch spare parts, keyed by composite)
+                if (entities.inventory && Array.isArray(entities.inventory)) {
+                    const validation = validateEntityArray(entities.inventory, inventorySchema, 'inventory');
+                    if (validation.errors.length > 0) {
+                        errors.inventory = validation.errors;
+                    }
+                    if (validation.results.length > 0) {
+                        const ops = validation.results.map(r => prisma.branchSparePart.upsert({
+                            where: { branchId_partId: { branchId: socket.branchId, partId: r.partId } },
+                            update: { quantity: r.quantity, lastUpdated: new Date() },
+                            create: { branchId: socket.branchId, partId: r.partId, quantity: r.quantity }
+                        }));
+                        await prisma.$transaction(ops);
+                    }
+                    results.inventory = validation.results.length;
                     totalSynced += validation.results.length;
                 }
 
