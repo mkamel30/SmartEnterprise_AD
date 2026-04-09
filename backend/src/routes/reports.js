@@ -285,6 +285,76 @@ router.get('/monthly-closing', async (req, res) => {
     }
 });
 
+// GET /monthly-closing/versions - Get all versions of monthly closing reports for a month (to review old ones)
+router.get('/monthly-closing/versions', async (req, res) => {
+    try {
+        const { month } = req.query;
+        if (!month) return res.status(400).json({ error: 'Month is required (YYYY-MM)' });
+
+        // Get all reports for this month, sorted by receivedAt descending
+        const reports = await prisma.monthlyClosingReport.findMany({
+            where: { month },
+            select: { 
+                id: true, branchId: true, branchCode: true, branchName: true, 
+                month: true, status: true, sentAt: true, receivedAt: true, sections: true 
+            },
+            orderBy: { receivedAt: 'desc' }
+        });
+
+        // Group by branchId to show multiple versions per branch
+        const versionsByBranch = reports.reduce((acc, r) => {
+            if (!acc[r.branchId]) acc[r.branchId] = [];
+            acc[r.branchId].push(r);
+            return acc;
+        }, {});
+
+        res.json({ success: true, month, versionsByBranch, allVersions: reports });
+    } catch (error) {
+        logger.error('Failed to fetch monthly closing versions:', error);
+        res.status(500).json({ error: 'Failed to fetch versions' });
+    }
+});
+
+// GET /monthly-closing/version/:id - Get a specific version by ID
+router.get('/monthly-closing/version/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const report = await prisma.monthlyClosingReport.findUnique({
+            where: { id },
+            include: { branch: { select: { id: true, name: true, code: true } } }
+        });
+        
+        if (!report) return res.status(404).json({ error: 'Report not found' });
+        
+        res.json({ success: true, report });
+    } catch (error) {
+        logger.error('Failed to fetch monthly closing version:', error);
+        res.status(500).json({ error: 'Failed to fetch version' });
+    }
+});
+
+// DELETE /monthly-closing/:id - Delete a specific monthly closing report version
+router.delete('/monthly-closing/:id', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const deleted = await prisma.monthlyClosingReport.delete({
+            where: { id }
+        });
+
+        // Also delete related logs
+        await prisma.monthlyClosingLog.deleteMany({
+            where: { branchId: deleted.branchId, month: deleted.month }
+        });
+
+        logger.info(`[Reports] Deleted monthly closing report ${id}`);
+        res.json({ success: true, message: 'Report deleted' });
+    } catch (error) {
+        logger.error('Failed to delete monthly closing report:', error);
+        res.status(500).json({ error: 'Failed to delete report' });
+    }
+});
+
 module.exports = router;
 
 // GET /monthly-closing/branches-status - Check which branches have sent reports for a given month

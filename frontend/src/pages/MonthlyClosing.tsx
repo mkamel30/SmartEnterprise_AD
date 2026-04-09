@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import adminClient from '../api/adminClient';
-import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2, RefreshCw, Send, CheckCircle, Clock } from 'lucide-react';
+import { CalendarDays, FileSpreadsheet, Printer, FileDown, Building2, RefreshCw, Send, CheckCircle, Clock, Trash2, History, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '../components/ui/button';
 import PageHeader from '../components/PageHeader';
+import * as Dialog from '@radix-ui/react-dialog';
 
 // Section Components
 import { SalesSummary } from '../components/monthly-closing/SalesSummary';
@@ -35,6 +36,9 @@ export default function MonthlyClosing() {
     const [activeSection, setActiveSection] = useState<'all' | 'sales' | 'installments' | 'parts' | 'inventory'>('all');
     const [isExporting, setIsExporting] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [selectedVersionId, setSelectedVersionId] = useState<string>('');
+    const [showVersionDialog, setShowVersionDialog] = useState(false);
+    const [showFlushConfirm, setShowFlushConfirm] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
 
     const { data: branchesData } = useQuery({
@@ -92,6 +96,40 @@ export default function MonthlyClosing() {
         onError: () => {
             toast.error('فشل في تحديث وضع المزامنة');
         }
+    });
+
+    const flushMonthlyClosing = useMutation({
+        mutationFn: () => adminClient.delete('/reports/monthly-closing/flush', { 
+            params: { month: selectedMonth } 
+        }),
+        onSuccess: (res: any) => {
+            toast.success(`تم مسح ${res.data?.deletedReports || 0} تقارير و ${res.data?.deletedLogs || 0} سجلات`);
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing', selectedMonth] });
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing-versions', selectedMonth] });
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing-branches-status', selectedMonth] });
+        },
+        onError: () => {
+            toast.error('فشل في مسح التقارير');
+        }
+    });
+
+    const deleteVersion = useMutation({
+        mutationFn: (versionId: string) => adminClient.delete(`/reports/monthly-closing/${versionId}`),
+        onSuccess: () => {
+            toast.success('تم حذف الإصدار');
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing', selectedMonth] });
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing-versions', selectedMonth] });
+        },
+        onError: () => {
+            toast.error('فشل في حذف الإصدار');
+        }
+    });
+
+    // Get list of versions for the selected month
+    const { data: versionsData } = useQuery({
+        queryKey: ['monthly-closing-versions', selectedMonth],
+        queryFn: () => adminClient.get(`/reports/monthly-closing/versions?month=${selectedMonth}`).then(res => res.data),
+        enabled: !!selectedMonth
     });
 
     // Month navigation
@@ -282,7 +320,84 @@ export default function MonthlyClosing() {
                 <Printer size={16} />
                 <span className="hidden md:inline">طباعة</span>
             </Button>
+
+            {/* Version History Button */}
+            <Button variant="outline" size="sm" onClick={() => setShowVersionDialog(true)} className="gap-2 rounded-xl text-amber-600 border-amber-200 hover:bg-amber-50">
+                <History size={16} />
+                <span className="hidden md:inline">السوابق</span>
+            </Button>
+
+            {/* Flush Button */}
+            <Button variant="outline" size="sm" onClick={() => setShowFlushConfirm(true)} className="gap-2 rounded-xl text-red-600 border-red-200 hover:bg-red-50">
+                <Trash2 size={16} />
+                <span className="hidden md:inline">مسح</span>
+            </Button>
         </div>
+    );
+
+    // Version selector dialog
+    const versionSelector = (
+        <Dialog.Root open={showVersionDialog} onOpenChange={setShowVersionDialog}>
+            <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+                <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl p-6 w-full max-w-lg z-50 shadow-2xl max-h-[80vh] overflow-y-auto">
+                    <Dialog.Title className="text-xl font-black text-slate-800 mb-4">سجل التقارير السابقة</Dialog.Title>
+                    <Dialog.Description className="text-sm text-slate-500 mb-4">
+                        اختر إصداراً واحداً للمقارنة أو احذف غير Needed
+                    </Dialog.Description>
+                    <div className="space-y-3">
+                        {versionsData?.allVersions?.length === 0 ? (
+                            <p className="text-center text-slate-400 py-8">لا توجد إصدارات سابقة</p>
+                        ) : (
+                            versionsData?.allVersions?.map((v: any) => (
+                                <div key={v.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                                    <div>
+                                        <p className="font-bold text-slate-700">{v.branchName}</p>
+                                        <p className="text-xs text-slate-400">
+                                            {v.receivedAt ? new Date(v.receivedAt).toLocaleString('ar-EG') : 'غير محدد'}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => {
+                                            setSelectedVersionId(v.id);
+                                            setShowVersionDialog(false);
+                                        }} className="text-blue-600">
+                                            عرض
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => deleteVersion.mutate(v.id)} className="text-red-600">
+                                            <Trash2 size={14} />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <Dialog.Close className="mt-4 w-full py-2 bg-slate-100 rounded-xl font-bold text-slate-600">إغلاق</Dialog.Close>
+                </Dialog.Content>
+            </Dialog.Portal>
+        </Dialog.Root>
+    );
+
+    // Flush confirmation dialog
+    const flushConfirmDialog = (
+        <Dialog.Root open={showFlushConfirm} onOpenChange={setShowFlushConfirm}>
+            <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+                <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl p-6 w-full max-w-sm z-50 shadow-2xl">
+                    <Dialog.Title className="text-xl font-black text-red-600 mb-4">تأكيد المسح</Dialog.Title>
+                    <Dialog.Description className="text-sm text-slate-500 mb-4">
+                        سيتم مسح جميع تقارير التقفيلة لشهر {getMonthLabel(selectedMonth)}. لا يمكن التراجع عن هذا الإجراء!
+                    </Dialog.Description>
+                    <div className="flex gap-3">
+                        <Button variant="outline" className="flex-1" onClick={() => setShowFlushConfirm(false)}>إلغاء</Button>
+                        <Button className="flex-1 bg-red-600 hover:bg-red-700" onClick={() => {
+                            flushMonthlyClosing.mutate();
+                            setShowFlushConfirm(false);
+                        }}>تأكيد المسح</Button>
+                    </div>
+                </Dialog.Content>
+            </Dialog.Portal>
+        </Dialog.Root>
     );
 
     return (
@@ -292,6 +407,8 @@ export default function MonthlyClosing() {
                 subtitle={`${data?.branch?.name || 'الشركة'} — ${getMonthLabel(selectedMonth)}`}
                 actions={actionElements}
             />
+            {versionSelector}
+            {flushConfirmDialog}
 
             {/* Section Tabs */}
             <div className="flex flex-wrap items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-2xl border border-slate-200 shadow-sm print:hidden">
