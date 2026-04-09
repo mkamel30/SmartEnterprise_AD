@@ -307,6 +307,7 @@ router.get('/monthly-closing', async (req, res) => {
             collectedInstallments, overdueInstallments, upcomingInstallments,
             paidParts, freeParts, usedPartLogs,
             machineCount, simCount, outgoingTransfers, incomingTransfers,
+            machineBreakdown, machineDetails, simBreakdown, simDetails, sparePartsData,
             childBranchData
         ] = await Promise.all([
             // Sales
@@ -357,6 +358,14 @@ router.get('/monthly-closing', async (req, res) => {
             prisma.warehouseSim.count({ where: { branchId: { in: allBranchIds }, status: 'ACTIVE' } }),
             prisma.transferOrder.count({ where: { fromBranchId: { in: allBranchIds }, createdAt: dateFilter } }),
             prisma.transferOrder.count({ where: { toBranchId: { in: allBranchIds }, createdAt: dateFilter } }),
+            prisma.warehouseMachine.groupBy({ by: ['status'], where: { branchId: { in: allBranchIds } }, _count: true }),
+            prisma.warehouseMachine.findMany({ where: { branchId: { in: allBranchIds } }, select: { serialNumber: true, model: true, manufacturer: true, status: true } }),
+            prisma.warehouseSim.groupBy({ by: ['type', 'status'], where: { branchId: { in: allBranchIds } }, _count: true }),
+            prisma.warehouseSim.findMany({ where: { branchId: { in: allBranchIds } }, select: { serialNumber: true, type: true, networkType: true, status: true } }),
+            prisma.masterSparePart.findMany({
+                where: { branchSparePart: { quantity: { gt: 0 } } },
+                include: { branchSparePart: true }
+            }),
             // Branch aggregation loop
             childBranchesList.length > 0 ? Promise.all(childBranchesList.map(async (child) => {
                 const [sales, installments, parts] = await Promise.all([
@@ -415,7 +424,24 @@ router.get('/monthly-closing', async (req, res) => {
                 upcoming: { count: upcomingInstallments.length, totalAmount: upcomingTotal, details: upcomingInstallments.map(i => ({ id: i.id, amount: i.amount, dueDate: i.dueDate, customerName: getDisplayName(i.sale?.customer), customerCode: i.sale?.customer?.bkcode, branchName: i.sale?.branch?.name })) }
             },
             spareParts: { paid: { count: paidPartItems.length, totalValue: totalPaidPartsValue, details: paidPartItems }, free: { count: freePartItems.length, totalValue: totalFreePartsValue, details: freePartItems }, topParts },
-            inventory: { machines: machineCount, sims: simCount, outgoingTransfers, incomingTransfers },
+            inventory: {
+                machines: machineCount,
+                machineBreakdown: machineBreakdown.map(m => ({ status: m.status, count: m._count })),
+                machineDetails,
+                sims: simCount,
+                simBreakdown: simBreakdown.map(s => ({ type: s.type || 'غير محدد', status: s.status, count: s._count })),
+                simDetails,
+                spareParts: sparePartsData.map(sp => ({
+                    partName: sp.name,
+                    partNumber: sp.partNumber || '-',
+                    quantity: sp.branchSparePart ? sp.branchSparePart.quantity : 0,
+                    unitCost: sp.defaultCost || 0,
+                    category: sp.category || '-'
+                })).filter(sp => sp.quantity > 0),
+                sparePartsTotal: sparePartsData.reduce((sum, sp) => sum + (sp.branchSparePart ? sp.branchSparePart.quantity : 0), 0),
+                outgoingTransfers,
+                incomingTransfers
+            },
             summary: { totalMonthlyRevenue: cashPaid + installmentPaid + collectedTotal, totalSalesValue: cashTotal + installmentTotal, totalOverdueAmount: overdueTotal, totalPaidParts: totalPaidPartsValue, totalFreeParts: totalFreePartsValue, totalPartsValue: totalPaidPartsValue + totalFreePartsValue },
             childBranches: childBranchData
         });
