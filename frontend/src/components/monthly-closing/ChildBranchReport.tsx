@@ -18,12 +18,12 @@ export function ChildBranchReport({ childBranches }: ChildBranchProps) {
     if (!childBranches || childBranches.length === 0) return null;
 
     const totals = childBranches.reduce((acc, b) => ({
-        salesCount: acc.salesCount + b.sales.count,
-        salesTotal: acc.salesTotal + b.sales.totalPrice,
-        salesPaid: acc.salesPaid + b.sales.paidAmount,
-        installmentsCount: acc.installmentsCount + b.installmentsCollected.count,
-        installmentsAmount: acc.installmentsAmount + b.installmentsCollected.amount,
-        partsOut: acc.partsOut + b.partsOut
+        salesCount: acc.salesCount + (b.sales?.count ?? b.salesCount ?? 0),
+        salesTotal: acc.salesTotal + (b.sales?.totalPrice ?? b.totalSalesValue ?? 0),
+        salesPaid: acc.salesPaid + (b.sales?.paidAmount ?? b.totalMonthlyRevenue ?? 0),
+        installmentsCount: acc.installmentsCount + (b.installmentsCollected?.count ?? 0),
+        installmentsAmount: acc.installmentsAmount + (b.installmentsCollected?.amount ?? 0),
+        partsOut: acc.partsOut + (b.partsOut ?? 0)
     }), { salesCount: 0, salesTotal: 0, salesPaid: 0, installmentsCount: 0, installmentsAmount: 0, partsOut: 0 });
 
     return (
@@ -57,16 +57,17 @@ export function ChildBranchReport({ childBranches }: ChildBranchProps) {
                                     <div className="flex items-center gap-2">
                                         <Building2 size={14} className="text-violet-500" />
                                         {b.branchName}
+                                        {b.receivedAt && <span className="text-[10px] text-emerald-500 mr-1">✓ لقطة</span>}
                                     </div>
                                 </td>
-                                <td className="py-3 px-4 font-bold">{b.sales.count}</td>
-                                <td className="py-3 px-4 font-bold text-indigo-600">{fmt(b.sales.totalPrice)} ج.م</td>
-                                <td className="py-3 px-4 font-bold text-emerald-600">{fmt(b.sales.paidAmount)} ج.م</td>
+                                <td className="py-3 px-4 font-bold">{b.sales?.count ?? b.salesCount ?? '-'}</td>
+                                <td className="py-3 px-4 font-bold text-indigo-600">{fmt(b.sales?.totalPrice ?? b.totalSalesValue ?? 0)} ج.م</td>
+                                <td className="py-3 px-4 font-bold text-emerald-600">{fmt(b.sales?.paidAmount ?? b.totalMonthlyRevenue ?? 0)} ج.م</td>
                                 <td className="py-3 px-4">
-                                    <span className="font-bold">{fmt(b.installmentsCollected.amount)} ج.م</span>
-                                    <span className="text-slate-400 text-xs mr-1">({b.installmentsCollected.count})</span>
+                                    <span className="font-bold">{fmt(b.installmentsCollected?.amount ?? 0)} ج.م</span>
+                                    <span className="text-slate-400 text-xs mr-1">({b.installmentsCollected?.count ?? 0})</span>
                                 </td>
-                                <td className="py-3 px-4 font-bold text-amber-600">{b.partsOut}</td>
+                                <td className="py-3 px-4 font-bold text-amber-600">{b.partsOut ?? '-'}</td>
                             </tr>
                         ))}
                     </tbody>
