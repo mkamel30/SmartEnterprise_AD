@@ -62,33 +62,30 @@ async function updateBranchEntitySync(branchId, entityType, recordCount, status,
 async function ensureCustomerExists(customerId, customerName, customerBkcode, branchId) {
     if (!customerId) return;
     try {
-        let finalBkcode = customerBkcode || `AUTO-${customerId.substring(0, 8)}`;
-        const hasRealData = customerName && customerName !== 'غير معروف (تلقائي)';
-        
         await prisma.customer.upsert({
             where: { id: customerId },
-            update: hasRealData ? {
-                client_name: customerName,
-                bkcode: customerBkcode || undefined,
-                status: 'SYNCED'
-            } : {
-                status: 'AUTO_SYNC'
+            update: {
+                client_name: customerName && customerName !== 'غير معروف (تلقائي)' ? customerName : undefined,
+                bkcode: customerBkcode && !customerBkcode.startsWith('AUTO-') ? customerBkcode : undefined,
+                status: customerName && customerName !== 'غير معروف (تلقائي)' ? 'SYNCED' : undefined
             },
             create: {
                 id: customerId,
                 client_name: customerName || 'غير معروف (تلقائي)',
-                bkcode: finalBkcode,
+                bkcode: customerBkcode || `AUTO-${customerId.substring(0, 8)}`,
                 branchId: branchId,
-                status: hasRealData ? 'SYNCED' : 'AUTO_SYNC'
+                status: customerName && customerName !== 'غير معروف (تلقائي)' ? 'SYNCED' : 'AUTO_SYNC'
             }
         });
     } catch (e) {
         if (e.code === 'P2002' && e.meta?.target?.includes('bkcode')) {
-            logger.warn(`[Socket Sync] Customer bkcode conflict for ${customerId}, skipping bkcode update`);
+            logger.warn(`[Socket Sync] Customer bkcode conflict for ${customerId}, retrying without bkcode`);
             try {
                 await prisma.customer.upsert({
                     where: { id: customerId },
-                    update: hasRealData ? { client_name: customerName } : {},
+                    update: {
+                        client_name: customerName && customerName !== 'غير معروف (تلقائي)' ? customerName : undefined
+                    },
                     create: {
                         id: customerId,
                         client_name: customerName || 'غير معروف (تلقائي)',
@@ -98,7 +95,7 @@ async function ensureCustomerExists(customerId, customerName, customerBkcode, br
                     }
                 });
             } catch (e2) {
-                logger.error(`[Socket Sync] Failed to create customer ${customerId} even with unique bkcode: ${e2.message}`);
+                logger.error(`[Socket Sync] Failed to create customer ${customerId}: ${e2.message}`);
             }
         } else {
             logger.error(`[Socket Sync] Failed to ensure customer ${customerId}: ${e.message}`);
