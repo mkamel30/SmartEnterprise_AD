@@ -473,7 +473,7 @@ router.get('/monthly-closing/version/:id', async (req, res) => {
     }
 });
 
-// DELETE /monthly-closing/flush - Flush ALL synced data for a branch or all branches (for testing)
+// DELETE /monthly-closing/flush - Flush synced data for a month (for testing)
 // NOTE: Must be defined BEFORE /:id route to avoid "flush" being matched as an id param
 router.delete('/monthly-closing/flush', adminAuth, async (req, res) => {
     try {
@@ -489,61 +489,40 @@ router.delete('/monthly-closing/flush', adminAuth, async (req, res) => {
         const branchFilter = branchId ? { branchId: String(branchId) } : {};
         const dateFilter = { gte: startDate, lte: endDate };
 
-        logger.info(`[Reports] Flushing ALL synced data for ${month}`, { branchId });
+        logger.info(`[Reports] Flushing data for ${month}`, { branchId });
 
         const result = await prisma.$transaction(async (tx) => {
             let stats = {
                 sales: 0, installments: 0, payments: 0, stockMovements: 0,
-                usedPartLogs: 0, maintenanceRequests: 0, posMachines: 0,
-                simCards: 0, simMovementLogs: 0, warehouseMachines: 0, warehouseSims: 0,
-                machineMovementLogs: 0, customers: 0, reports: 0, logs: 0, summaries: 0
+                usedPartLogs: 0, maintenanceRequests: 0, reports: 0, logs: 0
             };
 
-            // 1. Delete installments (child of machineSale)
+            // 1. Find sales in this month to get their IDs for installment deletion
             const saleFilter = { ...branchFilter, saleDate: dateFilter };
             const sales = await tx.machineSale.findMany({ where: saleFilter, select: { id: true } });
             const saleIds = sales.map(s => s.id);
+
+            // 2. Delete installments linked to those sales
             if (saleIds.length > 0) {
                 stats.installments = (await tx.installment.deleteMany({ where: { saleId: { in: saleIds } } })).count;
             }
 
-            // 2. Delete all machineSales in the month
+            // 3. Delete machineSales in this month
             stats.sales = (await tx.machineSale.deleteMany({ where: saleFilter })).count;
 
-            // 3. Delete payments in the month
+            // 4. Delete payments in this month
             stats.payments = (await tx.payment.deleteMany({ where: { ...branchFilter, createdAt: dateFilter } })).count;
 
-            // 4. Delete stockMovements in the month
+            // 5. Delete stockMovements in this month
             stats.stockMovements = (await tx.stockMovement.deleteMany({ where: { ...branchFilter, createdAt: dateFilter } })).count;
 
-            // 5. Delete usedPartLogs in the month
+            // 6. Delete usedPartLogs in this month
             stats.usedPartLogs = (await tx.usedPartLog.deleteMany({ where: { ...branchFilter, closedAt: dateFilter } })).count;
 
-            // 6. Delete maintenanceRequests in the month
+            // 7. Delete maintenanceRequests in this month
             stats.maintenanceRequests = (await tx.maintenanceRequest.deleteMany({ where: { ...branchFilter, createdAt: dateFilter } })).count;
 
-            // 7. Delete posMachines for branch
-            stats.posMachines = (await tx.posMachine.deleteMany({ where: branchFilter })).count;
-
-            // 8. Delete simCards for branch
-            stats.simCards = (await tx.simCard.deleteMany({ where: branchFilter })).count;
-
-            // 9. Delete simMovementLogs in the month
-            stats.simMovementLogs = (await tx.simMovementLog.deleteMany({ where: { ...branchFilter, createdAt: dateFilter } })).count;
-
-            // 10. Delete warehouseMachines for branch
-            stats.warehouseMachines = (await tx.warehouseMachine.deleteMany({ where: branchFilter })).count;
-
-            // 11. Delete warehouseSims for branch
-            stats.warehouseSims = (await tx.warehouseSim.deleteMany({ where: branchFilter })).count;
-
-            // 12. Delete machineMovementLogs in the month
-            stats.machineMovementLogs = (await tx.machineMovementLog.deleteMany({ where: { ...branchFilter, createdAt: dateFilter } })).count;
-
-            // 13. Delete branchSparePart inventory for branch
-            await tx.branchSparePart.deleteMany({ where: branchFilter });
-
-            // 14. Delete MonthlyClosingReport and Log for this month
+            // 8. Delete MonthlyClosingReport and Log for this month
             const reportFilter = { month: String(month) };
             const logFilter = { month: String(month) };
             if (branchId) {
@@ -553,21 +532,32 @@ router.delete('/monthly-closing/flush', adminAuth, async (req, res) => {
             stats.reports = (await tx.monthlyClosingReport.deleteMany({ where: reportFilter })).count;
             stats.logs = (await tx.monthlyClosingLog.deleteMany({ where: logFilter })).count;
 
-            // 15. Delete BranchSummary for branch
-            stats.summaries = (await tx.branchSummary.deleteMany({ where: branchFilter })).count;
-
-            // 16. Delete customers for branch (last - they have FK references from deleted sales/requests)
-            stats.customers = (await tx.customer.deleteMany({ where: branchFilter })).count;
+            // If a specific branch is selected, also delete its reference/current-state data
+            if (branchId) {
+                const bf = { branchId: String(branchId) };
+                await tx.posMachine.deleteMany({ where: bf });
+                await tx.simCard.deleteMany({ where: bf });
+                await tx.simMovementLog.deleteMany({ where: bf });
+                await tx.warehouseMachine.deleteMany({ where: bf });
+                await tx.warehouseSim.deleteMany({ where: bf });
+                await tx.machineMovementLog.deleteMany({ where: bf });
+                await tx.branchSparePart.deleteMany({ where: bf });
+                await tx.branchSummary.deleteMany({ where: bf });
+                await tx.customer.deleteMany({ where: bf });
+            }
 
             return stats;
         });
 
-        logger.info(`[Reports] Flushed ALL data for ${month}:`, result);
+        logger.info(`[Reports] Flushed data for ${month}:`, result);
 
         const totalDeleted = Object.values(result).reduce((a, b) => a + b, 0);
+        const msg = branchId 
+            ? `تم مسح بيانات شهر ${month} وبيانات الفرع بالكامل — إجمالي ${totalDeleted} سجل`
+            : `تم مسح بيانات شهر ${month} — إجمالي ${totalDeleted} سجل`;
         res.json({
             success: true,
-            message: `تم مسح جميع بيانات شهر ${month} — إجمالي ${totalDeleted} سجل`,
+            message: msg,
             ...result
         });
     } catch (error) {
