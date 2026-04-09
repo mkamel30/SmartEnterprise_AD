@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
             where,
             include: { branch: { select: { id: true, name: true, code: true } } },
             orderBy: { createdAt: 'desc' },
-            take: parseInt(limit as string) || 50
+            take: parseInt(String(limit)) || 50
         });
 
         res.json({ success: true, data: notifications });
