@@ -333,36 +333,74 @@ router.get('/monthly-closing/version/:id', async (req, res) => {
     }
 });
 
-// DELETE /monthly-closing/flush - Flush all monthly closing reports and logs (for testing)
+// DELETE /monthly-closing/flush - Flush synced transactional data for a month (for testing)
 // NOTE: Must be defined BEFORE /:id route to avoid "flush" being matched as an id param
 router.delete('/monthly-closing/flush', adminAuth, async (req, res) => {
     try {
         const { month, branchId } = req.query;
-        
-        const whereReport = {};
-        const whereLog = {};
-        
-        if (month) {
-            whereReport.month = String(month);
-            whereLog.month = String(month);
-        }
-        if (branchId) {
-            whereReport.branchId = String(branchId);
-            whereLog.branchId = String(branchId);
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+            return res.status(400).json({ error: 'الشهر مطلوب بصيغة YYYY-MM' });
         }
 
-        logger.info(`[Reports] Flushing monthly closing data with filters:`, { month, branchId, whereReport, whereLog });
-        
-        const deletedReports = await prisma.monthlyClosingReport.deleteMany({ where: whereReport });
-        const deletedLogs = await prisma.monthlyClosingLog.deleteMany({ where: whereLog });
+        const [year, mon] = month.split('-').map(Number);
+        const startDate = new Date(year, mon - 1, 1);
+        const endDate = new Date(year, mon, 0, 23, 59, 59, 999);
 
-        logger.info(`[Reports] Flushed ${deletedReports.count} reports and ${deletedLogs.count} logs`);
-        
-        res.json({ 
-            success: true, 
-            message: `Flushed ${deletedReports.count} reports and ${deletedLogs.count} logs`,
-            deletedReports: deletedReports.count,
-            deletedLogs: deletedLogs.count
+        const branchFilter = branchId ? { branchId: String(branchId) } : {};
+        const dateFilter = { gte: startDate, lte: endDate };
+        const dateFilterPaid = { gte: startDate, lte: endDate };
+
+        logger.info(`[Reports] Flushing monthly closing data for ${month}`, { branchId });
+
+        const result = await prisma.$transaction(async (tx) => {
+            let stats = { sales: 0, installments: 0, payments: 0, stockMovements: 0, usedPartLogs: 0, reports: 0, logs: 0, summaries: 0 };
+
+            const saleFilter = { ...branchFilter, saleDate: dateFilter };
+
+            const sales = await tx.machineSale.findMany({ where: saleFilter, select: { id: true } });
+            const saleIds = sales.map(s => s.id);
+
+            if (saleIds.length > 0) {
+                await tx.installment.deleteMany({ where: { saleId: { in: saleIds } } });
+                stats.installments = await tx.installment.count({ where: { saleId: { in: saleIds } } });
+                stats.sales = (await tx.machineSale.deleteMany({ where: { id: { in: saleIds } } })).count;
+            } else {
+                stats.sales = 0;
+            }
+
+            const paymentFilter = { ...branchFilter, createdAt: dateFilter };
+            stats.payments = (await tx.payment.deleteMany({ where: paymentFilter })).count;
+
+            const stockFilter = { ...branchFilter, createdAt: dateFilter };
+            stats.stockMovements = (await tx.stockMovement.deleteMany({ where: stockFilter })).count;
+
+            const usedPartFilter = { ...branchFilter, closedAt: dateFilter };
+            stats.usedPartLogs = (await tx.usedPartLog.deleteMany({ where: usedPartFilter })).count;
+
+            const reportFilter = { month: String(month) };
+            const logFilter = { month: String(month) };
+            if (branchId) {
+                reportFilter.branchId = String(branchId);
+                logFilter.branchId = String(branchId);
+            }
+            stats.reports = (await tx.monthlyClosingReport.deleteMany({ where: reportFilter })).count;
+            stats.logs = (await tx.monthlyClosingLog.deleteMany({ where: logFilter })).count;
+
+            if (branchId) {
+                stats.summaries = (await tx.branchSummary.deleteMany({ where: { branchId: String(branchId) } })).count;
+            } else {
+                stats.summaries = (await tx.branchSummary.deleteMany({})).count;
+            }
+
+            return stats;
+        });
+
+        logger.info(`[Reports] Flushed monthly closing data for ${month}:`, result);
+
+        res.json({
+            success: true,
+            message: `Flushed ${month}: ${result.sales} sales, ${result.payments} payments, ${result.stockMovements} stock movements, ${result.usedPartLogs} used part logs, ${result.reports} reports, ${result.logs} logs, ${result.summaries} summaries`,
+            ...result
         });
     } catch (error) {
         console.error('[FLUSH ERROR]', error);
