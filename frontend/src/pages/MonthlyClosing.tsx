@@ -99,15 +99,19 @@ export default function MonthlyClosing() {
     });
 
     const flushMonthlyClosing = useMutation({
-        mutationFn: () => adminClient.delete(`/reports/monthly-closing/flush?month=${selectedMonth}`),
+        mutationFn: () => adminClient.delete(`/reports/monthly-closing/flush?month=${selectedMonth}${selectedBranch ? `&branchId=${selectedBranch}` : ''}`),
         onSuccess: (res: any) => {
-            toast.success(`تم مسح ${res.data?.deletedReports || 0} تقارير و ${res.data?.deletedLogs || 0}}`);
-            queryClient.invalidateQueries({ queryKey: ['monthly-closing', selectedMonth] });
-            queryClient.invalidateQueries({ queryKey: ['monthly-closing-versions', selectedMonth] });
-            queryClient.invalidateQueries({ queryKey: ['monthly-closing-branches-status', selectedMonth] });
+            const d = res.data;
+            const total = (d?.sales||0) + (d?.payments||0) + (d?.stockMovements||0) + (d?.usedPartLogs||0) + (d?.maintenanceRequests||0) + (d?.customers||0) + (d?.reports||0);
+            toast.success(`تم مسح ${total} سجل — مبيعات: ${d?.sales||0}، مدفوعات: ${d?.payments||0}، حركات مخزون: ${d?.stockMovements||0}`);
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing'] });
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing-versions'] });
+            queryClient.invalidateQueries({ queryKey: ['monthly-closing-branches-status'] });
+            queryClient.invalidateQueries({ queryKey: ['branches-list'] });
+            queryClient.invalidateQueries({ queryKey: ['active-branches'] });
         },
         onError: () => {
-            toast.error('فشل في مسح التقارير');
+            toast.error('فشل في مسح البيانات');
         }
     });
 
