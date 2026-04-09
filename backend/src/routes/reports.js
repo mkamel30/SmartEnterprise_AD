@@ -535,15 +535,53 @@ router.delete('/monthly-closing/flush', adminAuth, async (req, res) => {
             // If a specific branch is selected, also delete its reference/current-state data
             if (branchId) {
                 const bf = { branchId: String(branchId) };
-                await tx.posMachine.deleteMany({ where: bf });
-                await tx.simCard.deleteMany({ where: bf });
+
+                // Delete in FK-safe order: children first, then parents
+                // TransferOrderItem depends on TransferOrder
+                await tx.transferOrderItem.deleteMany({ where: { transferOrder: { fromBranchId: String(branchId) } } });
+                await tx.transferOrderItem.deleteMany({ where: { transferOrder: { toBranchId: String(branchId) } } });
+                await tx.transferOrder.deleteMany({ where: { fromBranchId: String(branchId) } });
+                await tx.transferOrder.deleteMany({ where: { toBranchId: String(branchId) } });
+
+                // SimMovementLog depends on SimCard
                 await tx.simMovementLog.deleteMany({ where: bf });
+
+                // PosMachine, MachineMovementLog
+                await tx.posMachine.deleteMany({ where: bf });
+                await tx.machineMovementLog.deleteMany({ where: bf });
+
+                // SimCard (after SimMovementLog)
+                await tx.simCard.deleteMany({ where: bf });
+
+                // WarehouseMachine, WarehouseSim
                 await tx.warehouseMachine.deleteMany({ where: bf });
                 await tx.warehouseSim.deleteMany({ where: bf });
-                await tx.machineMovementLog.deleteMany({ where: bf });
+
+                // BranchSparePart, BranchSummary
                 await tx.branchSparePart.deleteMany({ where: bf });
                 await tx.branchSummary.deleteMany({ where: bf });
-                await tx.customer.deleteMany({ where: bf });
+
+                // AdminLog, Notification, UserSyncLog — branch-level cleanup
+                await tx.adminLog.deleteMany({ where: bf });
+                await tx.notification.deleteMany({ where: bf });
+
+                // RefreshToken, AccountLockout per branch users
+                // Skip these as they're auth-related
+
+                // Customers — delete all customers belonging to this branch
+                // But first, null out customerId on any remaining records in other branches that reference these customers
+                const branchCustomerIds = (await tx.customer.findMany({ where: bf, select: { id: true } })).map(c => c.id);
+                if (branchCustomerIds.length > 0) {
+                    // Null out foreign keys pointing to these customers from OTHER branches
+                    await tx.machineSale.updateMany({ where: { customerId: { in: branchCustomerIds } }, data: { customerId: null } });
+                    await tx.payment.updateMany({ where: { customerId: { in: branchCustomerIds } }, data: { customerId: null } });
+                    await tx.stockMovement.updateMany({ where: { customerId: { in: branchCustomerIds } }, data: { customerId: null } });
+                    await tx.usedPartLog.updateMany({ where: { customerId: { in: branchCustomerIds } }, data: { customerId: null } });
+                    await tx.maintenanceRequest.updateMany({ where: { customerId: { in: branchCustomerIds } }, data: { customerId: null } });
+
+                    // Now safe to delete customers
+                    await tx.customer.deleteMany({ where: bf });
+                }
             }
 
             return stats;
