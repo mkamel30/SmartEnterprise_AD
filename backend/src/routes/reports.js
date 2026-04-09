@@ -134,21 +134,126 @@ router.get('/monthly-closing', async (req, res) => {
             return res.status(400).json({ error: 'الشهر مطلوب بصيغة YYYY-MM' });
         }
 
-        if (branchId && mode !== 'live') {
-            const snapshot = await prisma.monthlyClosingReport.findUnique({
-                where: { branchId_month: { branchId, month } }
-            });
-            if (snapshot && snapshot.data) {
-                logger.info(`[Reports] Returning snapshot data for branch ${branchId}, month ${month}`);
-                return res.json({
-                    success: true,
-                    source: 'snapshot',
-                    month,
-                    branch: { id: snapshot.branchId, name: snapshot.branchName, code: snapshot.branchCode },
-                    receivedAt: snapshot.receivedAt,
-                    sections: snapshot.sections,
-                    ...snapshot.data
+        // Try snapshot first (unless mode=live explicitly requested)
+        if (mode !== 'live') {
+            if (branchId) {
+                // Single branch — look for its snapshot
+                const snapshot = await prisma.monthlyClosingReport.findUnique({
+                    where: { branchId_month: { branchId, month } }
                 });
+                if (snapshot && snapshot.data) {
+                    logger.info(`[Reports] Returning snapshot data for branch ${branchId}, month ${month}`);
+                    return res.json({
+                        success: true,
+                        source: 'snapshot',
+                        month,
+                        branch: { id: snapshot.branchId, name: snapshot.branchName, code: snapshot.branchCode },
+                        receivedAt: snapshot.receivedAt,
+                        sections: snapshot.sections,
+                        ...snapshot.data
+                    });
+                }
+            } else {
+                // All branches — aggregate all snapshots for this month
+                const snapshots = await prisma.monthlyClosingReport.findMany({
+                    where: { month }
+                });
+                if (snapshots.length > 0) {
+                    logger.info(`[Reports] Aggregating ${snapshots.length} snapshots for month ${month}`);
+                    
+                    // Merge all branch snapshots into a combined view
+                    let combined = {
+                        sales: { cash: { count: 0, totalPrice: 0, paidAmount: 0, remaining: 0, details: [] }, installment: { count: 0, totalPrice: 0, paidAmount: 0, remaining: 0, details: [] }, totalRevenue: 0, totalCollected: 0 },
+                        installments: { collected: { count: 0, totalAmount: 0, details: [] }, overdue: { count: 0, totalAmount: 0, details: [] }, upcoming: { count: 0, totalAmount: 0, details: [] } },
+                        spareParts: { paid: { count: 0, totalValue: 0, details: [] }, free: { count: 0, totalValue: 0, details: [] }, topParts: [] },
+                        inventory: { machines: 0, sims: 0, outgoingTransfers: 0, incomingTransfers: 0 },
+                        summary: { totalMonthlyRevenue: 0, totalSalesValue: 0, totalOverdueAmount: 0, totalPaidParts: 0, totalFreeParts: 0, totalPartsValue: 0 },
+                        childBranches: [],
+                        hasChildBranches: true
+                    };
+
+                    for (const snap of snapshots) {
+                        const d = snap.data;
+                        if (!d) continue;
+
+                        // Merge sales
+                        if (d.sales?.cash) {
+                            combined.sales.cash.count += d.sales.cash.count || 0;
+                            combined.sales.cash.totalPrice += d.sales.cash.totalPrice || 0;
+                            combined.sales.cash.paidAmount += d.sales.cash.paidAmount || 0;
+                            combined.sales.cash.remaining += d.sales.cash.remaining || 0;
+                            if (d.sales.cash.details) combined.sales.cash.details.push(...d.sales.cash.details);
+                        }
+                        if (d.sales?.installment) {
+                            combined.sales.installment.count += d.sales.installment.count || 0;
+                            combined.sales.installment.totalPrice += d.sales.installment.totalPrice || 0;
+                            combined.sales.installment.paidAmount += d.sales.installment.paidAmount || 0;
+                            combined.sales.installment.remaining += d.sales.installment.remaining || 0;
+                            if (d.sales.installment.details) combined.sales.installment.details.push(...d.sales.installment.details);
+                        }
+                        combined.sales.totalRevenue += d.sales?.totalRevenue || 0;
+                        combined.sales.totalCollected += d.sales?.totalCollected || 0;
+
+                        // Merge installments
+                        for (const key of ['collected', 'overdue', 'upcoming']) {
+                            if (d.installments?.[key]) {
+                                combined.installments[key].count += d.installments[key].count || 0;
+                                combined.installments[key].totalAmount += d.installments[key].totalAmount || 0;
+                                if (d.installments[key].details) combined.installments[key].details.push(...d.installments[key].details);
+                            }
+                        }
+
+                        // Merge spare parts
+                        if (d.spareParts?.paid) {
+                            combined.spareParts.paid.count += d.spareParts.paid.count || 0;
+                            combined.spareParts.paid.totalValue += d.spareParts.paid.totalValue || 0;
+                            if (d.spareParts.paid.details) combined.spareParts.paid.details.push(...d.spareParts.paid.details);
+                        }
+                        if (d.spareParts?.free) {
+                            combined.spareParts.free.count += d.spareParts.free.count || 0;
+                            combined.spareParts.free.totalValue += d.spareParts.free.totalValue || 0;
+                            if (d.spareParts.free.details) combined.spareParts.free.details.push(...d.spareParts.free.details);
+                        }
+                        if (d.spareParts?.topParts) combined.spareParts.topParts.push(...d.spareParts.topParts);
+
+                        // Merge inventory (sum up)
+                        if (d.inventory) {
+                            combined.inventory.machines += d.inventory.machines || 0;
+                            combined.inventory.sims += d.inventory.sims || 0;
+                            combined.inventory.outgoingTransfers += d.inventory.outgoingTransfers || 0;
+                            combined.inventory.incomingTransfers += d.inventory.incomingTransfers || 0;
+                        }
+
+                        // Merge summary
+                        if (d.summary) {
+                            combined.summary.totalMonthlyRevenue += d.summary.totalMonthlyRevenue || 0;
+                            combined.summary.totalSalesValue += d.summary.totalSalesValue || 0;
+                            combined.summary.totalOverdueAmount += d.summary.totalOverdueAmount || 0;
+                            combined.summary.totalPaidParts += d.summary.totalPaidParts || 0;
+                            combined.summary.totalFreeParts += d.summary.totalFreeParts || 0;
+                            combined.summary.totalPartsValue += d.summary.totalPartsValue || 0;
+                        }
+
+                        // Add as child branch
+                        combined.childBranches.push({
+                            branchId: snap.branchId,
+                            branchName: snap.branchName,
+                            branchCode: snap.branchCode,
+                            receivedAt: snap.receivedAt,
+                            ...(d.summary || {})
+                        });
+                    }
+
+                    return res.json({
+                        success: true,
+                        source: 'snapshot',
+                        month,
+                        branch: { id: 'ALL', name: 'الشركة (إجمالي الفروع)', code: 'ALL' },
+                        receivedAt: new Date(),
+                        hasChildBranches: true,
+                        ...combined
+                    });
+                }
             }
         }
 

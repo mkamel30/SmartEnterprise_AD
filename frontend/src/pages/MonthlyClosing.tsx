@@ -274,65 +274,26 @@ export default function MonthlyClosing() {
     }
 
     const actionElements = (
-        <div className="flex items-center gap-3">
-            {/* Branch Picker */}
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
-                <Building2 size={16} className="text-[var(--color-navy)]" />
-                <select 
-                    value={selectedBranch} 
-                    onChange={e => setSelectedBranch(e.target.value)}
-                    className="bg-transparent border-none outline-none text-slate-700 font-bold text-sm cursor-pointer pr-2"
-                >
-                    <option value="">إجمالي فروع الشركة (الكل)</option>
-                    {branchesData?.map((b: any) => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                </select>
-            </div>
-
-            {/* Month Picker */}
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2 shadow-sm">
-                <button onClick={() => navigateMonth(-1)} className="text-slate-400 hover:text-[var(--color-navy)] transition-colors font-bold text-lg px-1">→</button>
-                <div className="flex items-center gap-2 min-w-[140px] justify-center">
-                    <CalendarDays size={18} className="text-[var(--color-navy)]" />
-                    <span className="font-black text-slate-700">{getMonthLabel(selectedMonth)}</span>
-                </div>
-                <button onClick={() => navigateMonth(1)} className="text-slate-400 hover:text-[var(--color-navy)] transition-colors font-bold text-lg px-1">←</button>
-            </div>
-
-            <Button variant="outline" size="sm" onClick={handleSyncAllBranches} disabled={isSyncing} className="gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50">
-                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                <span className="hidden md:inline">سحب بيانات</span>
+        <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-1.5 rounded-xl text-xs">
+                <FileSpreadsheet size={14} />
+                Excel
             </Button>
-
-            <Button size="sm" onClick={() => requestMonthlyClosing.mutate()} disabled={requestMonthlyClosing.isPending} className="gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
-                {requestMonthlyClosing.isPending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
-                <span className="hidden md:inline">طلب تقفيلة شهرية</span>
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isExporting} className="gap-1.5 rounded-xl text-xs">
+                <FileDown size={14} />
+                {isExporting ? '...' : 'PDF'}
             </Button>
-
-            <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-2 rounded-xl">
-                <FileSpreadsheet size={16} />
-                <span className="hidden md:inline">إكسيل</span>
+            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5 rounded-xl text-xs print:hidden">
+                <Printer size={14} />
+                طباعة
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isExporting} className="gap-2 rounded-xl">
-                <FileDown size={16} />
-                <span className="hidden md:inline">{isExporting ? 'جاري...' : 'PDF'}</span>
+            <Button variant="outline" size="sm" onClick={() => setShowVersionDialog(true)} className="gap-1.5 rounded-xl text-amber-600 border-amber-200 hover:bg-amber-50 text-xs">
+                <History size={14} />
+                السوابق
             </Button>
-            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 rounded-xl print:hidden">
-                <Printer size={16} />
-                <span className="hidden md:inline">طباعة</span>
-            </Button>
-
-            {/* Version History Button */}
-            <Button variant="outline" size="sm" onClick={() => setShowVersionDialog(true)} className="gap-2 rounded-xl text-amber-600 border-amber-200 hover:bg-amber-50">
-                <History size={16} />
-                <span className="hidden md:inline">السوابق</span>
-            </Button>
-
-            {/* Flush Button */}
-            <Button variant="outline" size="sm" onClick={() => setShowFlushConfirm(true)} className="gap-2 rounded-xl text-red-600 border-red-200 hover:bg-red-50">
-                <Trash2 size={16} />
-                <span className="hidden md:inline">مسح</span>
+            <Button variant="outline" size="sm" onClick={() => setShowFlushConfirm(true)} className="gap-1.5 rounded-xl text-red-600 border-red-200 hover:bg-red-50 text-xs">
+                <Trash2 size={14} />
+                مسح
             </Button>
         </div>
     );
@@ -403,31 +364,75 @@ export default function MonthlyClosing() {
     );
 
     return (
-        <div className="page-container space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 to-blue-50/30 min-h-screen" dir="rtl">
+        <div className="page-container space-y-6 animate-fade-in bg-gradient-to-br from-slate-50 to-blue-50/30 min-h-screen" dir="rtl">
             <PageHeader
                 title="التقفيلة المالية الشاملة"
                 subtitle={`${data?.branch?.name || 'الشركة'} — ${getMonthLabel(selectedMonth)}`}
-                actions={actionElements}
             />
+
+            {/* Toolbar: Filters + Actions */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 print:hidden">
+                {/* Row 1: Month picker + Branch picker */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                        <button onClick={() => navigateMonth(-1)} className="text-slate-400 hover:text-[var(--color-navy)] transition-colors font-bold text-lg px-1">→</button>
+                        <div className="flex items-center gap-2 min-w-[130px] justify-center">
+                            <CalendarDays size={16} className="text-[var(--color-navy)]" />
+                            <span className="font-black text-slate-700 text-sm">{getMonthLabel(selectedMonth)}</span>
+                        </div>
+                        <button onClick={() => navigateMonth(1)} className="text-slate-400 hover:text-[var(--color-navy)] transition-colors font-bold text-lg px-1">←</button>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                        <Building2 size={14} className="text-[var(--color-navy)]" />
+                        <select 
+                            value={selectedBranch} 
+                            onChange={e => setSelectedBranch(e.target.value)}
+                            className="bg-transparent border-none outline-none text-slate-700 font-bold text-sm cursor-pointer"
+                        >
+                            <option value="">إجمالي الفروع</option>
+                            {branchesData?.map((b: any) => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Data source indicator */}
+                    {data?.source && (
+                        data.source === 'snapshot' ? (
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                                <CheckCircle size={12} />
+                                تقرير من الفرع {data.receivedAt ? new Date(data.receivedAt).toLocaleDateString('ar-EG') : ''}
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                                <Clock size={12} />
+                                بيانات مباشرة
+                            </span>
+                        )
+                    )}
+
+                    <div className="flex-1" />
+
+                    {/* Sync actions */}
+                    <Button variant="outline" size="sm" onClick={handleSyncAllBranches} disabled={isSyncing} className="gap-1.5 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50 text-xs">
+                        <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                        سحب بيانات
+                    </Button>
+                    <Button size="sm" onClick={() => requestMonthlyClosing.mutate()} disabled={requestMonthlyClosing.isPending} className="gap-1.5 rounded-xl bg-[#0A2472] hover:bg-[#0d2d8a] text-white shadow-sm text-xs">
+                        {requestMonthlyClosing.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                        طلب تقفيلة
+                    </Button>
+                </div>
+
+                {/* Row 2: Export + Actions */}
+                <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-3">
+                    {actionElements}
+                </div>
+            </div>
+
             {versionSelector}
             {flushConfirmDialog}
-
-            {/* Data source indicator */}
-            {data?.source && (
-                <div className="flex items-center gap-2">
-                    {data.source === 'snapshot' ? (
-                        <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
-                            <CheckCircle size={14} />
-                            تقرير من الفرع — استلام {data.receivedAt ? new Date(data.receivedAt).toLocaleString('ar-EG') : ''}
-                        </div>
-                    ) : (
-                        <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
-                            <Clock size={14} />
-                            بيانات مباشرة — محسوبة من قاعدة البيانات
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Section Tabs */}
             <div className="flex flex-wrap items-center gap-2 bg-white/80 backdrop-blur-sm p-2 rounded-2xl border border-slate-200 shadow-sm print:hidden">
