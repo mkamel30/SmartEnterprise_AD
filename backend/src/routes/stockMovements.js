@@ -39,7 +39,8 @@ router.get('/', async (req, res) => {
             include: {
                 branch: { select: { id: true, name: true } },
                 part: { select: { id: true, name: true, partNumber: true } },
-                request: { select: { id: true, serialNumber: true } }
+                request: { select: { id: true, serialNumber: true } },
+                customer: { select: { id: true, client_name: true, bkcode: true } }
             },
             orderBy: { createdAt: 'desc' },
             take: 500
@@ -59,7 +60,8 @@ router.get('/', async (req, res) => {
             reason: m.reason || '-',
             performedBy: m.performedBy || '-',
             customerId: m.customerId,
-            customerName: m.customerName,
+            customerName: m.customerName || m.customer?.client_name || '-',
+            customerBkcode: m.customer?.bkcode || '-',
             machineSerial: m.machineSerial,
             machineModel: m.machineModel,
             paymentPlace: m.paymentPlace,

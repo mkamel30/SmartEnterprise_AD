@@ -71,6 +71,8 @@ const machineSaleSchema = z.object({
     id: z.string().min(1),
     serialNumber: z.string().min(1),
     customerId: z.string().min(1),
+    customerName: z.string().optional().nullable(),
+    customerBkcode: z.string().optional().nullable(),
     saleDate: z.string().datetime().optional().nullable(),
     type: z.string().max(50),
     totalPrice: z.number().positive(),

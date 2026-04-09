@@ -19,10 +19,10 @@ const {
 } = require('../routes/sync.schema');
 
 const ALLOWED_WAREHOUSE_MACHINE_FIELDS = ['serialNumber', 'model', 'manufacturer', 'status', 'resolution', 'notes', 'complaint', 'importDate', 'updatedAt', 'originalOwnerId', 'readyForPickup', 'requestId', 'customerId', 'customerName', 'customerBkcode'];
-const ALLOWED_MACHINE_SALE_FIELDS = ['serialNumber', 'customerId', 'saleDate', 'type', 'totalPrice', 'paidAmount', 'status', 'notes'];
+const ALLOWED_MACHINE_SALE_FIELDS = ['serialNumber', 'customerId', 'customerName', 'customerBkcode', 'saleDate', 'type', 'totalPrice', 'paidAmount', 'status', 'notes'];
 const ALLOWED_WAREHOUSE_SIM_FIELDS = ['serialNumber', 'type', 'networkType', 'status', 'notes', 'importDate', 'updatedAt'];
 const ALLOWED_STOCK_MOVEMENT_FIELDS = ['id', 'partId', 'type', 'quantity', 'reason', 'requestId', 'userId', 'performedBy', 'isPaid', 'paidAmount', 'receiptNumber', 'customerId', 'customerName', 'machineSerial', 'machineModel', 'paymentPlace', 'createdAt'];
-const ALLOWED_PAYMENT_FIELDS = ['customerId', 'customerName', 'requestId', 'amount', 'type', 'reason', 'paymentPlace', 'paymentMethod', 'receiptNumber', 'notes', 'userId', 'userName'];
+const ALLOWED_PAYMENT_FIELDS = ['customerId', 'customerName', 'customerBkcode', 'requestId', 'amount', 'type', 'reason', 'paymentPlace', 'paymentMethod', 'receiptNumber', 'notes', 'userId', 'userName'];
 const ALLOWED_MAINTENANCE_REQUEST_FIELDS = ['customerId', 'posMachineId', 'customerName', 'customerBkcode', 'machineModel', 'machineManufacturer', 'serialNumber', 'status', 'technicianId', 'technician', 'type', 'description', 'createdBy', 'notes', 'complaint', 'actionTaken', 'closingUserId', 'closingUserName', 'closingTimestamp', 'usedParts', 'receiptNumber', 'totalCost'];
 const ALLOWED_INSTALLMENT_FIELDS = ['saleId', 'dueDate', 'amount', 'isPaid', 'paidAt', 'description', 'paidAmount', 'paymentPlace', 'receiptNumber'];
 const ALLOWED_SIM_CARD_FIELDS = ['serialNumber', 'type', 'networkType', 'customerId'];
@@ -62,29 +62,47 @@ async function updateBranchEntitySync(branchId, entityType, recordCount, status,
 async function ensureCustomerExists(customerId, customerName, customerBkcode, branchId) {
     if (!customerId) return;
     try {
-        const existing = await prisma.customer.findUnique({ where: { id: customerId } });
-        if (!existing) {
-            // Also check if bkcode exists to avoid unique constraint error
-            let finalBkcode = customerBkcode || `AUTO-${customerId.substring(0, 8)}`;
-            const checkBk = await prisma.customer.findUnique({ where: { bkcode: finalBkcode } });
-            if (checkBk) {
-                logger.warn(`[Sync] Customer ${customerId} uses bkcode ${finalBkcode} which belongs to ${checkBk.id}. Skipping auto-create.`);
-                return;
+        let finalBkcode = customerBkcode || `AUTO-${customerId.substring(0, 8)}`;
+        const hasRealData = customerName && customerName !== 'غير معروف (تلقائي)';
+        
+        await prisma.customer.upsert({
+            where: { id: customerId },
+            update: hasRealData ? {
+                client_name: customerName,
+                bkcode: customerBkcode || undefined,
+                status: 'SYNCED'
+            } : {
+                status: 'AUTO_SYNC'
+            },
+            create: {
+                id: customerId,
+                client_name: customerName || 'غير معروف (تلقائي)',
+                bkcode: finalBkcode,
+                branchId: branchId,
+                status: hasRealData ? 'SYNCED' : 'AUTO_SYNC'
             }
-
-            await prisma.customer.create({
-                data: {
-                    id: customerId,
-                    client_name: customerName || 'غير معروف (تلقائي)',
-                    bkcode: finalBkcode,
-                    branchId: branchId,
-                    status: 'AUTO_SYNC'
-                }
-            });
-            logger.info(`[Socket Sync] Created skeleton customer ${customerId} for FK constraint`);
-        }
+        });
     } catch (e) {
-        logger.error(`[Socket Sync] Failed to ensure customer ${customerId}: ${e.message}`);
+        if (e.code === 'P2002' && e.meta?.target?.includes('bkcode')) {
+            logger.warn(`[Socket Sync] Customer bkcode conflict for ${customerId}, skipping bkcode update`);
+            try {
+                await prisma.customer.upsert({
+                    where: { id: customerId },
+                    update: hasRealData ? { client_name: customerName } : {},
+                    create: {
+                        id: customerId,
+                        client_name: customerName || 'غير معروف (تلقائي)',
+                        bkcode: `AUTO-${customerId.substring(0, 8)}-${Date.now()}`,
+                        branchId: branchId,
+                        status: 'AUTO_SYNC'
+                    }
+                });
+            } catch (e2) {
+                logger.error(`[Socket Sync] Failed to create customer ${customerId} even with unique bkcode: ${e2.message}`);
+            }
+        } else {
+            logger.error(`[Socket Sync] Failed to ensure customer ${customerId}: ${e.message}`);
+        }
     }
 }
 
@@ -510,6 +528,9 @@ module.exports = (io) => {
                 }
 
                 if (entities.payments && Array.isArray(entities.payments)) {
+                    for (const pay of entities.payments) {
+                        if (pay.customerId) await ensureCustomerExists(pay.customerId, pay.customerName, pay.customerBkcode, socket.branchId);
+                    }
                     const ops = entities.payments.map(pay => {
                         const safe = pickFields(pay, ALLOWED_PAYMENT_FIELDS);
                         return prisma.payment.upsert({
@@ -614,7 +635,7 @@ module.exports = (io) => {
                         const validation = validateEntityArray(entities.machineSales, machineSaleSchema, 'machineSales');
                         if (validation.results.length > 0) {
                             for (const r of validation.results) {
-                                if (r.customerId) await ensureCustomerExists(r.customerId, null, null, socket.branchId);
+                                if (r.customerId) await ensureCustomerExists(r.customerId, r.customerName, r.customerBkcode, socket.branchId);
                                 await prisma.machineSale.upsert({
                                     where: { id: r.id },
                                     update: { ...r, branchId: socket.branchId },

@@ -31,21 +31,46 @@ async function updateBranchEntitySync(branchId, entityType, recordCount, status,
 async function ensureCustomerExists(customerId, customerName, customerBkcode, branchId) {
     if (!customerId) return;
     try {
-        const existing = await prisma.customer.findUnique({ where: { id: customerId } });
-        if (!existing) {
-            await prisma.customer.create({
-                data: {
-                    id: customerId,
-                    client_name: customerName || 'غير معروف (تلقائي)',
-                    bkcode: customerBkcode || `AUTO-${customerId.substring(0, 8)}`,
-                    branchId: branchId,
-                    status: 'AUTO_SYNC'
-                }
-            });
-            logger.info(`[Sync] Created skeleton customer ${customerId} to satisfy FK constraint`);
-        }
+        let finalBkcode = customerBkcode || `AUTO-${customerId.substring(0, 8)}`;
+        const hasRealData = customerName && customerName !== 'غير معروف (تلقائي)';
+        
+        await prisma.customer.upsert({
+            where: { id: customerId },
+            update: hasRealData ? {
+                client_name: customerName,
+                bkcode: customerBkcode || undefined,
+                status: 'SYNCED'
+            } : {
+                status: 'AUTO_SYNC'
+            },
+            create: {
+                id: customerId,
+                client_name: customerName || 'غير معروف (تلقائي)',
+                bkcode: finalBkcode,
+                branchId: branchId,
+                status: hasRealData ? 'SYNCED' : 'AUTO_SYNC'
+            }
+        });
     } catch (e) {
-        logger.error(`[Sync] Failed to ensure customer ${customerId}: ${e.message}`);
+        if (e.code === 'P2002' && e.meta?.target?.includes('bkcode')) {
+            try {
+                await prisma.customer.upsert({
+                    where: { id: customerId },
+                    update: hasRealData ? { client_name: customerName } : {},
+                    create: {
+                        id: customerId,
+                        client_name: customerName || 'غير معروف (تلقائي)',
+                        bkcode: `AUTO-${customerId.substring(0, 8)}-${Date.now()}`,
+                        branchId: branchId,
+                        status: 'AUTO_SYNC'
+                    }
+                });
+            } catch (e2) {
+                logger.error(`[Sync] Failed to create customer ${customerId} even with unique bkcode: ${e2.message}`);
+            }
+        } else {
+            logger.error(`[Sync] Failed to ensure customer ${customerId}: ${e.message}`);
+        }
     }
 }
 
